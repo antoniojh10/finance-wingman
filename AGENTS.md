@@ -31,4 +31,7 @@ These rules apply to every agent (and human) contributing to this repository.
 - Start local services with `make up`; integration tests need Postgres running.
 - Run `make api-lint api-test` before considering backend work done.
 - Integration tests use `testutil.NewDatabase`, which creates an isolated database per test; never share state between tests.
+- SQL lives in `apps/api/internal/db/queries`; run `make api-generate` after editing queries or migrations. Never edit `internal/store` by hand.
+- Business rules live in `internal/finance` and are shared by REST and MCP; transport layers only translate input/output and errors.
+- Amounts in the REST API are integer minor units; use `internal/money` to convert decimal input (e.g. from MCP tools).
 - Schema changes go in a new goose migration (`make migrate-new name=...`) with a working `Down` section; never edit an applied migration.

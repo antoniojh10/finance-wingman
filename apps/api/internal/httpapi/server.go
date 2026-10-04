@@ -12,6 +12,8 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 )
 
 const (
@@ -25,8 +27,9 @@ type Pinger interface {
 }
 
 type Deps struct {
-	Logger *slog.Logger
-	DB     Pinger
+	Logger  *slog.Logger
+	DB      Pinger
+	Finance *finance.Service
 }
 
 // NewHandler builds the root HTTP handler with every route registered.
@@ -41,6 +44,9 @@ func NewHandler(deps Deps) http.Handler {
 	api := humachi.New(router, config)
 
 	registerHealth(api, deps.DB)
+	if deps.Finance != nil {
+		registerFinance(api, deps.Finance, deps.Logger)
+	}
 
 	return router
 }

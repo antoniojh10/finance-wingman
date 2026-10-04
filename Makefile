@@ -4,7 +4,7 @@ API_DIR := apps/api
 -include .env
 export
 
-.PHONY: up down logs psql api-run api-build api-test api-lint migrate-up migrate-down migrate-status migrate-new
+.PHONY: up down logs psql api-run api-build api-test api-lint api-generate migrate-up migrate-down migrate-status migrate-new
 
 ## Infrastructure
 up: ## Start Postgres and Mailpit
@@ -28,6 +28,9 @@ api-build:
 
 api-test:
 	cd $(API_DIR) && go test -race -count=1 ./...
+
+api-generate: ## Regenerate sqlc code from internal/db/queries
+	cd $(API_DIR) && go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate
 
 api-lint:
 	cd $(API_DIR) && go vet ./... && test -z "$$(gofmt -l .)"

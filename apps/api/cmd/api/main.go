@@ -23,6 +23,7 @@ import (
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/config"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/httpapi"
 )
 
@@ -63,7 +64,11 @@ func run(args []string, logger *slog.Logger) error {
 			}
 			logger.Info("migrations applied", "count", applied)
 		}
-		return serve(ctx, cfg, logger, httpapi.NewHandler(httpapi.Deps{Logger: logger, DB: pool}))
+		return serve(ctx, cfg, logger, httpapi.NewHandler(httpapi.Deps{
+			Logger:  logger,
+			DB:      pool,
+			Finance: finance.NewService(pool, cfg.Location),
+		}))
 	case "migrate":
 		if len(args) < 2 {
 			return errors.New("usage: api migrate <up|down|status>")

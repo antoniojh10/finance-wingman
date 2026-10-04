@@ -22,11 +22,12 @@ func TestLoadOverrides(t *testing.T) {
 		"PORT":             "9000",
 		"DATABASE_URL":     "postgres://localhost/db",
 		"MIGRATE_ON_START": "false",
+		"APP_TIMEZONE":     "America/Mexico_City",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if cfg.Env != "production" || cfg.Port != 9000 || cfg.MigrateOnStart {
+	if cfg.Env != "production" || cfg.Port != 9000 || cfg.MigrateOnStart || cfg.Location.String() != "America/Mexico_City" {
 		t.Fatalf("overrides not applied: %+v", cfg)
 	}
 }
@@ -37,6 +38,7 @@ func TestLoadInvalid(t *testing.T) {
 		"invalid port":         {"DATABASE_URL": "x", "PORT": "abc"},
 		"port out of range":    {"DATABASE_URL": "x", "PORT": "70000"},
 		"invalid migrate flag": {"DATABASE_URL": "x", "MIGRATE_ON_START": "maybe"},
+		"invalid time zone":    {"DATABASE_URL": "x", "APP_TIMEZONE": "Mars/Base"},
 	}
 	for name, env := range tests {
 		t.Run(name, func(t *testing.T) {

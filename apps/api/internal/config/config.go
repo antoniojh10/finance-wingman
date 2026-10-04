@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
+	// Embed the time zone database so APP_TIMEZONE works in minimal containers.
+	_ "time/tzdata"
 )
 
 type Config struct {
@@ -13,6 +16,8 @@ type Config struct {
 	Port           int
 	DatabaseURL    string
 	MigrateOnStart bool
+	// Location resolves "today" and default periods (APP_TIMEZONE).
+	Location *time.Location
 }
 
 // Load reads the configuration from the environment, applying defaults where
@@ -27,6 +32,7 @@ func load(getenv func(string) string) (Config, error) {
 		Port:           8080,
 		DatabaseURL:    getenv("DATABASE_URL"),
 		MigrateOnStart: true,
+		Location:       time.UTC,
 	}
 
 	var errs []error
@@ -50,6 +56,15 @@ func load(getenv func(string) string) (Config, error) {
 			errs = append(errs, fmt.Errorf("MIGRATE_ON_START must be a boolean, got %q", raw))
 		} else {
 			cfg.MigrateOnStart = migrate
+		}
+	}
+
+	if raw := getenv("APP_TIMEZONE"); raw != "" {
+		loc, err := time.LoadLocation(raw)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("APP_TIMEZONE must be an IANA time zone, got %q", raw))
+		} else {
+			cfg.Location = loc
 		}
 	}
 

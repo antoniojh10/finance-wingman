@@ -35,6 +35,7 @@ make api-run     # API on :8080 (applies migrations on start)
 | Command | Description |
 | --- | --- |
 | `make api-test` | Run all API tests (requires `make up`) |
+| `make api-generate` | Regenerate sqlc code after editing SQL |
 | `make api-lint` | `go vet` + `gofmt` check |
 | `make migrate-up` / `migrate-down` / `migrate-status` | Manage migrations |
 | `make migrate-new name=add_x` | Create a new SQL migration |
