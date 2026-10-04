@@ -39,6 +39,27 @@ type Currency struct {
 	MinorUnits int16
 }
 
+type LoginChallenge struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	TokenHash  []byte
+	CodeHash   []byte
+	Attempts   int32
+	ExpiresAt  time.Time
+	ConsumedAt *time.Time
+	CreatedAt  time.Time
+}
+
+type Session struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	TokenHash  []byte
+	Client     string
+	ExpiresAt  time.Time
+	LastUsedAt time.Time
+	CreatedAt  time.Time
+}
+
 type Transaction struct {
 	ID                   uuid.UUID
 	Type                 string

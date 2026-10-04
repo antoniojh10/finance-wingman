@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -12,32 +13,65 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/testutil"
 )
 
-// testAPI drives the full HTTP stack against an isolated database.
+// testAPI drives the full HTTP stack against an isolated database. Requests
+// are authenticated as owner unless token is changed.
 type testAPI struct {
 	t       *testing.T
 	handler http.Handler
 	svc     *finance.Service
+	auth    *auth.Service
+	mail    *testutil.MailRecorder
 	pool    *pgxpool.Pool
+	owner   auth.User
+	token   string
 }
 
 func newTestAPI(t *testing.T) *testAPI {
 	t.Helper()
 	pool := testutil.NewDatabase(t, true)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	recorder := &testutil.MailRecorder{}
+	authSvc := auth.NewService(pool, recorder, auth.Config{WebBaseURL: "http://web.test"}, logger)
 	svc := finance.NewService(pool, time.UTC)
+
+	ctx := context.Background()
+	owner, err := authSvc.AddUser(ctx, "owner@example.com", "Owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := authSvc.CreateSession(ctx, owner.ID, auth.ClientWeb, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	return &testAPI{
-		t:    t,
-		svc:  svc,
-		pool: pool,
+		t:     t,
+		svc:   svc,
+		auth:  authSvc,
+		mail:  recorder,
+		pool:  pool,
+		owner: owner,
+		token: session.Token,
 		handler: NewHandler(Deps{
-			Logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
+			Logger:  logger,
 			DB:      pool,
+			Auth:    authSvc,
 			Finance: svc,
 		}),
 	}
+}
+
+// as returns a copy of the API client that sends the given bearer token
+// (empty for anonymous requests).
+func (a *testAPI) as(token string) *testAPI {
+	c := *a
+	c.token = token
+	return &c
 }
 
 type response struct {
@@ -65,6 +99,9 @@ func (a *testAPI) do(method, path string, body any) response {
 	req := httptest.NewRequest(method, path, reader)
 	if reader != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if a.token != "" {
+		req.Header.Set("Authorization", "Bearer "+a.token)
 	}
 	rec := httptest.NewRecorder()
 	a.handler.ServeHTTP(rec, req)

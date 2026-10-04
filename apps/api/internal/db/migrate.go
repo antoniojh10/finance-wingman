@@ -2,8 +2,10 @@ package db
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 
@@ -14,6 +16,25 @@ import (
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
+
+// MigrationsFingerprint returns a short hash of the embedded migrations,
+// used by tests to cache a migrated template database.
+func MigrationsFingerprint() (string, error) {
+	entries, err := fs.ReadDir(migrationsFS, "migrations")
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	for _, e := range entries {
+		content, err := migrationsFS.ReadFile("migrations/" + e.Name())
+		if err != nil {
+			return "", err
+		}
+		h.Write([]byte(e.Name()))
+		h.Write(content)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12], nil
+}
 
 // Migrator applies the embedded schema migrations.
 type Migrator struct {

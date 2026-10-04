@@ -34,4 +34,6 @@ These rules apply to every agent (and human) contributing to this repository.
 - SQL lives in `apps/api/internal/db/queries`; run `make api-generate` after editing queries or migrations. Never edit `internal/store` by hand.
 - Business rules live in `internal/finance` and are shared by REST and MCP; transport layers only translate input/output and errors.
 - Amounts in the REST API are integer minor units; use `internal/money` to convert decimal input (e.g. from MCP tools).
+- Every `/api/v1` operation requires a bearer session unless registered with `Metadata: publicMetadata`; keep the public surface minimal.
+- Tests use `newTestAPI`, which signs requests as an owner user; use `api.as("")` for anonymous requests and `testutil.MailRecorder` to read sent emails.
 - Schema changes go in a new goose migration (`make migrate-new name=...`) with a working `Down` section; never edit an applied migration.

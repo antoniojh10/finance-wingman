@@ -25,6 +25,11 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 20
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
     env:
       TEST_DATABASE_URL: postgres://finance:finance@localhost:5432/finance_test?sslmode=disable
     steps:

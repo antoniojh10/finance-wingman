@@ -49,7 +49,7 @@ func TestCreateTransaction(t *testing.T) {
 	if expense.Description != "Supermarket" || expense.OccurredOn != "2026-09-15" || *expense.CategoryName != "Food" {
 		t.Fatalf("unexpected expense details: %+v", expense)
 	}
-	if expense.AccountName != "Checking" || expense.CreatedBy != nil {
+	if expense.AccountName != "Checking" || expense.CreatedBy == nil || expense.CreatedBy.ID != f.api.owner.ID {
 		t.Fatalf("unexpected expense references: %+v", expense)
 	}
 

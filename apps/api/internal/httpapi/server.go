@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 )
 
@@ -29,6 +30,7 @@ type Pinger interface {
 type Deps struct {
 	Logger  *slog.Logger
 	DB      Pinger
+	Auth    *auth.Service
 	Finance *finance.Service
 }
 
@@ -41,9 +43,17 @@ func NewHandler(deps Deps) http.Handler {
 	router.Use(middleware.Recoverer)
 
 	config := huma.DefaultConfig(apiTitle, apiVersion)
+	config.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
+		securityScheme: {Type: "http", Scheme: "bearer", Description: "Session token from POST /api/v1/auth/verify"},
+	}
+	config.Security = []map[string][]string{{securityScheme: {}}}
 	api := humachi.New(router, config)
 
 	registerHealth(api, deps.DB)
+	if deps.Auth != nil {
+		api.UseMiddleware(authMiddleware(api, deps.Auth, deps.Logger))
+		registerAuth(api, deps.Auth, deps.Logger)
+	}
 	if deps.Finance != nil {
 		registerFinance(api, deps.Finance, deps.Logger)
 	}

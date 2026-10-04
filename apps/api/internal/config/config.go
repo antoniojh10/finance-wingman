@@ -4,8 +4,10 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/mail"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 	// Embed the time zone database so APP_TIMEZONE works in minimal containers.
 	_ "time/tzdata"
@@ -18,6 +20,28 @@ type Config struct {
 	MigrateOnStart bool
 	// Location resolves "today" and default periods (APP_TIMEZONE).
 	Location *time.Location
+	// WebBaseURL is the public URL of the Next.js app, used in magic links.
+	WebBaseURL string
+	// InitialUsers are granted access on startup ("email:Name,email2").
+	InitialUsers []InitialUser
+	Email        EmailConfig
+}
+
+type InitialUser struct {
+	Email string
+	Name  string
+}
+
+type EmailConfig struct {
+	// Provider is "smtp", "resend", or "log" (print emails to the log).
+	Provider string
+	// From is the formatted sender, built from EMAIL_FROM_NAME and EMAIL_FROM.
+	From         string
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUsername string
+	SMTPPassword string
+	ResendAPIKey string
 }
 
 // Load reads the configuration from the environment, applying defaults where
@@ -33,6 +57,17 @@ func load(getenv func(string) string) (Config, error) {
 		DatabaseURL:    getenv("DATABASE_URL"),
 		MigrateOnStart: true,
 		Location:       time.UTC,
+		WebBaseURL:     valueOr(getenv("WEB_BASE_URL"), "http://localhost:3000"),
+		InitialUsers:   parseInitialUsers(getenv("INITIAL_USERS")),
+		Email: EmailConfig{
+			Provider:     valueOr(getenv("EMAIL_PROVIDER"), "log"),
+			From:         formatFrom(valueOr(getenv("EMAIL_FROM_NAME"), "Finance Wingman"), valueOr(getenv("EMAIL_FROM"), "no-reply@localhost")),
+			SMTPHost:     valueOr(getenv("SMTP_HOST"), "localhost"),
+			SMTPPort:     1025,
+			SMTPUsername: getenv("SMTP_USERNAME"),
+			SMTPPassword: getenv("SMTP_PASSWORD"),
+			ResendAPIKey: getenv("RESEND_API_KEY"),
+		},
 	}
 
 	var errs []error
@@ -68,7 +103,44 @@ func load(getenv func(string) string) (Config, error) {
 		}
 	}
 
+	if raw := getenv("SMTP_PORT"); raw != "" {
+		port, err := strconv.Atoi(raw)
+		if err != nil || port < 1 || port > 65535 {
+			errs = append(errs, fmt.Errorf("SMTP_PORT must be a valid port number, got %q", raw))
+		} else {
+			cfg.Email.SMTPPort = port
+		}
+	}
+
+	switch cfg.Email.Provider {
+	case "log", "smtp":
+	case "resend":
+		if cfg.Email.ResendAPIKey == "" {
+			errs = append(errs, errors.New("RESEND_API_KEY is required when EMAIL_PROVIDER=resend"))
+		}
+	default:
+		errs = append(errs, fmt.Errorf("EMAIL_PROVIDER must be log, smtp or resend, got %q", cfg.Email.Provider))
+	}
+
 	return cfg, errors.Join(errs...)
+}
+
+// formatFrom builds an RFC 5322 "Name <address>" sender.
+func formatFrom(name, address string) string {
+	return (&mail.Address{Name: name, Address: address}).String()
+}
+
+func parseInitialUsers(raw string) []InitialUser {
+	var users []InitialUser
+	for _, entry := range strings.Split(raw, ",") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		email, name, _ := strings.Cut(entry, ":")
+		users = append(users, InitialUser{Email: strings.TrimSpace(email), Name: strings.TrimSpace(name)})
+	}
+	return users
 }
 
 func valueOr(value, fallback string) string {

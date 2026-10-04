@@ -23,6 +23,8 @@ func registerHealth(api huma.API, db Pinger) {
 		Summary:     "Health check",
 		Description: "Reports whether the API and its database are reachable.",
 		Tags:        []string{"System"},
+		Security:    []map[string][]string{},
+		Metadata:    publicMetadata,
 	}, func(ctx context.Context, _ *struct{}) (*HealthOutput, error) {
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()

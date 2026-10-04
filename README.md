@@ -25,6 +25,14 @@ make up          # Postgres on :5432, Mailpit on :8025
 make api-run     # API on :8080 (applies migrations on start)
 ```
 
+Grant access to a user (no public sign-up), then sign in with the link or
+code that arrives in Mailpit:
+
+```bash
+cd apps/api && go run ./cmd/api users add you@example.com "Your Name"
+# or set INITIAL_USERS="you@example.com:You,partner@example.com:Partner"
+```
+
 - Health check: http://localhost:8080/healthz
 - API docs: http://localhost:8080/docs
 - OpenAPI spec: http://localhost:8080/openapi.json
@@ -40,5 +48,13 @@ make api-run     # API on :8080 (applies migrations on start)
 | `make migrate-up` / `migrate-down` / `migrate-status` | Manage migrations |
 | `make migrate-new name=add_x` | Create a new SQL migration |
 | `make psql` | Open a psql shell |
+| `go run ./cmd/api users list\|add\|remove` | Manage who has access (from `apps/api`) |
+
+## Authentication
+
+- `POST /api/v1/auth/login` emails a magic link and a 6-digit code (15 min, single use).
+- `POST /api/v1/auth/verify` exchanges the link token or email + code for a bearer token.
+- Every other `/api/v1` endpoint requires `Authorization: Bearer <token>`.
+- The web app keeps the token server-side (Next.js acts as a backend-for-frontend).
 
 See [AGENTS.md](AGENTS.md) for contribution rules.

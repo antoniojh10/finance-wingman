@@ -1,11 +1,12 @@
-// Command api runs the Finance Wingman HTTP API and its database migrations.
+// Command api runs the Finance Wingman HTTP API and its maintenance tasks.
 //
 // Usage:
 //
-//	api serve            start the HTTP server (default)
-//	api migrate up       apply pending migrations
-//	api migrate down     roll back the last migration
-//	api migrate status   list migrations and their state
+//	api serve                     start the HTTP server (default)
+//	api migrate up|down|status    manage database migrations
+//	api users list                list users with access
+//	api users add EMAIL [NAME]    grant access to an email address
+//	api users remove EMAIL        revoke access
 package main
 
 import (
@@ -16,15 +17,18 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/config"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/httpapi"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/mail"
 )
 
 func main() {
@@ -50,6 +54,8 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
+	authSvc := auth.NewService(pool, newMailSender(cfg.Email, logger), auth.Config{WebBaseURL: cfg.WebBaseURL}, logger)
+
 	command := "serve"
 	if len(args) > 0 {
 		command = args[0]
@@ -64,18 +70,39 @@ func run(args []string, logger *slog.Logger) error {
 			}
 			logger.Info("migrations applied", "count", applied)
 		}
-		return serve(ctx, cfg, logger, httpapi.NewHandler(httpapi.Deps{
+		for _, u := range cfg.InitialUsers {
+			if _, err := authSvc.AddUser(ctx, u.Email, u.Name); err != nil {
+				return fmt.Errorf("add initial user %q: %w", u.Email, err)
+			}
+		}
+		go purgeExpiredPeriodically(ctx, authSvc, logger)
+		handler := httpapi.NewHandler(httpapi.Deps{
 			Logger:  logger,
 			DB:      pool,
+			Auth:    authSvc,
 			Finance: finance.NewService(pool, cfg.Location),
-		}))
+		})
+		return serve(ctx, cfg, logger, handler)
 	case "migrate":
 		if len(args) < 2 {
 			return errors.New("usage: api migrate <up|down|status>")
 		}
 		return migrate(ctx, pool, args[1])
+	case "users":
+		return users(ctx, authSvc, args[1:])
 	default:
 		return fmt.Errorf("unknown command %q", command)
+	}
+}
+
+func newMailSender(cfg config.EmailConfig, logger *slog.Logger) mail.Sender {
+	switch cfg.Provider {
+	case "smtp":
+		return mail.SMTPSender{Host: cfg.SMTPHost, Port: cfg.SMTPPort, Username: cfg.SMTPUsername, Password: cfg.SMTPPassword, From: cfg.From}
+	case "resend":
+		return mail.ResendSender{APIKey: cfg.ResendAPIKey, From: cfg.From}
+	default:
+		return mail.LogSender{Logger: logger}
 	}
 }
 
@@ -104,6 +131,21 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, handler 
 	return server.Shutdown(shutdownCtx)
 }
 
+func purgeExpiredPeriodically(ctx context.Context, svc *auth.Service, logger *slog.Logger) {
+	ticker := time.NewTicker(6 * time.Hour)
+	defer ticker.Stop()
+	for {
+		if err := svc.PurgeExpired(ctx); err != nil && ctx.Err() == nil {
+			logger.Warn("purge expired auth records", "error", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
 func migrate(ctx context.Context, pool *pgxpool.Pool, command string) error {
 	m, err := db.NewMigrator(pool)
 	if err != nil {
@@ -130,6 +172,42 @@ func migrate(ctx context.Context, pool *pgxpool.Pool, command string) error {
 		}
 	default:
 		return fmt.Errorf("unknown migrate command %q", command)
+	}
+	return nil
+}
+
+func users(ctx context.Context, svc *auth.Service, args []string) error {
+	if len(args) == 0 {
+		return errors.New("usage: api users <list|add|remove>")
+	}
+	switch args[0] {
+	case "list":
+		list, err := svc.ListUsers(ctx)
+		if err != nil {
+			return err
+		}
+		for _, u := range list {
+			fmt.Printf("%s\t%s\t%s\n", u.Email, u.Name, u.Locale)
+		}
+	case "add":
+		if len(args) < 2 {
+			return errors.New("usage: api users add EMAIL [NAME]")
+		}
+		u, err := svc.AddUser(ctx, args[1], strings.Join(args[2:], " "))
+		if err != nil {
+			return err
+		}
+		fmt.Printf("granted access to %s\n", u.Email)
+	case "remove":
+		if len(args) < 2 {
+			return errors.New("usage: api users remove EMAIL")
+		}
+		if err := svc.RemoveUser(ctx, args[1]); err != nil {
+			return err
+		}
+		fmt.Printf("revoked access for %s\n", args[1])
+	default:
+		return fmt.Errorf("unknown users command %q", args[0])
 	}
 	return nil
 }
