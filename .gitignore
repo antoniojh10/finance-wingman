@@ -1,0 +1,21 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Go
+apps/api/bin/
+*.test
+coverage.out
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

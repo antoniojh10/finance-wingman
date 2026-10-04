@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: finance
+          POSTGRES_PASSWORD: finance
+          POSTGRES_DB: finance_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U finance"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://finance:finance@localhost:5432/finance_test?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache-dependency-path: apps/api/go.sum
+      - name: Lint
+        run: |
+          go vet ./...
+          test -z "$(gofmt -l .)"
+      - name: Test
+        run: go test -race -count=1 ./...
