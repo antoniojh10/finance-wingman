@@ -72,6 +72,9 @@ func TestLoadInvalid(t *testing.T) {
 		"invalid login limit":  {"DATABASE_URL": "x", "LOGIN_EMAILS_PER_HOUR": "0"},
 		"public url with path": {"DATABASE_URL": "x", "PUBLIC_URL": "https://api.example.com/v1"},
 		"public url no scheme": {"DATABASE_URL": "x", "PUBLIC_URL": "api.example.com"},
+		"production log email": {"DATABASE_URL": "x", "APP_ENV": "production", "PUBLIC_URL": "https://a.example", "WEB_BASE_URL": "https://w.example"},
+		"production http url":  {"DATABASE_URL": "x", "APP_ENV": "production", "EMAIL_PROVIDER": "smtp", "WEB_BASE_URL": "https://w.example"},
+		"production http web":  {"DATABASE_URL": "x", "APP_ENV": "production", "EMAIL_PROVIDER": "smtp", "PUBLIC_URL": "https://a.example"},
 	}
 	for name, env := range tests {
 		t.Run(name, func(t *testing.T) {

@@ -84,4 +84,9 @@ The MCP endpoint must be reachable over public HTTPS; for local testing use a
 tunnel (e.g. `cloudflared tunnel --url http://localhost:8080`) and set
 `PUBLIC_URL` to the tunnel URL.
 
+## Deployment
+
+See [docs/deploy-seenode.md](docs/deploy-seenode.md) for deploying the API,
+web app and PostgreSQL on Seenode (native runtimes or Docker images).
+
 See [AGENTS.md](AGENTS.md) for contribution rules.

@@ -142,6 +142,18 @@ func load(getenv func(string) string) (Config, error) {
 		errs = append(errs, fmt.Errorf("EMAIL_PROVIDER must be log, smtp or resend, got %q", cfg.Email.Provider))
 	}
 
+	if cfg.Env == "production" {
+		if cfg.Email.Provider == "log" {
+			errs = append(errs, errors.New("EMAIL_PROVIDER=log is not allowed in production; use smtp or resend"))
+		}
+		if !strings.HasPrefix(cfg.PublicURL, "https://") {
+			errs = append(errs, errors.New("PUBLIC_URL must use https in production (MCP clients require it)"))
+		}
+		if !strings.HasPrefix(cfg.WebBaseURL, "https://") {
+			errs = append(errs, errors.New("WEB_BASE_URL must use https in production"))
+		}
+	}
+
 	return cfg, errors.Join(errs...)
 }
 

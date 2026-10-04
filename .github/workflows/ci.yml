@@ -121,3 +121,12 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report
           retention-days: 7
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -t finance-wingman-api ./apps/api
+      - name: Build web image
+        run: docker build -t finance-wingman-web ./apps/web
