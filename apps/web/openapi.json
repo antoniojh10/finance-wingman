@@ -1,0 +1,2151 @@
+{
+  "components": {
+    "schemas": {
+      "Account": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Account.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "balance": {
+            "description": "Current balance in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "initial_balance": {
+            "description": "Opening balance in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "examples": [
+              "BBVA Checking"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "checking",
+              "savings",
+              "credit_card",
+              "cash",
+              "investment",
+              "other"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "currency",
+          "minor_units",
+          "initial_balance",
+          "balance",
+          "archived",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "Category": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Category.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "color": {
+            "examples": [
+              "#22c55e"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "icon": {
+            "examples": [
+              "shopping-cart"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "expense",
+              "income"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Groceries"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "color",
+          "icon",
+          "archived",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "CategoryTotal": {
+        "additionalProperties": false,
+        "properties": {
+          "category_color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_id": {
+            "description": "Null for uncategorized transactions",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "total": {
+            "description": "Total in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "transaction_count": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category_id",
+          "category_name",
+          "category_color",
+          "total",
+          "transaction_count"
+        ],
+        "type": "object"
+      },
+      "CreateAccountInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreateAccountInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currency": {
+            "description": "ISO 4217 currency code",
+            "examples": [
+              "MXN"
+            ],
+            "maxLength": 3,
+            "minLength": 3,
+            "type": "string"
+          },
+          "initial_balance": {
+            "description": "Opening balance in minor units (may be negative, e.g. credit cards)",
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "checking",
+              "savings",
+              "credit_card",
+              "cash",
+              "investment",
+              "other"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "CreateCategoryInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreateCategoryInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "color": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "icon": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "expense",
+              "income"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "Currency": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "minor_units": {
+            "description": "Number of decimal places; amounts are expressed in these minor units",
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "examples": [
+              "Mexican Peso"
+            ],
+            "type": "string"
+          },
+          "symbol": {
+            "examples": [
+              "$"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "symbol",
+          "minor_units"
+        ],
+        "type": "object"
+      },
+      "CurrencySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "description": "Current combined balance of active accounts in this currency",
+            "format": "int64",
+            "type": "integer"
+          },
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "expense": {
+            "description": "Total expenses in the period, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "expenses": {
+            "description": "Expenses by category, largest first",
+            "items": {
+              "$ref": "#/components/schemas/CategoryTotal"
+            },
+            "type": "array"
+          },
+          "income": {
+            "description": "Total income in the period, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "incomes": {
+            "description": "Income by category, largest first",
+            "items": {
+              "$ref": "#/components/schemas/CategoryTotal"
+            },
+            "type": "array"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "net": {
+            "description": "Income minus expenses",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "currency",
+          "minor_units",
+          "income",
+          "expense",
+          "net",
+          "balance",
+          "expenses",
+          "incomes"
+        ],
+        "type": "object"
+      },
+      "ErrorDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "location": {
+            "description": "Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id'",
+            "type": "string"
+          },
+          "message": {
+            "description": "Error message text",
+            "type": "string"
+          },
+          "value": {
+            "description": "The value at the given location"
+          }
+        },
+        "type": "object"
+      },
+      "ErrorModel": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ErrorModel.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "detail": {
+            "description": "A human-readable explanation specific to this occurrence of the problem.",
+            "examples": [
+              "Property foo is required but is missing."
+            ],
+            "type": "string"
+          },
+          "errors": {
+            "description": "Optional list of individual error details",
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail"
+            },
+            "type": "array"
+          },
+          "instance": {
+            "description": "A URI reference that identifies the specific occurrence of the problem.",
+            "examples": [
+              "https://example.com/error-log/abc123"
+            ],
+            "format": "uri",
+            "type": "string"
+          },
+          "status": {
+            "description": "HTTP status code",
+            "examples": [
+              400
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "description": "A short, human-readable summary of the problem type. This value should not change between occurrences of the error.",
+            "examples": [
+              "Bad Request"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "default": "about:blank",
+            "description": "A URI reference to human-readable documentation for the error.",
+            "examples": [
+              "https://example.com/errors/example"
+            ],
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HealthOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/HealthOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "database": {
+            "description": "Database connectivity status",
+            "examples": [
+              "ok"
+            ],
+            "type": "string"
+          },
+          "status": {
+            "description": "Overall service status",
+            "examples": [
+              "ok"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "database"
+        ],
+        "type": "object"
+      },
+      "ListOutputAccountBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputAccountBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Account"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ListOutputCategoryBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputCategoryBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ListOutputCurrencyBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputCurrencyBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Currency"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "LoginInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/LoginInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "maxLength": 254,
+            "type": "string"
+          },
+          "locale": {
+            "description": "Language of the email; defaults to the user's preference",
+            "enum": [
+              "en",
+              "es"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      },
+      "LoginOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/LoginOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "Session": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Session.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "token": {
+            "description": "Bearer token; only returned when the session is created",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "expires_at",
+          "user"
+        ],
+        "type": "object"
+      },
+      "Summary": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Summary.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencySummary"
+            },
+            "type": "array"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "currencies"
+        ],
+        "type": "object"
+      },
+      "Transaction": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Transaction.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "account_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "amount": {
+            "description": "Positive amount in minor units of the account currency",
+            "format": "int64",
+            "type": "integer"
+          },
+          "category_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/UserRef",
+            "description": "Omitted when the creator is unknown"
+          },
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "destination_account_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "destination_account_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "destination_amount": {
+            "description": "Amount received by the destination account (transfers only)",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "destination_currency": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "destination_minor_units": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "occurred_on": {
+            "examples": [
+              "2026-10-04"
+            ],
+            "format": "date",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "expense",
+              "income",
+              "transfer"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "account_id",
+          "account_name",
+          "currency",
+          "minor_units",
+          "amount",
+          "destination_account_id",
+          "destination_account_name",
+          "destination_currency",
+          "destination_minor_units",
+          "destination_amount",
+          "category_id",
+          "category_name",
+          "description",
+          "occurred_on",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "TransactionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/TransactionInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "account_id": {
+            "description": "Source account (the account charged for expenses and transfers, credited for income)",
+            "format": "uuid",
+            "type": "string"
+          },
+          "amount": {
+            "description": "Positive amount in minor units of the account currency",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "category_id": {
+            "description": "Category whose kind matches the type (not allowed for transfers)",
+            "format": "uuid",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "destination_account_id": {
+            "description": "Required for transfers",
+            "format": "uuid",
+            "type": "string"
+          },
+          "destination_amount": {
+            "description": "Amount received by the destination account. Required for transfers between currencies; defaults to amount otherwise",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "occurred_on": {
+            "description": "Defaults to today",
+            "format": "date",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "expense",
+              "income",
+              "transfer"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "account_id",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "TransactionPage": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/TransactionPage.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "offset": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "total": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "type": "object"
+      },
+      "UpdateAccountInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateAccountInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "initial_balance": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "checking",
+              "savings",
+              "credit_card",
+              "cash",
+              "investment",
+              "other"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateCategoryInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateCategoryInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "color": {
+            "description": "Hex color (#rrggbb); empty string clears it",
+            "type": "string"
+          },
+          "icon": {
+            "description": "Icon name; empty string clears it",
+            "maxLength": 50,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateProfileInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateProfileInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "en",
+              "es"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "User": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/User.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "en",
+              "es"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "locale"
+        ],
+        "type": "object"
+      },
+      "UserRef": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
+        ],
+        "type": "object"
+      },
+      "VerifyInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/VerifyInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "code": {
+            "description": "Six-digit code from the email",
+            "pattern": "^[0-9]{6}$",
+            "type": "string"
+          },
+          "email": {
+            "description": "Email address, required together with code",
+            "type": "string"
+          },
+          "token": {
+            "description": "Token from the magic link",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "description": "Session token from POST /api/v1/auth/verify",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "title": "Finance Wingman API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/accounts": {
+      "get": {
+        "operationId": "list-accounts",
+        "parameters": [
+          {
+            "description": "Include archived accounts",
+            "explode": false,
+            "in": "query",
+            "name": "include_archived",
+            "schema": {
+              "description": "Include archived accounts",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputAccountBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List accounts with their current balance",
+        "tags": [
+          "Accounts"
+        ]
+      },
+      "post": {
+        "operationId": "create-account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create an account",
+        "tags": [
+          "Accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{id}": {
+      "delete": {
+        "description": "Permanently deletes an account without transactions. Accounts with transactions must be archived instead.",
+        "operationId": "delete-account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete an account",
+        "tags": [
+          "Accounts"
+        ]
+      },
+      "get": {
+        "operationId": "get-account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get an account",
+        "tags": [
+          "Accounts"
+        ]
+      },
+      "patch": {
+        "description": "Partially updates an account. The currency cannot be changed. Set archived to true to hide the account.",
+        "operationId": "update-account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAccountInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update an account",
+        "tags": [
+          "Accounts"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "description": "Sends a magic link and a six-digit code to the address if it belongs to an allowed user. The response is the same whether or not the address is known.",
+        "operationId": "request-login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginOutputBody"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [],
+        "summary": "Request a sign-in email",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Revoke the current session",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "get-current-user",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get the signed-in user",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "patch": {
+        "operationId": "update-current-user",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update the signed-in user's profile",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/verify": {
+      "post": {
+        "description": "Provide either `token`, or `email` and `code`. Returns a bearer token for subsequent requests.",
+        "operationId": "verify-login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [],
+        "summary": "Exchange a magic link token or code for a session",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "operationId": "list-categories",
+        "parameters": [
+          {
+            "description": "Filter by kind",
+            "explode": false,
+            "in": "query",
+            "name": "kind",
+            "schema": {
+              "description": "Filter by kind",
+              "enum": [
+                "expense",
+                "income"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Include archived categories",
+            "explode": false,
+            "in": "query",
+            "name": "include_archived",
+            "schema": {
+              "description": "Include archived categories",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputCategoryBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List categories",
+        "tags": [
+          "Categories"
+        ]
+      },
+      "post": {
+        "operationId": "create-category",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Category"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a category",
+        "tags": [
+          "Categories"
+        ]
+      }
+    },
+    "/api/v1/categories/{id}": {
+      "delete": {
+        "description": "Deletes a category. Its transactions are kept and become uncategorized.",
+        "operationId": "delete-category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete a category",
+        "tags": [
+          "Categories"
+        ]
+      },
+      "get": {
+        "operationId": "get-category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Category"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get a category",
+        "tags": [
+          "Categories"
+        ]
+      },
+      "patch": {
+        "description": "Partially updates a category. The kind cannot be changed.",
+        "operationId": "update-category",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Category"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update a category",
+        "tags": [
+          "Categories"
+        ]
+      }
+    },
+    "/api/v1/currencies": {
+      "get": {
+        "operationId": "list-currencies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputCurrencyBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List supported currencies",
+        "tags": [
+          "Currencies"
+        ]
+      }
+    },
+    "/api/v1/summary": {
+      "get": {
+        "description": "Totals per currency for a period, broken down by category, plus current balances. Transfers are excluded from income and expenses.",
+        "operationId": "get-summary",
+        "parameters": [
+          {
+            "description": "Inclusive start date; defaults to the first day of the current month",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "Inclusive start date; defaults to the first day of the current month",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive end date; defaults to the last day of the current month",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Inclusive end date; defaults to the last day of the current month",
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Income and expense summary",
+        "tags": [
+          "Summary"
+        ]
+      }
+    },
+    "/api/v1/transactions": {
+      "get": {
+        "description": "Returns transactions, newest first, with optional filters.",
+        "operationId": "list-transactions",
+        "parameters": [
+          {
+            "description": "Transactions where the account is the source or the destination",
+            "explode": false,
+            "in": "query",
+            "name": "account_id",
+            "schema": {
+              "description": "Transactions where the account is the source or the destination",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "category_id",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "enum": [
+                "expense",
+                "income",
+                "transfer"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive start date",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "Inclusive start date",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive end date",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Inclusive end date",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search in the description",
+            "explode": false,
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "description": "Search in the description",
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "format": "int64",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List transactions",
+        "tags": [
+          "Transactions"
+        ]
+      },
+      "post": {
+        "description": "Records an expense, an income, or a transfer between two accounts.",
+        "operationId": "create-transaction",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a transaction",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
+    "/api/v1/transactions/{id}": {
+      "delete": {
+        "operationId": "delete-transaction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete a transaction",
+        "tags": [
+          "Transactions"
+        ]
+      },
+      "get": {
+        "operationId": "get-transaction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get a transaction",
+        "tags": [
+          "Transactions"
+        ]
+      },
+      "put": {
+        "description": "Replaces every field of a transaction.",
+        "operationId": "replace-transaction",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransactionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Replace a transaction",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "description": "Reports whether the API and its database are reachable.",
+        "operationId": "get-health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "security": [],
+        "summary": "Health check",
+        "tags": [
+          "System"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ]
+}

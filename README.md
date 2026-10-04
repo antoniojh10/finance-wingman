@@ -8,13 +8,14 @@ transactions can be added from Claude or ChatGPT mobile.
 
 ```
 apps/api   Go API (REST + MCP), PostgreSQL migrations
-apps/web   Next.js frontend (coming soon)
+apps/web   Next.js frontend (see apps/web/README.md)
 infra      Local infrastructure (Postgres init scripts)
 ```
 
 ## Requirements
 
 - Go 1.27+
+- Node.js 22+ and pnpm 10+
 - Docker (with Compose)
 
 ## Getting started
@@ -23,6 +24,7 @@ infra      Local infrastructure (Postgres init scripts)
 cp .env.example .env
 make up          # Postgres on :5432, Mailpit on :8025
 make api-run     # API on :8080 (applies migrations on start)
+make web-install && make web-dev   # Web on :3000
 ```
 
 Grant access to a user (no public sign-up), then sign in with the link or
@@ -45,6 +47,9 @@ cd apps/api && go run ./cmd/api users add you@example.com "Your Name"
 | `make api-test` | Run all API tests (requires `make up`) |
 | `make api-generate` | Regenerate sqlc code after editing SQL |
 | `make api-lint` | `go vet` + `gofmt` check |
+| `make web-test` / `make web-lint` | Web unit tests / lint + typecheck |
+| `make web-e2e` | Playwright end-to-end tests (needs `make up`) |
+| `make api-openapi` | Export the OpenAPI document and regenerate web API types |
 | `make migrate-up` / `migrate-down` / `migrate-status` | Manage migrations |
 | `make migrate-new name=add_x` | Create a new SQL migration |
 | `make psql` | Open a psql shell |

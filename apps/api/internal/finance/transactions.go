@@ -35,16 +35,16 @@ type Transaction struct {
 	Currency               string     `json:"currency" example:"MXN"`
 	MinorUnits             int        `json:"minor_units" example:"2"`
 	Amount                 int64      `json:"amount" doc:"Positive amount in minor units of the account currency"`
-	DestinationAccountID   *uuid.UUID `json:"destination_account_id" format:"uuid"`
+	DestinationAccountID   *uuid.UUID `json:"destination_account_id" format:"uuid" nullable:"true"`
 	DestinationAccountName *string    `json:"destination_account_name"`
 	DestinationCurrency    *string    `json:"destination_currency"`
 	DestinationMinorUnits  *int       `json:"destination_minor_units"`
 	DestinationAmount      *int64     `json:"destination_amount" doc:"Amount received by the destination account (transfers only)"`
-	CategoryID             *uuid.UUID `json:"category_id" format:"uuid"`
+	CategoryID             *uuid.UUID `json:"category_id" format:"uuid" nullable:"true"`
 	CategoryName           *string    `json:"category_name"`
 	Description            string     `json:"description"`
 	OccurredOn             string     `json:"occurred_on" format:"date" example:"2026-10-04"`
-	CreatedBy              *UserRef   `json:"created_by"`
+	CreatedBy              *UserRef   `json:"created_by,omitempty" doc:"Omitted when the creator is unknown"`
 	CreatedAt              time.Time  `json:"created_at"`
 	UpdatedAt              time.Time  `json:"updated_at"`
 }

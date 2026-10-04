@@ -27,7 +27,9 @@ type Config struct {
 	WebBaseURL string
 	// InitialUsers are granted access on startup ("email:Name,email2").
 	InitialUsers []InitialUser
-	Email        EmailConfig
+	// LoginEmailsPerHour caps sign-in emails per user (LOGIN_EMAILS_PER_HOUR).
+	LoginEmailsPerHour int
+	Email              EmailConfig
 }
 
 type InitialUser struct {
@@ -55,14 +57,15 @@ func Load() (Config, error) {
 
 func load(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		Env:            valueOr(getenv("APP_ENV"), "development"),
-		Port:           8080,
-		DatabaseURL:    getenv("DATABASE_URL"),
-		MigrateOnStart: true,
-		Location:       time.UTC,
-		PublicURL:      strings.TrimRight(valueOr(getenv("PUBLIC_URL"), "http://localhost:8080"), "/"),
-		WebBaseURL:     valueOr(getenv("WEB_BASE_URL"), "http://localhost:3000"),
-		InitialUsers:   parseInitialUsers(getenv("INITIAL_USERS")),
+		Env:                valueOr(getenv("APP_ENV"), "development"),
+		Port:               8080,
+		DatabaseURL:        getenv("DATABASE_URL"),
+		MigrateOnStart:     true,
+		Location:           time.UTC,
+		PublicURL:          strings.TrimRight(valueOr(getenv("PUBLIC_URL"), "http://localhost:8080"), "/"),
+		WebBaseURL:         valueOr(getenv("WEB_BASE_URL"), "http://localhost:3000"),
+		InitialUsers:       parseInitialUsers(getenv("INITIAL_USERS")),
+		LoginEmailsPerHour: 5,
 		Email: EmailConfig{
 			Provider:     valueOr(getenv("EMAIL_PROVIDER"), "log"),
 			From:         formatFrom(valueOr(getenv("EMAIL_FROM_NAME"), "Finance Wingman"), valueOr(getenv("EMAIL_FROM"), "no-reply@localhost")),
@@ -104,6 +107,15 @@ func load(getenv func(string) string) (Config, error) {
 			errs = append(errs, fmt.Errorf("APP_TIMEZONE must be an IANA time zone, got %q", raw))
 		} else {
 			cfg.Location = loc
+		}
+	}
+
+	if raw := getenv("LOGIN_EMAILS_PER_HOUR"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 {
+			errs = append(errs, fmt.Errorf("LOGIN_EMAILS_PER_HOUR must be a positive integer, got %q", raw))
+		} else {
+			cfg.LoginEmailsPerHour = n
 		}
 	}
 

@@ -11,7 +11,7 @@ import (
 )
 
 type CategoryTotal struct {
-	CategoryID       *uuid.UUID `json:"category_id" doc:"Null for uncategorized transactions"`
+	CategoryID       *uuid.UUID `json:"category_id" nullable:"true" doc:"Null for uncategorized transactions"`
 	CategoryName     *string    `json:"category_name"`
 	CategoryColor    *string    `json:"category_color"`
 	Total            int64      `json:"total" doc:"Total in minor units"`

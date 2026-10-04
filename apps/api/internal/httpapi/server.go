@@ -4,6 +4,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
@@ -42,6 +43,22 @@ type Deps struct {
 
 // NewHandler builds the root HTTP handler with every route registered.
 func NewHandler(deps Deps) http.Handler {
+	router, _ := build(deps)
+	return router
+}
+
+// OpenAPI returns the indented JSON OpenAPI document for the REST API.
+func OpenAPI(deps Deps) ([]byte, error) {
+	_, api := build(deps)
+	return json.MarshalIndent(api.OpenAPI(), "", "  ")
+}
+
+func init() {
+	// Lists are always encoded as [] rather than null.
+	huma.DefaultArrayNullable = false
+}
+
+func build(deps Deps) (chi.Router, huma.API) {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
@@ -71,7 +88,7 @@ func NewHandler(deps Deps) http.Handler {
 		registerFinance(api, deps.Finance, deps.Logger)
 	}
 
-	return router
+	return router, api
 }
 
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {

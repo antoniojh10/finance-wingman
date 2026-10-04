@@ -10,6 +10,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/testutil"
 )
 
@@ -73,5 +75,27 @@ func TestOpenAPISpecIsServed(t *testing.T) {
 	}
 	if _, ok := spec.Paths["/healthz"]; !ok {
 		t.Fatal("expected /healthz in the OpenAPI spec")
+	}
+}
+
+func TestOpenAPIDocumentWithoutDatabase(t *testing.T) {
+	spec, err := OpenAPI(Deps{
+		Logger:  slog.New(slog.DiscardHandler),
+		Auth:    &auth.Service{},
+		Finance: &finance.Service{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Paths map[string]any `json:"paths"`
+	}
+	if err := json.Unmarshal(spec, &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/api/v1/transactions", "/api/v1/auth/verify", "/api/v1/summary"} {
+		if _, ok := doc.Paths[path]; !ok {
+			t.Errorf("missing %s in the OpenAPI document", path)
+		}
 	}
 }

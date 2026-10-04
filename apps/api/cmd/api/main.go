@@ -3,6 +3,7 @@
 // Usage:
 //
 //	api serve                     start the HTTP server, OAuth and MCP (default)
+//	api openapi                   print the REST API OpenAPI document
 //	api migrate up|down|status    manage database migrations
 //	api users list                list users with access
 //	api users add EMAIL [NAME]    grant access to an email address
@@ -13,6 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -45,6 +47,11 @@ func run(args []string, logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// Commands that need neither configuration nor a database.
+	if len(args) > 0 && args[0] == "openapi" {
+		return writeOpenAPI(os.Stdout)
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -56,7 +63,7 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	authSvc := auth.NewService(pool, newMailSender(cfg.Email, logger), auth.Config{WebBaseURL: cfg.WebBaseURL}, logger)
+	authSvc := auth.NewService(pool, newMailSender(cfg.Email, logger), auth.Config{WebBaseURL: cfg.WebBaseURL, MaxChallengesPerHour: cfg.LoginEmailsPerHour}, logger)
 
 	command := "serve"
 	if len(args) > 0 {
@@ -100,6 +107,21 @@ func run(args []string, logger *slog.Logger) error {
 	default:
 		return fmt.Errorf("unknown command %q", command)
 	}
+}
+
+// writeOpenAPI prints the REST API's OpenAPI document. Services are only
+// needed to register routes, so zero values are enough.
+func writeOpenAPI(w io.Writer) error {
+	spec, err := httpapi.OpenAPI(httpapi.Deps{
+		Logger:  slog.New(slog.DiscardHandler),
+		Auth:    &auth.Service{},
+		Finance: &finance.Service{},
+	})
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(spec)
+	return err
 }
 
 func newMailSender(cfg config.EmailConfig, logger *slog.Logger) mail.Sender {

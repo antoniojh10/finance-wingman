@@ -17,6 +17,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Email.From != `"Finance Wingman" <no-reply@localhost>` {
 		t.Fatalf("unexpected default sender: %s", cfg.Email.From)
 	}
+	if cfg.LoginEmailsPerHour != 5 {
+		t.Fatalf("unexpected login rate limit: %d", cfg.LoginEmailsPerHour)
+	}
 	if cfg.PublicURL != "http://localhost:8080" {
 		t.Fatalf("unexpected public URL: %s", cfg.PublicURL)
 	}
@@ -66,6 +69,7 @@ func TestLoadInvalid(t *testing.T) {
 		"unknown provider":     {"DATABASE_URL": "x", "EMAIL_PROVIDER": "carrier-pigeon"},
 		"resend without key":   {"DATABASE_URL": "x", "EMAIL_PROVIDER": "resend"},
 		"invalid smtp port":    {"DATABASE_URL": "x", "SMTP_PORT": "x"},
+		"invalid login limit":  {"DATABASE_URL": "x", "LOGIN_EMAILS_PER_HOUR": "0"},
 		"public url with path": {"DATABASE_URL": "x", "PUBLIC_URL": "https://api.example.com/v1"},
 		"public url no scheme": {"DATABASE_URL": "x", "PUBLIC_URL": "api.example.com"},
 	}

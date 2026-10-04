@@ -4,7 +4,7 @@ API_DIR := apps/api
 -include .env
 export
 
-.PHONY: up down logs psql api-run api-build api-test api-lint api-generate migrate-up migrate-down migrate-status migrate-new
+.PHONY: up down logs psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new
 
 ## Infrastructure
 up: ## Start Postgres and Mailpit
@@ -47,3 +47,24 @@ migrate-status:
 
 migrate-new: ## Usage: make migrate-new name=add_budgets
 	cd $(API_DIR) && go run github.com/pressly/goose/v3/cmd/goose@v3.28.0 -dir internal/db/migrations create $(name) sql
+
+## Web
+api-openapi: ## Export the OpenAPI document and regenerate the web API types
+	cd $(API_DIR) && go run ./cmd/api openapi > ../web/openapi.json.tmp
+	mv apps/web/openapi.json.tmp apps/web/openapi.json
+	cd apps/web && pnpm gen:api
+
+web-install:
+	cd apps/web && pnpm install
+
+web-dev:
+	cd apps/web && pnpm dev
+
+web-test:
+	cd apps/web && pnpm test
+
+web-lint:
+	cd apps/web && pnpm lint && pnpm typecheck
+
+web-e2e: ## Requires `make up` and the API running (`make api-run`)
+	cd apps/web && pnpm e2e
