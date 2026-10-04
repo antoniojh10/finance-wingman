@@ -33,6 +33,21 @@ var (
 	codePattern  = regexp.MustCompile(`\b(\d{6})\b`)
 )
 
+// LastCode returns the code from the most recent sign-in email (with or
+// without a link).
+func (r *MailRecorder) LastCode(t *testing.T) string {
+	t.Helper()
+	msgs := r.Messages()
+	if len(msgs) == 0 {
+		t.Fatal("no email was sent")
+	}
+	m := codePattern.FindStringSubmatch(msgs[len(msgs)-1].Text)
+	if m == nil {
+		t.Fatalf("sign-in email without code:\n%s", msgs[len(msgs)-1].Text)
+	}
+	return m[1]
+}
+
 // LastLogin returns the token and code from the most recent sign-in email.
 func (r *MailRecorder) LastLogin(t *testing.T) (token, code string) {
 	t.Helper()

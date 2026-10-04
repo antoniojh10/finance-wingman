@@ -15,6 +15,8 @@ import (
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/testutil"
 )
 
@@ -25,6 +27,7 @@ type testAPI struct {
 	handler http.Handler
 	svc     *finance.Service
 	auth    *auth.Service
+	oauth   *oauth.Server
 	mail    *testutil.MailRecorder
 	pool    *pgxpool.Pool
 	owner   auth.User
@@ -38,6 +41,8 @@ func newTestAPI(t *testing.T) *testAPI {
 	recorder := &testutil.MailRecorder{}
 	authSvc := auth.NewService(pool, recorder, auth.Config{WebBaseURL: "http://web.test"}, logger)
 	svc := finance.NewService(pool, time.UTC)
+	oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: testIssuer}, logger)
+	mcpHandler := mcpserver.New(svc, Version).Handler(authSvc, oauthSrv.ResourceMetadataURL(), logger)
 
 	ctx := context.Background()
 	owner, err := authSvc.AddUser(ctx, "owner@example.com", "Owner")
@@ -53,6 +58,7 @@ func newTestAPI(t *testing.T) *testAPI {
 		t:     t,
 		svc:   svc,
 		auth:  authSvc,
+		oauth: oauthSrv,
 		mail:  recorder,
 		pool:  pool,
 		owner: owner,
@@ -62,6 +68,8 @@ func newTestAPI(t *testing.T) *testAPI {
 			DB:      pool,
 			Auth:    authSvc,
 			Finance: svc,
+			OAuth:   oauthSrv,
+			MCP:     mcpHandler,
 		}),
 	}
 }
@@ -174,5 +182,7 @@ func (a *testAPI) getAccount(id string) finance.Account {
 	a.do(http.MethodGet, "/api/v1/accounts/"+id, nil).expect(http.StatusOK).decode(&account)
 	return account
 }
+
+const testIssuer = "http://api.test"
 
 const missingID = "00000000-0000-0000-0000-000000000000"

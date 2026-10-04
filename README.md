@@ -57,4 +57,26 @@ cd apps/api && go run ./cmd/api users add you@example.com "Your Name"
 - Every other `/api/v1` endpoint requires `Authorization: Bearer <token>`.
 - The web app keeps the token server-side (Next.js acts as a backend-for-frontend).
 
+## MCP (Claude / ChatGPT)
+
+The API serves a remote MCP server at `PUBLIC_URL/mcp` (Streamable HTTP,
+stateless) protected by OAuth 2.1:
+
+- Discovery: `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`
+- Dynamic client registration (`/oauth/register`), authorization code + PKCE (S256), rotating refresh tokens, revocation
+- During authorization the user receives a 6-digit code by email and types it on the consent page, which works inside mobile in-app browsers
+
+Tools: `add_expense`, `add_income`, `add_transfer`, `list_accounts`,
+`list_categories`, `get_summary`, `list_transactions`, `delete_transaction`.
+Amounts are decimals in the account currency; summaries never mix currencies.
+
+To connect, add a custom connector with the URL `https://<your-api>/mcp`:
+
+- **Claude**: Settings → Connectors → Add custom connector (available in the mobile app once added).
+- **ChatGPT**: Settings → Apps & Connectors → Advanced → Developer mode → Create connector.
+
+The MCP endpoint must be reachable over public HTTPS; for local testing use a
+tunnel (e.g. `cloudflared tunnel --url http://localhost:8080`) and set
+`PUBLIC_URL` to the tunnel URL.
+
 See [AGENTS.md](AGENTS.md) for contribution rules.

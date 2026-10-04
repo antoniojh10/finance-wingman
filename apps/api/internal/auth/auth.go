@@ -114,6 +114,20 @@ func NormalizeEmail(raw string) (string, error) {
 // emails and rate-limited requests succeed silently so callers cannot
 // discover which addresses have access.
 func (s *Service) RequestLogin(ctx context.Context, rawEmail, locale string) error {
+	return s.requestLogin(ctx, rawEmail, locale, "")
+}
+
+// RequestLoginCode emails only a one-time code (no link), used when a user
+// connects an OAuth client such as Claude or ChatGPT. clientName is shown in
+// the email so the user knows what they are authorizing.
+func (s *Service) RequestLoginCode(ctx context.Context, rawEmail, locale, clientName string) error {
+	if clientName == "" {
+		clientName = "an app"
+	}
+	return s.requestLogin(ctx, rawEmail, locale, clientName)
+}
+
+func (s *Service) requestLogin(ctx context.Context, rawEmail, locale, oauthClient string) error {
 	email, err := NormalizeEmail(rawEmail)
 	if err != nil {
 		return err
@@ -137,7 +151,7 @@ func (s *Service) RequestLogin(ctx context.Context, rawEmail, locale string) err
 		return nil
 	}
 
-	token, err := randomToken()
+	token, err := RandomToken()
 	if err != nil {
 		return err
 	}
@@ -145,7 +159,7 @@ func (s *Service) RequestLogin(ctx context.Context, rawEmail, locale string) err
 	if err != nil {
 		return err
 	}
-	tokenHash := hashToken(token)
+	tokenHash := HashToken(token)
 	if _, err := s.q.CreateChallenge(ctx, store.CreateChallengeParams{
 		UserID:    user.ID,
 		TokenHash: tokenHash,
@@ -158,14 +172,18 @@ func (s *Service) RequestLogin(ctx context.Context, rawEmail, locale string) err
 	if !isLocale(locale) {
 		locale = user.Locale
 	}
-	msg, err := mailer.RenderLogin(mailer.LoginEmail{
+	content := mailer.LoginEmail{
 		To:         user.Email,
 		Name:       user.Name,
 		Locale:     locale,
-		Link:       strings.TrimRight(s.cfg.WebBaseURL, "/") + "/auth/verify?token=" + url.QueryEscape(token),
 		Code:       code,
 		TTLMinutes: int(s.cfg.ChallengeTTL.Minutes()),
-	})
+		ClientName: oauthClient,
+	}
+	if oauthClient == "" {
+		content.Link = strings.TrimRight(s.cfg.WebBaseURL, "/") + "/auth/verify?token=" + url.QueryEscape(token)
+	}
+	msg, err := mailer.RenderLogin(content)
 	if err != nil {
 		return err
 	}
@@ -180,7 +198,7 @@ func (s *Service) VerifyToken(ctx context.Context, token, client string) (Sessio
 	if token == "" {
 		return Session{}, ErrInvalidCredentials
 	}
-	challenge, err := s.q.GetChallengeByTokenHash(ctx, hashToken(token))
+	challenge, err := s.q.GetChallengeByTokenHash(ctx, HashToken(token))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Session{}, ErrInvalidCredentials
 	}
@@ -193,60 +211,93 @@ func (s *Service) VerifyToken(ctx context.Context, token, client string) (Sessio
 	return s.redeem(ctx, challenge, client)
 }
 
-// VerifyCode redeems the numeric code from the most recent sign-in email.
+// VerifyCode redeems the numeric code from the most recent sign-in email
+// and opens a session.
 func (s *Service) VerifyCode(ctx context.Context, rawEmail, code, client string) (Session, error) {
-	email, err := NormalizeEmail(rawEmail)
-	if err != nil {
-		return Session{}, ErrInvalidCredentials
-	}
-	code = strings.TrimSpace(code)
-	if len(code) != codeDigits {
-		return Session{}, ErrInvalidCredentials
-	}
-	user, err := s.q.GetUserByEmail(ctx, email)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Session{}, ErrInvalidCredentials
-	}
+	challenge, err := s.checkCode(ctx, rawEmail, code)
 	if err != nil {
 		return Session{}, err
-	}
-	challenge, err := s.q.GetLatestOpenChallenge(ctx, store.GetLatestOpenChallengeParams{UserID: user.ID, ExpiresAt: s.now()})
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Session{}, ErrInvalidCredentials
-	}
-	if err != nil {
-		return Session{}, err
-	}
-
-	attempts, err := s.q.IncrementChallengeAttempts(ctx, challenge.ID)
-	if err != nil {
-		return Session{}, err
-	}
-	if int(attempts) > s.cfg.MaxCodeAttempts {
-		// Too many guesses: burn the challenge so it cannot be brute-forced.
-		if _, err := s.q.ConsumeChallenge(ctx, challenge.ID); err != nil {
-			return Session{}, err
-		}
-		return Session{}, ErrInvalidCredentials
-	}
-	if subtle.ConstantTimeCompare(hashCode(challenge.TokenHash, code), challenge.CodeHash) != 1 {
-		return Session{}, ErrInvalidCredentials
 	}
 	return s.redeem(ctx, challenge, client)
 }
 
-func (s *Service) redeem(ctx context.Context, challenge store.LoginChallenge, client string) (Session, error) {
-	consumed, err := s.q.ConsumeChallenge(ctx, challenge.ID)
+// AuthenticateCode redeems the numeric code and returns the user without
+// creating a session (the caller issues its own credentials).
+func (s *Service) AuthenticateCode(ctx context.Context, rawEmail, code string) (User, error) {
+	challenge, err := s.checkCode(ctx, rawEmail, code)
 	if err != nil {
-		return Session{}, err
+		return User{}, err
 	}
-	if consumed == 0 {
-		return Session{}, ErrInvalidCredentials
+	if err := s.consume(ctx, challenge); err != nil {
+		return User{}, err
 	}
-	if err := s.q.ConsumeOpenChallenges(ctx, challenge.UserID); err != nil {
+	user, err := s.q.GetUser(ctx, challenge.UserID)
+	if err != nil {
+		return User{}, err
+	}
+	return userFromModel(user), nil
+}
+
+func (s *Service) checkCode(ctx context.Context, rawEmail, code string) (store.LoginChallenge, error) {
+	var none store.LoginChallenge
+	email, err := NormalizeEmail(rawEmail)
+	if err != nil {
+		return none, ErrInvalidCredentials
+	}
+	code = strings.TrimSpace(code)
+	if len(code) != codeDigits {
+		return none, ErrInvalidCredentials
+	}
+	user, err := s.q.GetUserByEmail(ctx, email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return none, ErrInvalidCredentials
+	}
+	if err != nil {
+		return none, err
+	}
+	challenge, err := s.q.GetLatestOpenChallenge(ctx, store.GetLatestOpenChallengeParams{UserID: user.ID, ExpiresAt: s.now()})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return none, ErrInvalidCredentials
+	}
+	if err != nil {
+		return none, err
+	}
+
+	attempts, err := s.q.IncrementChallengeAttempts(ctx, challenge.ID)
+	if err != nil {
+		return none, err
+	}
+	if int(attempts) > s.cfg.MaxCodeAttempts {
+		// Too many guesses: burn the challenge so it cannot be brute-forced.
+		if _, err := s.q.ConsumeChallenge(ctx, challenge.ID); err != nil {
+			return none, err
+		}
+		return none, ErrInvalidCredentials
+	}
+	if subtle.ConstantTimeCompare(hashCode(challenge.TokenHash, code), challenge.CodeHash) != 1 {
+		return none, ErrInvalidCredentials
+	}
+	return challenge, nil
+}
+
+func (s *Service) redeem(ctx context.Context, challenge store.LoginChallenge, client string) (Session, error) {
+	if err := s.consume(ctx, challenge); err != nil {
 		return Session{}, err
 	}
 	return s.CreateSession(ctx, challenge.UserID, client, s.cfg.SessionTTL)
+}
+
+// consume marks the challenge (and any other open challenge of the user) as
+// used. It fails if a concurrent request consumed it first.
+func (s *Service) consume(ctx context.Context, challenge store.LoginChallenge) error {
+	consumed, err := s.q.ConsumeChallenge(ctx, challenge.ID)
+	if err != nil {
+		return err
+	}
+	if consumed == 0 {
+		return ErrInvalidCredentials
+	}
+	return s.q.ConsumeOpenChallenges(ctx, challenge.UserID)
 }
 
 // CreateSession issues a new bearer token for a user.
@@ -261,13 +312,13 @@ func (s *Service) CreateSession(ctx context.Context, userID uuid.UUID, client st
 	if err != nil {
 		return Session{}, err
 	}
-	token, err := randomToken()
+	token, err := RandomToken()
 	if err != nil {
 		return Session{}, err
 	}
 	row, err := s.q.CreateSession(ctx, store.CreateSessionParams{
 		UserID:    userID,
-		TokenHash: hashToken(token),
+		TokenHash: HashToken(token),
 		Client:    client,
 		ExpiresAt: s.now().Add(ttl),
 	})
@@ -282,7 +333,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 	if token == "" {
 		return Session{}, ErrUnauthenticated
 	}
-	row, err := s.q.GetSessionByTokenHash(ctx, hashToken(token))
+	row, err := s.q.GetSessionByTokenHash(ctx, HashToken(token))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Session{}, ErrUnauthenticated
 	}
@@ -390,7 +441,8 @@ func isLocale(l string) bool {
 	return false
 }
 
-func randomToken() (string, error) {
+// RandomToken returns a URL-safe random token with 256 bits of entropy.
+func RandomToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
@@ -406,8 +458,8 @@ func randomCode() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
-// hashToken returns the SHA-256 digest used to store opaque tokens.
-func hashToken(token string) []byte {
+// HashToken returns the SHA-256 digest used to store opaque tokens.
+func HashToken(token string) []byte {
 	sum := sha256.Sum256([]byte(token))
 	return sum[:]
 }

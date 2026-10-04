@@ -50,14 +50,61 @@ type LoginChallenge struct {
 	CreatedAt  time.Time
 }
 
+type OauthAuthorizationCode struct {
+	CodeHash      []byte
+	ClientID      string
+	UserID        uuid.UUID
+	RedirectUri   string
+	CodeChallenge string
+	Scope         string
+	ExpiresAt     time.Time
+	UsedAt        *time.Time
+	CreatedAt     time.Time
+}
+
+type OauthAuthorizationRequest struct {
+	ID            uuid.UUID
+	ClientID      string
+	RedirectUri   string
+	CodeChallenge string
+	State         string
+	Scope         string
+	Resource      string
+	Email         *string
+	ExpiresAt     time.Time
+	CreatedAt     time.Time
+}
+
+type OauthClient struct {
+	ID                      string
+	SecretHash              []byte
+	Name                    string
+	RedirectUris            []string
+	TokenEndpointAuthMethod string
+	CreatedAt               time.Time
+}
+
+type OauthRefreshToken struct {
+	TokenHash []byte
+	FamilyID  uuid.UUID
+	ClientID  string
+	UserID    uuid.UUID
+	Scope     string
+	ExpiresAt time.Time
+	RevokedAt *time.Time
+	CreatedAt time.Time
+}
+
 type Session struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	TokenHash  []byte
-	Client     string
-	ExpiresAt  time.Time
-	LastUsedAt time.Time
-	CreatedAt  time.Time
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	TokenHash     []byte
+	Client        string
+	ExpiresAt     time.Time
+	LastUsedAt    time.Time
+	CreatedAt     time.Time
+	OauthClientID *string
+	OauthFamilyID *uuid.UUID
 }
 
 type Transaction struct {

@@ -15,11 +15,13 @@ import (
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
 )
 
 const (
-	apiTitle   = "Finance Wingman API"
-	apiVersion = "0.1.0"
+	apiTitle = "Finance Wingman API"
+	// Version is reported in the OpenAPI document and to MCP clients.
+	Version = "0.1.0"
 )
 
 // Pinger reports whether the database is reachable.
@@ -32,6 +34,10 @@ type Deps struct {
 	DB      Pinger
 	Auth    *auth.Service
 	Finance *finance.Service
+	// OAuth and MCP are optional; when set, the OAuth endpoints and the MCP
+	// transport (at /mcp) are mounted.
+	OAuth *oauth.Server
+	MCP   http.Handler
 }
 
 // NewHandler builds the root HTTP handler with every route registered.
@@ -42,7 +48,14 @@ func NewHandler(deps Deps) http.Handler {
 	router.Use(requestLogger(deps.Logger))
 	router.Use(middleware.Recoverer)
 
-	config := huma.DefaultConfig(apiTitle, apiVersion)
+	if deps.OAuth != nil {
+		deps.OAuth.Mount(router)
+	}
+	if deps.MCP != nil {
+		router.Handle("/mcp", deps.MCP)
+	}
+
+	config := huma.DefaultConfig(apiTitle, Version)
 	config.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
 		securityScheme: {Type: "http", Scheme: "bearer", Description: "Session token from POST /api/v1/auth/verify"},
 	}

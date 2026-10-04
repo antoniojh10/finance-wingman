@@ -2,7 +2,7 @@
 //
 // Usage:
 //
-//	api serve                     start the HTTP server (default)
+//	api serve                     start the HTTP server, OAuth and MCP (default)
 //	api migrate up|down|status    manage database migrations
 //	api users list                list users with access
 //	api users add EMAIL [NAME]    grant access to an email address
@@ -29,6 +29,8 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/httpapi"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mail"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
 )
 
 func main() {
@@ -75,12 +77,17 @@ func run(args []string, logger *slog.Logger) error {
 				return fmt.Errorf("add initial user %q: %w", u.Email, err)
 			}
 		}
-		go purgeExpiredPeriodically(ctx, authSvc, logger)
+		financeSvc := finance.NewService(pool, cfg.Location)
+		oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: cfg.PublicURL}, logger)
+		mcpHandler := mcpserver.New(financeSvc, httpapi.Version).Handler(authSvc, oauthSrv.ResourceMetadataURL(), logger)
+		go purgeExpiredPeriodically(ctx, logger, authSvc.PurgeExpired, oauthSrv.PurgeExpired)
 		handler := httpapi.NewHandler(httpapi.Deps{
 			Logger:  logger,
 			DB:      pool,
 			Auth:    authSvc,
-			Finance: finance.NewService(pool, cfg.Location),
+			Finance: financeSvc,
+			OAuth:   oauthSrv,
+			MCP:     mcpHandler,
 		})
 		return serve(ctx, cfg, logger, handler)
 	case "migrate":
@@ -131,12 +138,14 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, handler 
 	return server.Shutdown(shutdownCtx)
 }
 
-func purgeExpiredPeriodically(ctx context.Context, svc *auth.Service, logger *slog.Logger) {
+func purgeExpiredPeriodically(ctx context.Context, logger *slog.Logger, purgers ...func(context.Context) error) {
 	ticker := time.NewTicker(6 * time.Hour)
 	defer ticker.Stop()
 	for {
-		if err := svc.PurgeExpired(ctx); err != nil && ctx.Err() == nil {
-			logger.Warn("purge expired auth records", "error", err)
+		for _, purge := range purgers {
+			if err := purge(ctx); err != nil && ctx.Err() == nil {
+				logger.Warn("purge expired auth records", "error", err)
+			}
 		}
 		select {
 		case <-ctx.Done():

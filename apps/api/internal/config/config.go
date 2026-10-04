@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/mail"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -20,6 +21,8 @@ type Config struct {
 	MigrateOnStart bool
 	// Location resolves "today" and default periods (APP_TIMEZONE).
 	Location *time.Location
+	// PublicURL is the public base URL of this API (OAuth issuer, MCP resource).
+	PublicURL string
 	// WebBaseURL is the public URL of the Next.js app, used in magic links.
 	WebBaseURL string
 	// InitialUsers are granted access on startup ("email:Name,email2").
@@ -57,6 +60,7 @@ func load(getenv func(string) string) (Config, error) {
 		DatabaseURL:    getenv("DATABASE_URL"),
 		MigrateOnStart: true,
 		Location:       time.UTC,
+		PublicURL:      strings.TrimRight(valueOr(getenv("PUBLIC_URL"), "http://localhost:8080"), "/"),
 		WebBaseURL:     valueOr(getenv("WEB_BASE_URL"), "http://localhost:3000"),
 		InitialUsers:   parseInitialUsers(getenv("INITIAL_USERS")),
 		Email: EmailConfig{
@@ -110,6 +114,10 @@ func load(getenv func(string) string) (Config, error) {
 		} else {
 			cfg.Email.SMTPPort = port
 		}
+	}
+
+	if u, err := url.Parse(cfg.PublicURL); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" || u.Path != "" {
+		errs = append(errs, fmt.Errorf("PUBLIC_URL must be an http(s) origin without a path, got %q", cfg.PublicURL))
 	}
 
 	switch cfg.Email.Provider {

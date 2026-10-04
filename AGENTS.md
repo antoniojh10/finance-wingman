@@ -36,4 +36,6 @@ These rules apply to every agent (and human) contributing to this repository.
 - Amounts in the REST API are integer minor units; use `internal/money` to convert decimal input (e.g. from MCP tools).
 - Every `/api/v1` operation requires a bearer session unless registered with `Metadata: publicMetadata`; keep the public surface minimal.
 - Tests use `newTestAPI`, which signs requests as an owner user; use `api.as("")` for anonymous requests and `testutil.MailRecorder` to read sent emails.
+- MCP tools live in `internal/mcpserver`; each tool must have tests (in-memory client in `tools_test.go`). Tool errors should tell the model how to fix the call (e.g. list valid account names).
+- OAuth lives in `internal/oauth`; flow tests in `internal/httpapi/oauth_test.go` simulate an MCP host end to end.
 - Schema changes go in a new goose migration (`make migrate-new name=...`) with a working `Down` section; never edit an applied migration.

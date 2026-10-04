@@ -1,0 +1,353 @@
+package mcpserver
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/testutil"
+)
+
+type harness struct {
+	t       *testing.T
+	svc     *finance.Service
+	session *mcp.ClientSession
+}
+
+func newHarness(t *testing.T) *harness {
+	t.Helper()
+	ctx := context.Background()
+	svc := finance.NewService(testutil.NewDatabase(t, true), time.UTC)
+	server := New(svc, "test")
+
+	clientTransport, serverTransport := mcp.NewInMemoryTransports()
+	if _, err := server.MCP().Connect(ctx, serverTransport, nil); err != nil {
+		t.Fatal(err)
+	}
+	session, err := mcp.NewClient(&mcp.Implementation{Name: "test-client"}, nil).Connect(ctx, clientTransport, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { session.Close() })
+	return &harness{t: t, svc: svc, session: session}
+}
+
+func (h *harness) account(name, currency string) finance.Account {
+	h.t.Helper()
+	a, err := h.svc.CreateAccount(context.Background(), finance.CreateAccountInput{Name: name, Type: "checking", Currency: currency})
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	return a
+}
+
+func (h *harness) category(name, kind string) finance.Category {
+	h.t.Helper()
+	c, err := h.svc.CreateCategory(context.Background(), finance.CreateCategoryInput{Name: name, Kind: kind})
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	return c
+}
+
+// call invokes a tool and decodes its structured output into out (may be nil).
+// It returns the text content and whether the tool reported an error.
+func (h *harness) call(name string, args map[string]any, out any) (string, bool) {
+	h.t.Helper()
+	res, err := h.session.CallTool(context.Background(), &mcp.CallToolParams{Name: name, Arguments: args})
+	if err != nil {
+		h.t.Fatalf("call %s: %v", name, err)
+	}
+	var text strings.Builder
+	for _, c := range res.Content {
+		if tc, ok := c.(*mcp.TextContent); ok {
+			text.WriteString(tc.Text)
+		}
+	}
+	if out != nil && !res.IsError {
+		raw, err := json.Marshal(res.StructuredContent)
+		if err != nil {
+			h.t.Fatal(err)
+		}
+		if err := json.Unmarshal(raw, out); err != nil {
+			h.t.Fatalf("decode %s output: %v", name, err)
+		}
+	}
+	return text.String(), res.IsError
+}
+
+func (h *harness) mustCall(name string, args map[string]any, out any) string {
+	h.t.Helper()
+	text, isErr := h.call(name, args, out)
+	if isErr {
+		h.t.Fatalf("%s returned an error: %s", name, text)
+	}
+	return text
+}
+
+func (h *harness) mustFail(name string, args map[string]any, contains string) {
+	h.t.Helper()
+	text, isErr := h.call(name, args, nil)
+	if !isErr {
+		h.t.Fatalf("%s should fail, got: %s", name, text)
+	}
+	if !strings.Contains(text, contains) {
+		h.t.Fatalf("%s error %q should mention %q", name, text, contains)
+	}
+}
+
+func TestToolsAreListed(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	res, err := h.session.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]*mcp.Tool{}
+	for _, tool := range res.Tools {
+		got[tool.Name] = tool
+	}
+	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction"} {
+		if got[name] == nil {
+			t.Errorf("missing tool %s", name)
+		}
+	}
+	if !got["list_accounts"].Annotations.ReadOnlyHint || !*got["delete_transaction"].Annotations.DestructiveHint {
+		t.Error("tool annotations are not set correctly")
+	}
+	if h.session.InitializeResult().Instructions == "" {
+		t.Error("server instructions should be provided")
+	}
+}
+
+func TestAddExpense(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("BBVA Checking", "MXN")
+	h.category("Groceries", "expense")
+
+	var out transactionOut
+	text := h.mustCall("add_expense", map[string]any{
+		"amount": 250.5, "account": "bbva checking", "category": "groceries", "description": "Walmart", "date": "2026-09-15",
+	}, &out)
+	if out.Amount != "250.50" || out.Currency != "MXN" || out.Category != "Groceries" || out.Date != "2026-09-15" || out.Description != "Walmart" {
+		t.Fatalf("unexpected output: %+v", out)
+	}
+	if !strings.Contains(text, "250.50 MXN") || !strings.Contains(text, "BBVA Checking") {
+		t.Fatalf("unexpected text: %s", text)
+	}
+}
+
+func TestAddExpenseResolvesAccounts(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.mustFail("add_expense", map[string]any{"amount": 10}, "no active accounts")
+
+	h.account("Cash", "MXN")
+	var out transactionOut
+	h.mustCall("add_expense", map[string]any{"amount": 10}, &out)
+	if out.Account != "Cash" {
+		t.Fatalf("single account should be used by default, got %+v", out)
+	}
+
+	h.account("Dollars", "USD")
+	h.mustFail("add_expense", map[string]any{"amount": 10}, "Cash (MXN), Dollars (USD)")
+	h.mustFail("add_expense", map[string]any{"amount": 10, "account": "Savings"}, `no account matches "Savings"`)
+
+	// Unique partial matches are accepted.
+	h.mustCall("add_expense", map[string]any{"amount": 3, "account": "dollar"}, &out)
+	if out.Account != "Dollars" || out.Currency != "USD" {
+		t.Fatalf("partial match failed: %+v", out)
+	}
+}
+
+func TestAddExpenseValidation(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("Cash", "MXN")
+	h.account("Yen", "JPY")
+	h.category("Food", "expense")
+	h.category("Salary", "income")
+
+	h.mustFail("add_expense", map[string]any{"amount": 0, "account": "Cash"}, "greater than zero")
+	h.mustFail("add_expense", map[string]any{"amount": -5, "account": "Cash"}, "greater than zero")
+	h.mustFail("add_expense", map[string]any{"amount": 1.234, "account": "Cash"}, "too many decimals for MXN")
+	h.mustFail("add_expense", map[string]any{"amount": 100.5, "account": "Yen"}, "too many decimals for JPY")
+	h.mustFail("add_expense", map[string]any{"amount": 10, "account": "Cash", "category": "Salary"}, "use one of: Food")
+	h.mustFail("add_expense", map[string]any{"amount": 10, "account": "Cash", "date": "yesterday"}, "YYYY-MM-DD")
+}
+
+func TestAddIncome(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("Payroll", "MXN")
+	h.category("Salary", "income")
+
+	var out transactionOut
+	text := h.mustCall("add_income", map[string]any{"amount": 30000, "category": "Salary"}, &out)
+	if out.Type != "income" || out.Amount != "30000.00" || out.Date != time.Now().UTC().Format(time.DateOnly) {
+		t.Fatalf("unexpected income: %+v", out)
+	}
+	if !strings.HasPrefix(text, "Recorded income") {
+		t.Fatalf("unexpected text: %s", text)
+	}
+}
+
+func TestAddTransfer(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("Checking", "MXN")
+	h.account("Savings", "MXN")
+	h.account("Dollars", "USD")
+
+	var out transactionOut
+	h.mustCall("add_transfer", map[string]any{"amount": 500, "from_account": "Checking", "to_account": "Savings"}, &out)
+	if out.Type != "transfer" || out.ToAccount != "Savings" || out.DestinationAmount != "500.00" {
+		t.Fatalf("unexpected transfer: %+v", out)
+	}
+
+	h.mustFail("add_transfer", map[string]any{"amount": 1700, "from_account": "Checking", "to_account": "Dollars"}, "destination_amount")
+
+	text := h.mustCall("add_transfer", map[string]any{"amount": 1700, "from_account": "Checking", "to_account": "Dollars", "destination_amount": 100}, &out)
+	if out.DestinationAmount != "100.00" || out.DestinationCurrency != "USD" || !strings.Contains(text, "100.00 USD received") {
+		t.Fatalf("unexpected cross-currency transfer: %+v / %s", out, text)
+	}
+
+	h.mustFail("add_transfer", map[string]any{"amount": 10, "from_account": "Checking", "to_account": "Checking"}, "different")
+}
+
+func TestListAccountsAndCategories(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	text := h.mustCall("list_accounts", nil, nil)
+	if !strings.Contains(text, "no active accounts") {
+		t.Fatalf("unexpected empty text: %s", text)
+	}
+
+	a := h.account("Cash", "MXN")
+	if _, err := h.svc.CreateTransaction(context.Background(), finance.TransactionInput{Type: "income", AccountID: a.ID, Amount: 123456}); err != nil {
+		t.Fatal(err)
+	}
+	var accounts accountsOut
+	text = h.mustCall("list_accounts", nil, &accounts)
+	if len(accounts.Accounts) != 1 || accounts.Accounts[0].Balance != "1234.56" || !strings.Contains(text, "1234.56 MXN") {
+		t.Fatalf("unexpected accounts: %+v / %s", accounts, text)
+	}
+
+	h.category("Food", "expense")
+	h.category("Salary", "income")
+	var categories categoriesOut
+	text = h.mustCall("list_categories", nil, &categories)
+	if len(categories.Categories) != 2 || !strings.Contains(text, "Expense categories: Food") || !strings.Contains(text, "Income categories: Salary") {
+		t.Fatalf("unexpected categories: %+v / %s", categories, text)
+	}
+	h.mustCall("list_categories", map[string]any{"kind": "income"}, &categories)
+	if len(categories.Categories) != 1 {
+		t.Fatalf("kind filter failed: %+v", categories)
+	}
+	h.mustFail("list_categories", map[string]any{"kind": "other"}, "expense or income")
+}
+
+func TestGetSummary(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("Cash", "MXN")
+	h.category("Food", "expense")
+	h.mustCall("add_income", map[string]any{"amount": 1000, "date": "2026-09-01"}, nil)
+	h.mustCall("add_expense", map[string]any{"amount": 250.25, "category": "Food", "date": "2026-09-02"}, nil)
+	h.mustCall("add_expense", map[string]any{"amount": 50, "date": "2026-09-03"}, nil)
+
+	var out summaryOut
+	text := h.mustCall("get_summary", map[string]any{"from": "2026-09-01", "to": "2026-09-30"}, &out)
+	if len(out.Currencies) != 1 {
+		t.Fatalf("unexpected summary: %+v", out)
+	}
+	mxn := out.Currencies[0]
+	if mxn.Income != "1000.00" || mxn.Expense != "300.25" || mxn.Net != "699.75" || mxn.Balance != "699.75" {
+		t.Fatalf("unexpected totals: %+v", mxn)
+	}
+	if len(mxn.Expenses) != 2 || mxn.Expenses[0].Category != "Food" || mxn.Expenses[1].Category != "Uncategorized" {
+		t.Fatalf("unexpected breakdown: %+v", mxn.Expenses)
+	}
+	if !strings.Contains(text, "MXN — income 1000.00, expenses 300.25") {
+		t.Fatalf("unexpected text: %s", text)
+	}
+
+	h.mustCall("get_summary", map[string]any{"period": "last_30_days"}, &out)
+	h.mustFail("get_summary", map[string]any{"period": "forever"}, "unknown period")
+}
+
+func TestPeriodRange(t *testing.T) {
+	today := time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC)
+	tests := map[string][2]string{
+		"":             {"2026-03-01", "2026-03-31"},
+		"this_month":   {"2026-03-01", "2026-03-31"},
+		"last_month":   {"2026-02-01", "2026-02-28"},
+		"this_year":    {"2026-01-01", "2026-12-31"},
+		"last_30_days": {"2026-02-14", "2026-03-15"},
+	}
+	for period, want := range tests {
+		from, to, err := periodRange(today, period)
+		if err != nil || from != want[0] || to != want[1] {
+			t.Errorf("periodRange(%q) = %s..%s (%v), want %s..%s", period, from, to, err, want[0], want[1])
+		}
+	}
+}
+
+func TestListTransactions(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("Cash", "MXN")
+	h.account("Card", "MXN")
+	h.category("Food", "expense")
+	for i := 0; i < 12; i++ {
+		h.mustCall("add_expense", map[string]any{"amount": i + 1, "account": "Cash", "description": "item"}, nil)
+	}
+	h.mustCall("add_expense", map[string]any{"amount": 99, "account": "Card", "category": "Food", "description": "Tacos"}, nil)
+
+	var out transactionsOut
+	text := h.mustCall("list_transactions", nil, &out)
+	if len(out.Transactions) != 10 || out.Total != 13 || !strings.HasPrefix(text, "Showing 10 of 13") {
+		t.Fatalf("default limit should be 10: %d/%d %s", len(out.Transactions), out.Total, text)
+	}
+
+	h.mustCall("list_transactions", map[string]any{"account": "Card"}, &out)
+	if out.Total != 1 || out.Transactions[0].Description != "Tacos" {
+		t.Fatalf("account filter: %+v", out)
+	}
+	h.mustCall("list_transactions", map[string]any{"category": "food"}, &out)
+	if out.Total != 1 {
+		t.Fatalf("category filter: %+v", out)
+	}
+	h.mustCall("list_transactions", map[string]any{"search": "taco", "limit": 100}, &out)
+	if out.Total != 1 {
+		t.Fatalf("search filter: %+v", out)
+	}
+	text = h.mustCall("list_transactions", map[string]any{"type": "income"}, &out)
+	if out.Total != 0 || text != "No transactions match." {
+		t.Fatalf("type filter: %+v %s", out, text)
+	}
+	h.mustFail("list_transactions", map[string]any{"type": "refund"}, "expense, income or transfer")
+	h.mustFail("list_transactions", map[string]any{"account": "Nope"}, "no account matches")
+}
+
+func TestDeleteTransaction(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("Cash", "MXN")
+	var created transactionOut
+	h.mustCall("add_expense", map[string]any{"amount": 42}, &created)
+
+	var out deleteOut
+	text := h.mustCall("delete_transaction", map[string]any{"id": created.ID}, &out)
+	if out.Deleted.ID != created.ID || !strings.Contains(text, "Deleted expense of 42.00 MXN") {
+		t.Fatalf("unexpected delete result: %+v %s", out, text)
+	}
+	h.mustFail("delete_transaction", map[string]any{"id": created.ID}, "not found")
+	h.mustFail("delete_transaction", map[string]any{"id": "abc"}, "UUID")
+}

@@ -17,6 +17,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.Email.From != `"Finance Wingman" <no-reply@localhost>` {
 		t.Fatalf("unexpected default sender: %s", cfg.Email.From)
 	}
+	if cfg.PublicURL != "http://localhost:8080" {
+		t.Fatalf("unexpected public URL: %s", cfg.PublicURL)
+	}
 	if cfg.WebBaseURL != "http://localhost:3000" || cfg.Email.Provider != "log" || cfg.Email.SMTPPort != 1025 || len(cfg.InitialUsers) != 0 {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
@@ -30,6 +33,7 @@ func TestLoadOverrides(t *testing.T) {
 		"MIGRATE_ON_START": "false",
 		"APP_TIMEZONE":     "America/Mexico_City",
 		"WEB_BASE_URL":     "https://app.example.com",
+		"PUBLIC_URL":       "https://api.example.com/",
 		"INITIAL_USERS":    " ana@example.com:Ana , bob@example.com ,",
 		"EMAIL_PROVIDER":   "resend",
 		"RESEND_API_KEY":   "re_123",
@@ -43,7 +47,7 @@ func TestLoadOverrides(t *testing.T) {
 	if cfg.Env != "production" || cfg.Port != 9000 || cfg.MigrateOnStart || cfg.Location.String() != "America/Mexico_City" {
 		t.Fatalf("overrides not applied: %+v", cfg)
 	}
-	if cfg.WebBaseURL != "https://app.example.com" || cfg.Email.Provider != "resend" || cfg.Email.SMTPPort != 2525 || cfg.Email.From != `"Wingman" <hi@example.com>` {
+	if cfg.PublicURL != "https://api.example.com" || cfg.WebBaseURL != "https://app.example.com" || cfg.Email.Provider != "resend" || cfg.Email.SMTPPort != 2525 || cfg.Email.From != `"Wingman" <hi@example.com>` {
 		t.Fatalf("overrides not applied: %+v", cfg)
 	}
 	want := []InitialUser{{Email: "ana@example.com", Name: "Ana"}, {Email: "bob@example.com"}}
@@ -62,6 +66,8 @@ func TestLoadInvalid(t *testing.T) {
 		"unknown provider":     {"DATABASE_URL": "x", "EMAIL_PROVIDER": "carrier-pigeon"},
 		"resend without key":   {"DATABASE_URL": "x", "EMAIL_PROVIDER": "resend"},
 		"invalid smtp port":    {"DATABASE_URL": "x", "SMTP_PORT": "x"},
+		"public url with path": {"DATABASE_URL": "x", "PUBLIC_URL": "https://api.example.com/v1"},
+		"public url no scheme": {"DATABASE_URL": "x", "PUBLIC_URL": "api.example.com"},
 	}
 	for name, env := range tests {
 		t.Run(name, func(t *testing.T) {

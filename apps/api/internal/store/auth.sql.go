@@ -83,7 +83,7 @@ func (q *Queries) CreateChallenge(ctx context.Context, arg CreateChallengeParams
 const createSession = `-- name: CreateSession :one
 INSERT INTO sessions (user_id, token_hash, client, expires_at)
 VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, token_hash, client, expires_at, last_used_at, created_at
+RETURNING id, user_id, token_hash, client, expires_at, last_used_at, created_at, oauth_client_id, oauth_family_id
 `
 
 type CreateSessionParams struct {
@@ -109,6 +109,8 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		&i.ExpiresAt,
 		&i.LastUsedAt,
 		&i.CreatedAt,
+		&i.OauthClientID,
+		&i.OauthFamilyID,
 	)
 	return i, err
 }
@@ -195,23 +197,25 @@ func (q *Queries) GetLatestOpenChallenge(ctx context.Context, arg GetLatestOpenC
 }
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
-SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, u.email, u.name, u.locale
+SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, u.email, u.name, u.locale
 FROM sessions s
 JOIN users u ON u.id = s.user_id
 WHERE s.token_hash = $1
 `
 
 type GetSessionByTokenHashRow struct {
-	ID         uuid.UUID
-	UserID     uuid.UUID
-	TokenHash  []byte
-	Client     string
-	ExpiresAt  time.Time
-	LastUsedAt time.Time
-	CreatedAt  time.Time
-	Email      string
-	Name       string
-	Locale     string
+	ID            uuid.UUID
+	UserID        uuid.UUID
+	TokenHash     []byte
+	Client        string
+	ExpiresAt     time.Time
+	LastUsedAt    time.Time
+	CreatedAt     time.Time
+	OauthClientID *string
+	OauthFamilyID *uuid.UUID
+	Email         string
+	Name          string
+	Locale        string
 }
 
 func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (GetSessionByTokenHashRow, error) {
@@ -225,6 +229,8 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.ExpiresAt,
 		&i.LastUsedAt,
 		&i.CreatedAt,
+		&i.OauthClientID,
+		&i.OauthFamilyID,
 		&i.Email,
 		&i.Name,
 		&i.Locale,

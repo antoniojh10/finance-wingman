@@ -42,6 +42,22 @@ func TestRenderLogin(t *testing.T) {
 	}
 }
 
+func TestRenderConnectCode(t *testing.T) {
+	msg, err := RenderLogin(LoginEmail{To: "a@b.c", Locale: "es", Code: "424242", TTLMinutes: 15, ClientName: "Claude"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.Subject != "Tu código para conectar Claude con Finance Wingman" {
+		t.Fatalf("unexpected subject %q", msg.Subject)
+	}
+	if strings.Contains(msg.HTML, "href=") || strings.Contains(msg.Text, "http") {
+		t.Fatal("connect emails must not include a sign-in link")
+	}
+	if !strings.Contains(msg.Text, "424242") || !strings.Contains(msg.Text, "Claude está solicitando acceso") || !strings.Contains(msg.Text, "El código expira en 15 minutos") {
+		t.Fatalf("unexpected body:\n%s", msg.Text)
+	}
+}
+
 func TestRenderLoginEscapesHTML(t *testing.T) {
 	msg, err := RenderLogin(LoginEmail{Name: "<script>", Link: "https://x.test", Code: "1", TTLMinutes: 1})
 	if err != nil {
