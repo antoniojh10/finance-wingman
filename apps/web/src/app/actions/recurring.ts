@@ -6,6 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { failure, success } from "@/lib/action-errors";
 import { unwrap } from "@/lib/api/client";
 import { text, type FormState } from "@/lib/forms";
+import { parseAmount } from "@/lib/money";
 import { buildRecurringFields, type RecurringStatus } from "@/lib/recurring";
 import { authedApi } from "@/lib/session";
 
@@ -69,6 +70,43 @@ export async function saveRecurring(_: FormState, formData: FormData): Promise<F
     }
   } catch (error) {
     // A name conflict (409) shows the API message as is.
+    return failure(error);
+  }
+  revalidatePath("/", "layout");
+  return success();
+}
+
+/**
+ * Registers a payment of a recurring item: creates the transaction and links
+ * it to the period. The amount is a decimal in the item's currency.
+ */
+export async function registerRecurringPayment(_: FormState, formData: FormData): Promise<FormState> {
+  const t = await getTranslations("errors");
+  const api = await authedApi();
+  const id = text(formData, "id");
+  const period = text(formData, "period");
+  const date = text(formData, "date");
+
+  try {
+    const item = unwrap(await api.GET("/api/v1/recurring/{id}", { params: { path: { id } } }));
+    const amount = parseAmount(text(formData, "amount"), item.minor_units);
+    const fieldErrors: Record<string, string> = {};
+    if (amount === null || amount < 1) {
+      fieldErrors.amount = t("invalidAmount", { decimals: item.minor_units });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      fieldErrors.date = t("required");
+    }
+    if (amount === null || Object.keys(fieldErrors).length > 0) {
+      return { ok: false, message: t("validation"), fieldErrors };
+    }
+    unwrap(
+      await api.POST("/api/v1/recurring/{id}/payments", {
+        params: { path: { id } },
+        body: { amount, date, period: period || undefined },
+      }),
+    );
+  } catch (error) {
     return failure(error);
   }
   revalidatePath("/", "layout");

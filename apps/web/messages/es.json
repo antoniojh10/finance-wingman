@@ -71,7 +71,11 @@
     "previousMonth": "Mes anterior",
     "nextMonth": "Mes siguiente",
     "transactionCount": "{count, plural, one {# movimiento} other {# movimientos}}",
-    "share": "{percent} de los gastos"
+    "share": "{percent} de los gastos",
+    "subscriptions": "Suscripciones",
+    "subscriptionsUpcoming": "Vencidas y próximas 7 días",
+    "subscriptionsNothingDue": "Nada vence en los próximos 7 días.",
+    "subscriptionsCommitted": "Comprometido al mes"
   },
   "transactions": {
     "title": "Movimientos",
@@ -109,7 +113,8 @@
     "needAccount": "Crea una cuenta antes de agregar movimientos.",
     "today": "Hoy",
     "yesterday": "Ayer",
-    "moreFilters": "Más filtros"
+    "moreFilters": "Más filtros",
+    "paysSubscription": "Suscripción: {name}"
   },
   "accounts": {
     "title": "Cuentas",
@@ -281,6 +286,19 @@
     "income": "Ingresos",
     "net": "Neto",
     "activeCount": "{count, plural, one {# elemento activo} other {# elementos activos}}",
-    "summaryHint": "Solo suscripciones activas, promediadas por mes. El total anual es mensual x 12."
+    "summaryHint": "Solo suscripciones activas, promediadas por mes. El total anual es mensual x 12.",
+    "paymentStatus": {
+      "paid": "Pagado",
+      "pending": "Pendiente",
+      "overdue": "Vencido"
+    },
+    "register": "Registrar pago",
+    "registerTitle": "Registrar pago: {name}",
+    "registerDescription": "Esto registra una transacción para este periodo. Puedes ajustar el monto y la fecha.",
+    "registerPeriod": "Pagando el periodo con vencimiento el {date}.",
+    "paidOn": "Fecha del pago",
+    "registeredToast": "Pago registrado",
+    "dueOn": "Vence el {date}",
+    "lastPaid": "Último pago: {date}"
   }
 }

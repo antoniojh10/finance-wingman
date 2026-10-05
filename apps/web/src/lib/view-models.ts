@@ -27,6 +27,12 @@ export function toTransactionRow(tx: Transaction): TransactionRow {
     category_name: tx.category_name ?? null,
     description: tx.description,
     occurred_on: tx.occurred_on,
+    recurring_id: tx.recurring_id,
     created_by: tx.created_by ? { name: tx.created_by.name, email: tx.created_by.email } : undefined,
   };
+}
+
+/** Recurring item names by id, to label the transactions that pay them. */
+export function toRecurringNames(items: { id: string; name: string }[]): Record<string, string> {
+  return Object.fromEntries(items.map((item) => [item.id, item.name]));
 }

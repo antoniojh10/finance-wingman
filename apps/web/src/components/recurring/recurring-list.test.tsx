@@ -8,8 +8,12 @@ import type { RecurringRow } from "./recurring-dialog";
 import { RecurringList, sortByStatus } from "./recurring-list";
 
 const setRecurringStatus = vi.fn();
+const registerRecurringPayment = vi.fn();
+const toastSuccess = vi.fn();
+vi.mock("sonner", () => ({ toast: { success: (...args: unknown[]) => toastSuccess(...args), error: vi.fn() } }));
 vi.mock("@/app/actions/recurring", () => ({
   saveRecurring: vi.fn(),
+  registerRecurringPayment: (...args: unknown[]) => registerRecurringPayment(...args),
   setRecurringStatus: (...args: unknown[]) => setRecurringStatus(...args),
 }));
 
@@ -111,6 +115,61 @@ describe("RecurringList", () => {
     expect(screen.queryByRole("menuitem", { name: "Cancel subscription" })).not.toBeInTheDocument();
     await user.click(await screen.findByRole("menuitem", { name: "Reactivate" }));
     await waitFor(() => expect(setRecurringStatus).toHaveBeenCalledWith("a", "active"));
+  });
+
+  it("shows the payment status of the current period", () => {
+    renderList([
+      row({ id: "o", name: "Rent", current_period: { due_on: "2026-10-01", status: "overdue" } }),
+      row({ id: "n", name: "Gym", current_period: { due_on: "2026-10-05", status: "pending" } }),
+      row({ id: "d", name: "Phone", current_period: { due_on: "2026-10-03", status: "paid" } }),
+    ]);
+    const [rent, gym, phone] = screen.getAllByTestId("recurring-row");
+    expect(within(rent).getByText("Overdue")).toBeInTheDocument();
+    expect(within(gym).getByText("Pending")).toBeInTheDocument();
+    expect(within(phone).getByText("Paid")).toBeInTheDocument();
+  });
+
+  it("offers Register on unpaid active items and opens the confirm dialog", async () => {
+    const user = renderList([
+      row({ id: "o", name: "Rent", current_period: { due_on: "2026-10-01", status: "overdue" } }),
+      row({ id: "d", name: "Phone", current_period: { due_on: "2026-10-03", status: "paid" } }),
+      row({ id: "p", name: "Old", status: "paused", current_period: null }),
+    ]);
+    const [rent, phone, paused] = screen.getAllByTestId("recurring-row");
+    expect(within(phone).queryByRole("button", { name: "Register payment" })).not.toBeInTheDocument();
+    expect(within(paused).queryByRole("button", { name: "Register payment" })).not.toBeInTheDocument();
+    await user.click(within(rent).getByRole("button", { name: "Register payment" }));
+    expect(await screen.findByRole("dialog", { name: "Register payment: Rent" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Amount (MXN)")).toHaveValue("199.00");
+  });
+
+  it("keeps the dialog mounted when the revalidation marks the period paid", async () => {
+    const list = (status: "overdue" | "paid") => (
+      <RecurringList
+        items={[row({ id: "o", name: "Rent", current_period: { due_on: "2026-10-01", status } })]}
+        accounts={accounts}
+        categories={[]}
+        defaultDate="2026-10-05"
+      />
+    );
+    const view = renderWithIntl(list("overdue"));
+    registerRecurringPayment.mockImplementation(async () => {
+      view.rerender(list("paid"));
+      return { ok: true, nonce: 1 };
+    });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Register payment" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Register payment" }));
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Payment registered"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByText("Paid")).toBeInTheDocument();
+  });
+
+  it("shows the last payment date", () => {
+    renderList([
+      row({ last_payment: { amount: 19900, date: "2026-10-03", due_on: "2026-10-01", transaction_id: "t" } }),
+    ]);
+    expect(screen.getByText(/Last paid: Oct 3, 2026/)).toBeInTheDocument();
   });
 
   it("shows an empty state", () => {

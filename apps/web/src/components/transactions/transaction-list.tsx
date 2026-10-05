@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownLeftIcon, ArrowLeftRightIcon, ArrowRightIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { ArrowDownLeftIcon, ArrowLeftRightIcon, ArrowRightIcon, PencilIcon, RepeatIcon, Trash2Icon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -23,6 +23,8 @@ type ListProps = {
   /** Today's date; also the default date when editing. */
   defaultDate: string;
   editable?: boolean;
+  /** Recurring item names by id, to show which subscription a transaction pays. */
+  recurringNames?: Record<string, string>;
 };
 
 /** Splits transactions (already sorted newest first) into runs of the same day. */
@@ -89,7 +91,14 @@ function Rows({ transactions, ...props }: ListProps) {
   );
 }
 
-function TransactionItem({ tx, accounts, categories, defaultDate, editable = true }: Omit<ListProps, "transactions"> & { tx: TransactionRow }) {
+function TransactionItem({
+  tx,
+  accounts,
+  categories,
+  defaultDate,
+  editable = true,
+  recurringNames,
+}: Omit<ListProps, "transactions"> & { tx: TransactionRow }) {
   const t = useTranslations();
   const locale = useLocale();
   const fmtLocale = intlLocale(isLocale(locale) ? locale : "en");
@@ -100,7 +109,8 @@ function TransactionItem({ tx, accounts, categories, defaultDate, editable = tru
   const categoryName = tx.category_name ?? t("common.uncategorized");
   const title = tx.description || (tx.type === "transfer" ? t("transactions.types.transfer") : categoryName);
   const color = categories.find((c) => c.id === tx.category_id)?.color;
-  const recordedBy = tx.created_by ? tx.created_by.name || tx.created_by.email : null;
+  const subscriptionName = tx.recurring_id ? recurringNames?.[tx.recurring_id] : undefined;
+  const recordedBy =tx.created_by ? tx.created_by.name || tx.created_by.email : null;
 
   return (
     <li className="flex items-center gap-3 py-3" data-testid="transaction-row">
@@ -135,6 +145,12 @@ function TransactionItem({ tx, accounts, categories, defaultDate, editable = tru
           </span>
           <span aria-hidden>·</span>
           <span className="whitespace-nowrap">{formatDate(tx.occurred_on, fmtLocale)}</span>
+          {subscriptionName && (
+            <span className="inline-flex min-w-0 items-center gap-1 truncate" data-testid="transaction-subscription">
+              <RepeatIcon className="size-3 shrink-0" aria-hidden />
+              {t("transactions.paysSubscription", { name: subscriptionName })}
+            </span>
+          )}
           {recordedBy && (
             <span title={t("transactions.recordedBy", { name: recordedBy })} className="inline-flex">
               <span className="sr-only">{t("transactions.recordedBy", { name: recordedBy })}</span>

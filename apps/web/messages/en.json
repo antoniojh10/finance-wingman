@@ -71,7 +71,11 @@
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
     "transactionCount": "{count, plural, one {# transaction} other {# transactions}}",
-    "share": "{percent} of expenses"
+    "share": "{percent} of expenses",
+    "subscriptions": "Subscriptions",
+    "subscriptionsUpcoming": "Overdue and due in the next 7 days",
+    "subscriptionsNothingDue": "Nothing due in the next 7 days.",
+    "subscriptionsCommitted": "Committed per month"
   },
   "transactions": {
     "title": "Transactions",
@@ -109,7 +113,8 @@
     "needAccount": "Create an account before adding transactions.",
     "today": "Today",
     "yesterday": "Yesterday",
-    "moreFilters": "More filters"
+    "moreFilters": "More filters",
+    "paysSubscription": "Subscription: {name}"
   },
   "accounts": {
     "title": "Accounts",
@@ -281,6 +286,19 @@
     "income": "Income",
     "net": "Net",
     "activeCount": "{count, plural, one {# active item} other {# active items}}",
-    "summaryHint": "Active subscriptions only, averaged per month. Yearly is monthly x 12."
+    "summaryHint": "Active subscriptions only, averaged per month. Yearly is monthly x 12.",
+    "paymentStatus": {
+      "paid": "Paid",
+      "pending": "Pending",
+      "overdue": "Overdue"
+    },
+    "register": "Register payment",
+    "registerTitle": "Register payment: {name}",
+    "registerDescription": "This records a transaction for this period. You can adjust the amount and date.",
+    "registerPeriod": "Paying the period due on {date}.",
+    "paidOn": "Payment date",
+    "registeredToast": "Payment registered",
+    "dueOn": "Due {date}",
+    "lastPaid": "Last paid: {date}"
   }
 }

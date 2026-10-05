@@ -91,6 +91,21 @@ describe("TransactionList", () => {
     expect(await screen.findByRole("dialog", { name: "Edit transaction" })).toBeInTheDocument();
   });
 
+  it("shows the subscription a transaction pays", () => {
+    renderWithIntl(
+      <TransactionList
+        transactions={[tx({ id: "p", recurring_id: "r1" }), tx({ id: "q", recurring_id: null })]}
+        accounts={accounts}
+        categories={categories}
+        defaultDate="2026-10-05"
+        recurringNames={{ r1: "Netflix" }}
+      />,
+    );
+    const [linked, plain] = screen.getAllByTestId("transaction-row");
+    expect(within(linked).getByTestId("transaction-subscription")).toHaveTextContent("Subscription: Netflix");
+    expect(within(plain).queryByTestId("transaction-subscription")).not.toBeInTheDocument();
+  });
+
   it("shows an empty state", () => {
     renderWithIntl(<TransactionList transactions={[]} accounts={accounts} categories={categories} defaultDate="2026-10-05" />);
     expect(screen.getByText("No transactions found.")).toBeInTheDocument();

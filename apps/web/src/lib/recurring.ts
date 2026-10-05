@@ -5,6 +5,8 @@ export type RecurringType = "expense" | "income";
 export type IntervalUnit = "week" | "month" | "year";
 export type RecurringStatus = "active" | "paused" | "cancelled";
 
+export type PaymentStatus = "paid" | "pending" | "overdue";
+
 /** The yearly equivalent of a monthly committed amount (monthly x 12). */
 export function yearlyFromMonthly(monthly: number): number {
   return monthly * 12;

@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormAction } from "@/hooks/use-form-action";
 import { toDecimalString } from "@/lib/money";
-import type { IntervalUnit, RecurringType } from "@/lib/recurring";
+import type { IntervalUnit, PaymentStatus, RecurringType } from "@/lib/recurring";
 
 export type RecurringRow = {
   id: string;
@@ -36,6 +36,9 @@ export type RecurringRow = {
   total_payments: number | null;
   next_due_on: string | null;
   notes: string;
+  /** Period the item is in now; null unless the item is active. */
+  current_period?: { due_on: string; status: PaymentStatus } | null;
+  last_payment?: { amount: number; date: string; due_on: string; transaction_id: string } | null;
 };
 
 const intervalUnits: IntervalUnit[] = ["week", "month", "year"];
