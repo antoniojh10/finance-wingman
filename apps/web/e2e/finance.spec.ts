@@ -275,6 +275,67 @@ test("accepts a detected subscription and sees its linked transactions", async (
   await expect(listRow).toContainText("Cancelled");
 });
 
+test("links and unlinks a transaction to a subscription", async ({ page }, testInfo) => {
+  const suffix = `${testInfo.project.name}-${Date.now()}`;
+  const accountName = `Link ${suffix}`;
+  const name = `Hulu ${suffix}`;
+
+  await signIn(page, e2eUser);
+
+  await navigate(page, /accounts/i);
+  await page.getByRole("button", { name: "New account" }).click();
+  await page.getByRole("dialog").getByLabel("Name").fill(accountName);
+  await page.getByRole("dialog").getByLabel("Currency").selectOption("MXN");
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Account saved")).toBeVisible();
+
+  await navigate(page, /subscriptions/i);
+  await page.getByRole("button", { name: "New subscription" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Name").fill(name);
+  await dialog.locator("label", { hasText: accountName }).click();
+  await dialog.getByLabel(/^Amount/).fill("150");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Subscription saved")).toBeVisible();
+
+  // A new transaction that looks like the subscription offers to link it.
+  await navigate(page, /dashboard/i);
+  await openNewTransaction(page);
+  const form = page.getByRole("main");
+  await form.locator("label", { hasText: accountName }).click();
+  await form.getByLabel(/^Amount/).fill("150");
+  await form.getByLabel("Description").fill(name);
+  await form.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Transaction saved")).toBeVisible();
+  await page.getByRole("button", { name: `Link to ${name}?` }).click();
+  await expect(page.getByText(`Linked to ${name}`)).toBeVisible();
+
+  await navigate(page, /transactions/i);
+  await page.getByRole("searchbox", { name: "Search" }).fill(name);
+  await page.getByRole("button", { name: "Filter" }).click();
+  const row = page.getByTestId("transaction-row").filter({ hasText: name });
+  await expect(row).toContainText(`Subscription: ${name}`);
+
+  // Unlink from the edit dialog.
+  await row.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Edit" }).click();
+  const edit = page.getByRole("dialog");
+  await expect(edit.getByText(`Pays ${name}`)).toBeVisible();
+  await edit.getByRole("button", { name: "Unlink" }).click();
+  await expect(page.getByText("Unlinked from the subscription")).toBeVisible();
+  await expect(edit.getByRole("button", { name: "Link", exact: true })).toBeVisible();
+  await edit.getByRole("button", { name: "Cancel" }).click();
+  await expect(row).not.toContainText("Subscription:");
+
+  // Clean up: cancel the subscription so it stops counting.
+  await navigate(page, /subscriptions/i);
+  const listRow = page.getByTestId("recurring-row").filter({ hasText: name });
+  await listRow.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
+  await expect(listRow).toContainText("Cancelled");
+});
+
 test("switches language and signs out", async ({ page }) => {
   await signIn(page, e2eUser);
   await navigate(page, /settings/i);

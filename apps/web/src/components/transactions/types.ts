@@ -37,3 +37,15 @@ export type TransactionRow = {
   recurring_id?: string | null;
   created_by?: { name: string; email: string };
 };
+
+/** A recurring item a transaction can be linked to. */
+export type RecurringOption = {
+  id: string;
+  name: string;
+  type: "expense" | "income";
+  account_id: string;
+  status: "active" | "paused" | "cancelled";
+  /** Due date the item is in now (unless not active). */
+  current_due_on: string | null;
+  next_due_on: string | null;
+};

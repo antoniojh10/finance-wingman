@@ -2,7 +2,6 @@
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { saveTransaction } from "@/app/actions/transactions";
 import { ChipRadioGroup } from "@/components/chip-radio";
@@ -16,7 +15,9 @@ import { useFormAction } from "@/hooks/use-form-action";
 import { toDecimalString } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-import type { AccountOption, CategoryOption, TransactionRow, TransactionType } from "./types";
+import { TransactionSubscriptionLink } from "./transaction-subscription-link";
+import type { AccountOption, CategoryOption, RecurringOption, TransactionRow, TransactionType } from "./types";
+import { useSavedToast } from "./use-saved-toast";
 
 const types: TransactionType[] = ["expense", "income", "transfer"];
 
@@ -35,6 +36,7 @@ const amountColors: Record<TransactionType, string> = {
 export function TransactionDialog({
   accounts,
   categories,
+  recurringItems,
   transaction,
   defaultDate,
   trigger,
@@ -43,6 +45,8 @@ export function TransactionDialog({
 }: {
   accounts: AccountOption[];
   categories: CategoryOption[];
+  /** Subscriptions an existing transaction can be linked to. */
+  recurringItems?: RecurringOption[];
   transaction?: TransactionRow;
   defaultDate: string;
   /** Omit when the dialog is opened through `open` (e.g. from a menu). */
@@ -54,6 +58,7 @@ export function TransactionDialog({
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = controlledOpen ?? uncontrolledOpen;
   const setOpen = onOpenChange ?? setUncontrolledOpen;
+  const announceSaved = useSavedToast();
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -62,14 +67,17 @@ export function TransactionDialog({
         <DialogHeader>
           <DialogTitle>{t(transaction ? "transactions.editTitle" : "transactions.addTitle")}</DialogTitle>
         </DialogHeader>
+        {open && transaction && recurringItems && recurringItems.length > 0 && (
+          <TransactionSubscriptionLink transaction={transaction} recurringItems={recurringItems} />
+        )}
         {open && (
           <TransactionForm
             accounts={accounts}
             categories={categories}
             transaction={transaction}
             defaultDate={defaultDate}
-            onSaved={() => {
-              toast.success(t("transactions.saved"));
+            onSaved={({ transactionId }) => {
+              void announceSaved(transactionId);
               setOpen(false);
             }}
             onCancel={() => setOpen(false)}
@@ -92,7 +100,7 @@ export function TransactionForm({
   categories: CategoryOption[];
   transaction?: TransactionRow;
   defaultDate: string;
-  onSaved: () => void;
+  onSaved: (result: { transactionId?: string }) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations();
@@ -100,7 +108,7 @@ export function TransactionForm({
   // arrives before the dialog closes, and changing defaultValue on mounted
   // inputs makes Base UI warn.
   const [transaction] = useState(transactionProp);
-  const { state, onSubmit, pending } = useFormAction(saveTransaction, onSaved);
+  const { state, onSubmit, pending } = useFormAction(saveTransaction, (result) => onSaved({ transactionId: result.transactionId }));
 
   // Archived accounts and categories are only offered when already selected.
   const accountOptions = accounts.filter(

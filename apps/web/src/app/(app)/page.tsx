@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { monthOf, monthRange, parseMonth, today } from "@/lib/dates";
 import { authedApi, expectData } from "@/lib/session";
-import { toAccountOption, toCategoryOption, toRecurringNames, toTransactionRow } from "@/lib/view-models";
+import { toAccountOption, toCategoryOption, toRecurringNames, toRecurringOption, toTransactionRow } from "@/lib/view-models";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("dashboard");
@@ -107,6 +107,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             categories={categories}
             defaultDate={todayDate}
             recurringNames={toRecurringNames(expectData(recurringRes).items)}
+            recurringItems={expectData(recurringRes).items.map(toRecurringOption)}
           />
         </CardContent>
       </Card>

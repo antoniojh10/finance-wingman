@@ -14,7 +14,7 @@ import { intlLocale, isLocale } from "@/i18n/locales";
 import { cn } from "@/lib/utils";
 
 import { TransactionDialog } from "./transaction-dialog";
-import type { AccountOption, CategoryOption, TransactionRow } from "./types";
+import type { AccountOption, CategoryOption, RecurringOption, TransactionRow } from "./types";
 
 type ListProps = {
   transactions: TransactionRow[];
@@ -25,6 +25,8 @@ type ListProps = {
   editable?: boolean;
   /** Recurring item names by id, to show which subscription a transaction pays. */
   recurringNames?: Record<string, string>;
+  /** Subscriptions to offer when linking a transaction from its edit dialog. */
+  recurringItems?: RecurringOption[];
 };
 
 /** Splits transactions (already sorted newest first) into runs of the same day. */
@@ -98,6 +100,7 @@ function TransactionItem({
   defaultDate,
   editable = true,
   recurringNames,
+  recurringItems,
 }: Omit<ListProps, "transactions"> & { tx: TransactionRow }) {
   const t = useTranslations();
   const locale = useLocale();
@@ -190,6 +193,7 @@ function TransactionItem({
           <TransactionDialog
             accounts={accounts}
             categories={categories}
+            recurringItems={recurringItems}
             transaction={tx}
             defaultDate={defaultDate}
             open={editing}

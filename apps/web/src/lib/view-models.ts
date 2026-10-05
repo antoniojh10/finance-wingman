@@ -1,5 +1,5 @@
-import type { Account, Category, Transaction } from "@/lib/api/client";
-import type { AccountOption, CategoryOption, TransactionRow } from "@/components/transactions/types";
+import type { Account, Category, RecurringItem, Transaction } from "@/lib/api/client";
+import type { AccountOption, CategoryOption, RecurringOption, TransactionRow } from "@/components/transactions/types";
 
 export function toAccountOption(a: Account): AccountOption {
   return { id: a.id, name: a.name, currency: a.currency, minor_units: a.minor_units, archived: a.archived };
@@ -35,4 +35,16 @@ export function toTransactionRow(tx: Transaction): TransactionRow {
 /** Recurring item names by id, to label the transactions that pay them. */
 export function toRecurringNames(items: { id: string; name: string }[]): Record<string, string> {
   return Object.fromEntries(items.map((item) => [item.id, item.name]));
+}
+
+export function toRecurringOption(item: RecurringItem): RecurringOption {
+  return {
+    id: item.id,
+    name: item.name,
+    type: item.type,
+    account_id: item.account_id,
+    status: item.status,
+    current_due_on: item.current_period?.due_on ?? null,
+    next_due_on: item.next_due_on,
+  };
 }

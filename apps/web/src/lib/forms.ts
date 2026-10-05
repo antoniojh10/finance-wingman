@@ -7,6 +7,8 @@ export type FormState = {
   nonce?: number;
   message?: string;
   fieldErrors?: Record<string, string>;
+  /** Id of the transaction a save action created. */
+  transactionId?: string;
 };
 
 export const initialFormState: FormState = { ok: false };

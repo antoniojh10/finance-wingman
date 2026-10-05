@@ -115,7 +115,21 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "moreFilters": "More filters",
-    "paysSubscription": "Subscription: {name}"
+    "paysSubscription": "Subscription: {name}",
+    "subscriptionLabel": "Subscription",
+    "selectSubscription": "Subscription to link",
+    "linkSubscription": "Link",
+    "unlinkSubscription": "Unlink",
+    "linkedTo": "Pays {name}",
+    "linkedToUnknown": "Linked to a subscription",
+    "period": "Period",
+    "periodClosest": "Closest to the transaction date",
+    "periodCurrent": "Current period · {date}",
+    "periodNext": "Next period · {date}",
+    "noSubscriptions": "No subscriptions with this account and type.",
+    "linked": "Linked to {name}",
+    "unlinked": "Unlinked from the subscription",
+    "linkSuggestion": "Link to {name}?"
   },
   "accounts": {
     "title": "Accounts",

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { today } from "@/lib/dates";
 import { pageHref, parseTransactionQuery } from "@/lib/query";
 import { authedApi, expectData } from "@/lib/session";
-import { toAccountOption, toCategoryOption, toRecurringNames, toTransactionRow } from "@/lib/view-models";
+import { toAccountOption, toCategoryOption, toRecurringNames, toRecurringOption, toTransactionRow } from "@/lib/view-models";
 
 const PAGE_SIZE = 25;
 
@@ -74,6 +74,7 @@ export default async function TransactionsPage({
           categories={categories}
           defaultDate={todayDate}
           recurringNames={toRecurringNames(expectData(recurringRes).items)}
+          recurringItems={expectData(recurringRes).items.map(toRecurringOption)}
           groupByDate
         />
         {page.total > 0 && (
