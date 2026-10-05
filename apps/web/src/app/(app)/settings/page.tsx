@@ -1,5 +1,6 @@
-import { LogOutIcon } from "lucide-react";
+import { ChevronRightIcon, LogOutIcon, TagIcon } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { logout } from "@/app/actions/auth";
@@ -79,6 +80,18 @@ export default async function SettingsPage() {
             </ol>
             <p className="text-[13px] leading-relaxed text-hero-muted">{t("settings.assistantsHint")}</p>
           </section>
+
+          <Link
+            href="/categories"
+            className="flex min-h-17.5 items-center gap-3.5 rounded-3xl bg-card px-5 py-3 ring-1 ring-foreground/5 transition-colors hover:bg-accent"
+          >
+            <TagIcon className="size-5 shrink-0 text-primary" aria-hidden />
+            <span className="grid min-w-0 flex-1">
+              <span className="font-heading text-base font-bold">{t("nav.categories")}</span>
+              <span className="text-sm text-muted-foreground">{t("settings.categoriesDescription")}</span>
+            </span>
+            <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
 
           <Card>
             <CardHeader>

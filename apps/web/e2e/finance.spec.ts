@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { e2eUser } from "../playwright.config";
-import { codeFrom, linkFrom, navigate, openNewTransaction, requestLogin, signIn } from "./helpers";
+import { codeFrom, linkFrom, navigate, openCategories, openNewTransaction, requestLogin, signIn } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -47,7 +47,7 @@ test("manages accounts, categories and transactions", async ({ page }, testInfo)
   await expect(accountRow).toContainText("MX$1,000.00");
 
   // Category
-  await navigate(page, /categories/i);
+  await openCategories(page);
   await page.getByRole("button", { name: "New category" }).first().click();
   await page.getByRole("dialog").getByLabel("Name").fill(categoryName);
   await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
@@ -55,6 +55,7 @@ test("manages accounts, categories and transactions", async ({ page }, testInfo)
 
   // Transaction from the dashboard
   await navigate(page, /dashboard/i);
+  await expect(page).toHaveURL(/\/$/);
   await openNewTransaction(page);
   const txForm = page.getByRole("main");
   await txForm.locator("label", { hasText: accountName }).click();
@@ -97,6 +98,57 @@ test("manages accounts, categories and transactions", async ({ page }, testInfo)
   await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
   await expect(page.getByText("Account deleted")).toBeVisible();
+});
+
+test("creates, edits and pauses a subscription", async ({ page }, testInfo) => {
+  const suffix = `${testInfo.project.name}-${Date.now()}`;
+  const accountName = `Cards ${suffix}`;
+  const name = `Netflix ${suffix}`;
+
+  await signIn(page, e2eUser);
+
+  await navigate(page, /accounts/i);
+  await page.getByRole("button", { name: "New account" }).click();
+  await page.getByRole("dialog").getByLabel("Name").fill(accountName);
+  await page.getByRole("dialog").getByLabel("Currency").selectOption("MXN");
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Account saved")).toBeVisible();
+
+  // Create
+  await navigate(page, /subscriptions/i);
+  await expect(page.getByRole("heading", { name: "Subscriptions" })).toBeVisible();
+  await page.getByRole("button", { name: "New subscription" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(dialog.getByText("This field is required.").first()).toBeVisible();
+  await dialog.getByLabel("Name").fill(name);
+  await dialog.locator("label", { hasText: accountName }).click();
+  await dialog.getByLabel(/^Amount/).fill("199");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Subscription saved")).toBeVisible();
+  const row = page.getByTestId("recurring-row").filter({ hasText: name });
+  await expect(row).toContainText("−MX$199.00");
+  await expect(row).toContainText("Every month");
+  await expect(page.getByTestId("summary-MXN-expenses")).toBeVisible();
+
+  // Edit
+  await row.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Edit" }).click();
+  await page.getByRole("dialog").getByLabel(/^Amount/).fill("249");
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expect(row).toContainText("−MX$249.00");
+
+  // Pause
+  await row.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Pause" }).click();
+  await expect(page.getByText("Subscription paused")).toBeVisible();
+  await expect(row).toContainText("Paused");
+
+  // Clean up: cancel it so it stops counting.
+  await row.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
+  await expect(row).toContainText("Cancelled");
 });
 
 test("switches language and signs out", async ({ page }) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRightIcon, HouseIcon, PlusIcon, SettingsIcon, TagIcon, WalletIcon } from "lucide-react";
+import { ArrowLeftRightIcon, HouseIcon, PlusIcon, RepeatIcon, SettingsIcon, TagIcon, WalletIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,6 +12,7 @@ export const navItems = [
   { href: "/", key: "dashboard", icon: HouseIcon },
   { href: "/transactions", key: "transactions", icon: ArrowLeftRightIcon },
   { href: "/accounts", key: "accounts", icon: WalletIcon },
+  { href: "/subscriptions", key: "subscriptions", icon: RepeatIcon },
   { href: "/categories", key: "categories", icon: TagIcon },
   { href: "/settings", key: "settings", icon: SettingsIcon },
 ] as const;
@@ -75,11 +76,11 @@ export function AddTransactionLink({ className, children }: { className?: string
   );
 }
 
-/** Mobile bottom tab bar: four sections around a floating add button. */
+/** Mobile bottom tab bar: four sections (categories live in settings) around a floating add button. */
 export function TabLinks() {
   const pathname = usePathname();
   const t = useTranslations("nav");
-  const tabs = navItems.filter((item) => item.key !== "settings");
+  const tabs = navItems.filter((item) => item.key !== "settings" && item.key !== "categories");
 
   const tab = ({ href, key, icon: Icon }: (typeof tabs)[number]) => {
     const active = isActive(pathname, href);

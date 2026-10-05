@@ -31,6 +31,13 @@ describe("TabLinks", () => {
     expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
   });
 
+  it("shows subscriptions and leaves categories to settings", () => {
+    renderWithIntl(<TabLinks />);
+    expect(screen.getByRole("link", { name: "Subscriptions" })).toHaveAttribute("href", "/subscriptions");
+    expect(screen.getByRole("link", { name: "Accounts" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Categories" })).not.toBeInTheDocument();
+  });
+
   it("adds transactions returning to the current page", () => {
     renderWithIntl(<TabLinks />);
     expect(screen.getByRole("link", { name: "Add transaction" })).toHaveAttribute(
@@ -41,6 +48,12 @@ describe("TabLinks", () => {
 });
 
 describe("SidebarLinks", () => {
+  it("keeps categories and adds subscriptions", () => {
+    renderWithIntl(<SidebarLinks />);
+    expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/categories");
+    expect(screen.getByRole("link", { name: "Subscriptions" })).toHaveAttribute("href", "/subscriptions");
+  });
+
   it("includes settings", () => {
     renderWithIntl(<SidebarLinks />);
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
