@@ -363,6 +363,89 @@
         ],
         "type": "object"
       },
+      "CreateRecurringItemInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreateRecurringItemInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "account_id": {
+            "description": "Account that is charged or credited; its currency applies to the item",
+            "format": "uuid",
+            "type": "string"
+          },
+          "amount": {
+            "description": "Estimated amount of each occurrence, in minor units",
+            "format": "int64",
+            "maximum": 1000000000000000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "category_id": {
+            "description": "Category whose kind matches the type",
+            "format": "uuid",
+            "type": "string"
+          },
+          "interval_count": {
+            "default": 1,
+            "description": "Repeats every this many units",
+            "format": "int64",
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "interval_unit": {
+            "enum": [
+              "week",
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "start_on": {
+            "description": "First due date. Defaults to today",
+            "format": "date",
+            "type": "string"
+          },
+          "total_payments": {
+            "description": "Number of payments for an installment plan. Omit for open-ended items",
+            "format": "int64",
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "expense",
+              "income"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "account_id",
+          "amount",
+          "interval_unit"
+        ],
+        "type": "object"
+      },
       "Currency": {
         "additionalProperties": false,
         "properties": {
@@ -647,6 +730,30 @@
         ],
         "type": "object"
       },
+      "ListOutputRecurringItemBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputRecurringItemBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringItem"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "ListOutputTransactionBody": {
         "additionalProperties": false,
         "properties": {
@@ -720,6 +827,239 @@
         },
         "required": [
           "message"
+        ],
+        "type": "object"
+      },
+      "RecurringCurrencySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "expense": {
+            "description": "Committed monthly expenses, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "expense_count": {
+            "description": "Active recurring expenses included",
+            "format": "int64",
+            "type": "integer"
+          },
+          "income": {
+            "description": "Expected monthly recurring income, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "income_count": {
+            "description": "Active recurring incomes included",
+            "format": "int64",
+            "type": "integer"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "net": {
+            "description": "Income minus expenses",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "currency",
+          "minor_units",
+          "expense",
+          "income",
+          "net",
+          "expense_count",
+          "income_count"
+        ],
+        "type": "object"
+      },
+      "RecurringItem": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RecurringItem.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "account_id": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "amount": {
+            "description": "Estimated amount of each occurrence, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "category_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "interval_count": {
+            "description": "Repeats every this many units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "interval_unit": {
+            "enum": [
+              "week",
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "last_due_on": {
+            "description": "Final due date of an installment plan; null when open-ended",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "monthly_amount": {
+            "description": "Amount normalized to an average month, in minor units (rounded half up)",
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "examples": [
+              "Netflix"
+            ],
+            "type": "string"
+          },
+          "next_due_on": {
+            "description": "Next due date on or after today. Null unless the item is active and still has due dates",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": "string"
+          },
+          "start_on": {
+            "description": "First due date",
+            "format": "date",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "paused",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "total_payments": {
+            "description": "Number of payments for installment plans; null when open-ended",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "type": {
+            "enum": [
+              "expense",
+              "income"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "account_id",
+          "account_name",
+          "currency",
+          "minor_units",
+          "category_id",
+          "category_name",
+          "amount",
+          "monthly_amount",
+          "notes",
+          "interval_unit",
+          "interval_count",
+          "start_on",
+          "total_payments",
+          "last_due_on",
+          "next_due_on",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "RecurringSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RecurringSummary.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringCurrencySummary"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "currencies"
         ],
         "type": "object"
       },
@@ -1122,6 +1462,80 @@
           "name": {
             "maxLength": 100,
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateRecurringItemInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateRecurringItemInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "amount": {
+            "format": "int64",
+            "maximum": 1000000000000000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "category_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "clear_category": {
+            "description": "Remove the category",
+            "type": "boolean"
+          },
+          "clear_total_payments": {
+            "type": "boolean"
+          },
+          "interval_count": {
+            "format": "int64",
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "interval_unit": {
+            "enum": [
+              "week",
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 1000,
+            "type": "string"
+          },
+          "start_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "status": {
+            "description": "Set to cancelled to retire the item",
+            "enum": [
+              "active",
+              "paused",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "total_payments": {
+            "format": "int64",
+            "maximum": 10000,
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "type": "object"
@@ -1951,6 +2365,233 @@
         "summary": "List supported currencies",
         "tags": [
           "Currencies"
+        ]
+      }
+    },
+    "/api/v1/recurring": {
+      "get": {
+        "description": "Subscriptions, bills, installments and recurring income, with their next due date.",
+        "operationId": "list-recurring-items",
+        "parameters": [
+          {
+            "description": "Only items with this status",
+            "explode": false,
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "description": "Only items with this status",
+              "enum": [
+                "active",
+                "paused",
+                "cancelled"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only items of this type",
+            "explode": false,
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "description": "Only items of this type",
+              "enum": [
+                "expense",
+                "income"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputRecurringItemBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List recurring items",
+        "tags": [
+          "Recurring"
+        ]
+      },
+      "post": {
+        "operationId": "create-recurring-item",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRecurringItemInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringItem"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a recurring item",
+        "tags": [
+          "Recurring"
+        ]
+      }
+    },
+    "/api/v1/recurring/summary": {
+      "get": {
+        "description": "Active recurring items normalized to an average month and grouped per currency (no conversion), split into expenses and income.",
+        "operationId": "get-recurring-summary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringSummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Committed monthly cost",
+        "tags": [
+          "Recurring"
+        ]
+      }
+    },
+    "/api/v1/recurring/{id}": {
+      "get": {
+        "operationId": "get-recurring-item",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringItem"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get a recurring item",
+        "tags": [
+          "Recurring"
+        ]
+      },
+      "patch": {
+        "description": "Partially updates an item. The type and account cannot be changed. There is no delete: set status to cancelled to retire an item.",
+        "operationId": "update-recurring-item",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRecurringItemInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringItem"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update a recurring item",
+        "tags": [
+          "Recurring"
         ]
       }
     },
