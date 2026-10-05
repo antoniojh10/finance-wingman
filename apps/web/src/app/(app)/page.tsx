@@ -57,7 +57,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   }
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="sr-only text-3xl font-bold tracking-tight md:not-sr-only">{t("dashboard.title")}</h1>
         <MonthPicker month={month} caption={t("dashboard.transactionCount", { count: recent.total })} />

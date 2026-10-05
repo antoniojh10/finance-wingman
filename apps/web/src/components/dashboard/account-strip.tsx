@@ -21,7 +21,7 @@ export function AccountStrip({ accounts }: { accounts: AccountSummary[] }) {
       {accounts.map((a) => (
         <li
           key={a.id}
-          className="grid w-40 shrink-0 snap-start gap-4.5 rounded-[22px] bg-[color-mix(in_oklab,var(--tile)_16%,var(--card))] p-4 md:w-auto"
+          className="grid w-40 shrink-0 snap-start grid-cols-1 gap-4.5 rounded-[22px] bg-[color-mix(in_oklab,var(--tile)_16%,var(--card))] p-4 md:w-auto"
           style={{ "--tile": accountStyles[a.type].color } as CSSProperties}
         >
           <div className="flex items-center justify-between gap-2 text-xs text-[color-mix(in_oklab,var(--tile)_55%,var(--foreground))]">

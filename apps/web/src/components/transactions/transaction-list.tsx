@@ -60,12 +60,12 @@ export function TransactionList({ groupByDate = false, ...props }: ListProps & {
 
   const yesterday = previousDay(props.defaultDate);
   return (
-    <div className="grid gap-5">
+    <div className="grid grid-cols-1 gap-5">
       {groupByDay(props.transactions).map((group) => {
         const date = formatDate(group.date, fmtLocale);
         const relative = group.date === props.defaultDate ? t("today") : group.date === yesterday ? t("yesterday") : null;
         return (
-          <section key={group.date} className="grid gap-2" aria-label={date}>
+          <section key={group.date} className="grid grid-cols-1 gap-2" aria-label={date}>
             <h2 className="px-1 font-sans text-xs font-bold tracking-wider text-muted-foreground uppercase">
               {relative ? `${relative} · ${date}` : date}
             </h2>
@@ -120,11 +120,11 @@ function TransactionItem({ tx, accounts, categories, defaultDate, editable = tru
         <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-[12.5px] text-muted-foreground">
           {tx.type !== "transfer" && tx.description && (
             <>
-              <span className="truncate">{categoryName}</span>
+              <span className="min-w-0 truncate">{categoryName}</span>
               <span aria-hidden>·</span>
             </>
           )}
-          <span className="inline-flex items-center gap-1">
+          <span className="inline-flex items-center gap-1 whitespace-nowrap">
             {tx.account_name}
             {tx.destination_account_name && (
               <>
@@ -134,7 +134,7 @@ function TransactionItem({ tx, accounts, categories, defaultDate, editable = tru
             )}
           </span>
           <span aria-hidden>·</span>
-          <span>{formatDate(tx.occurred_on, fmtLocale)}</span>
+          <span className="whitespace-nowrap">{formatDate(tx.occurred_on, fmtLocale)}</span>
           {recordedBy && (
             <span title={t("transactions.recordedBy", { name: recordedBy })} className="inline-flex">
               <span className="sr-only">{t("transactions.recordedBy", { name: recordedBy })}</span>

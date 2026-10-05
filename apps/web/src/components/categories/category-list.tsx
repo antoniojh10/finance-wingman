@@ -55,7 +55,7 @@ export function CategoryBoard({
           />
         }
       />
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <div role="tablist" aria-label={t("categories.kind")} className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1 sm:w-80">
           {(["expense", "income"] as const).map((option) => (
             <button
@@ -75,7 +75,7 @@ export function CategoryBoard({
             </button>
           ))}
         </div>
-        <section id="category-panel" role="tabpanel" aria-labelledby={`tab-${kind}`} className="grid gap-3">
+        <section id="category-panel" role="tabpanel" aria-labelledby={`tab-${kind}`} className="grid grid-cols-1 gap-3">
           <h2 className="px-1 font-sans text-xs font-bold tracking-wider text-muted-foreground uppercase">
             {t(kind === "expense" ? "categories.expenseCategories" : "categories.incomeCategories")}
           </h2>
@@ -131,7 +131,7 @@ function CategoryCard({ category, totals }: { category: CategoryListItem; totals
 
   return (
     <li
-      className={cn("relative grid gap-3.5 overflow-hidden rounded-[22px] bg-card p-3.5 ring-1 ring-foreground/5", category.archived && "opacity-70")}
+      className={cn("relative grid min-w-0 grid-cols-1 gap-3.5 overflow-hidden rounded-[22px] bg-card p-3.5 ring-1 ring-foreground/5", category.archived && "opacity-70")}
       data-testid="category-row"
     >
       <span

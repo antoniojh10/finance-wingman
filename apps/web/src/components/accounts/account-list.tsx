@@ -60,9 +60,9 @@ export function AccountList({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
       {groupByCurrency(accounts).map((group, index) => (
-        <section key={group.currency} className="grid gap-2.5" aria-label={group.currency}>
+        <section key={group.currency} className="grid min-w-0 grid-cols-1 gap-2.5" aria-label={group.currency}>
           <div className={cn("flex items-center justify-between gap-3 rounded-[22px] px-4.5 py-4", headerStyles[index % headerStyles.length])}>
             <div>
               <h2 className="font-sans text-[13px] font-bold tracking-wider">{group.currency}</h2>
@@ -119,7 +119,7 @@ function AccountRow({
       </ColorTile>
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 text-[15.5px] font-semibold">
-          <span className="truncate">{account.name}</span>
+          <span className="min-w-0 truncate">{account.name}</span>
           {account.archived && <Badge variant="secondary">{t("common.archived")}</Badge>}
         </p>
         <p className="text-[12.5px] text-muted-foreground">{t(`accounts.types.${account.type}`)}</p>

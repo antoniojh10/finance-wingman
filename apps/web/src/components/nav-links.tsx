@@ -89,14 +89,14 @@ export function TabLinks() {
         href={href}
         aria-current={active ? "page" : undefined}
         className={cn(
-          "flex min-h-13 flex-col items-center justify-center gap-0.5 text-[11.5px]",
+          "flex min-h-13 min-w-0 flex-col items-center justify-center gap-0.5 text-[11px] tracking-tight",
           active ? "font-bold text-primary" : "font-semibold text-muted-foreground",
         )}
       >
         <span className={cn("flex h-7.5 w-13 items-center justify-center rounded-full", active && "bg-primary/14")}>
           <Icon className="size-5.5" aria-hidden />
         </span>
-        <span className="max-w-full truncate px-0.5">{t(key)}</span>
+        <span className="max-w-full truncate">{t(key)}</span>
       </Link>
     );
   };

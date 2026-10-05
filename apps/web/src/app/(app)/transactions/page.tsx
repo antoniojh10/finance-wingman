@@ -57,7 +57,7 @@ export default async function TransactionsPage({
   return (
     <>
       <PageHeader title={t("transactions.title")} />
-      <div className="grid gap-5">
+      <div className="grid grid-cols-1 gap-5">
         {!hasActiveAccounts && (
           <p className="rounded-2xl bg-card px-5 py-4 text-sm ring-1 ring-foreground/5">
             {t("transactions.needAccount")}{" "}

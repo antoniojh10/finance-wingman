@@ -45,7 +45,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
           />
         }
       />
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <AccountList accounts={accounts} currencies={currencies} defaultCurrency={defaultCurrency} />
         <Link
           href={showArchived ? "/accounts" : "/accounts?archived=1"}
