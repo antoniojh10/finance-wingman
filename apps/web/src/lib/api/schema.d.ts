@@ -243,6 +243,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/recurring/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest recurring items
+         * @description Detects recurring patterns among unlinked expenses and incomes, on demand. A pattern needs a description (digits and symbols are ignored) and, within the lookback: weekly 4+ occurrences in 2 months (+-1 day), monthly 3+ in 6 months (+-4 days), yearly 2+ in 25 months (+-7 days), with amounts within 15% of the median. Dismissed patterns are left out. Ordered by confidence.
+         */
+        get: operations["list-recurring-suggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/suggestions/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept a suggestion
+         * @description Creates the recurring item and links the matching transactions to the due date closest to each one, atomically. 404 when the suggestion is no longer detected (or was dismissed); 409 when another active or paused item already has the name.
+         */
+        post: operations["accept-recurring-suggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/suggestions/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss a suggestion
+         * @description Hides the suggestion for good. Idempotent.
+         */
+        post: operations["dismiss-recurring-suggestion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/recurring/summary": {
         parameters: {
             query?: never;
@@ -434,6 +494,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transactions/{id}/recurring-match": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Best recurring item for a transaction
+         * @description The active item an unlinked expense or income most likely pays (same type and account, matching name), with the due date it would settle. The item is null when nothing matches.
+         */
+        get: operations["match-transaction-recurring"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -458,6 +538,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AcceptSuggestionInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/AcceptSuggestionInput.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: int64
+             * @description Estimated amount in minor units. Defaults to the suggested amount
+             */
+            amount?: number;
+            /** @description Key of a suggestion */
+            key: string;
+            /** @description Name of the item. Defaults to the suggested name */
+            name?: string;
+        };
         Account: {
             /**
              * Format: uri
@@ -800,6 +897,15 @@ export interface components {
             readonly $schema?: string;
             items: components["schemas"]["RecurringItem"][];
         };
+        ListOutputRecurringSuggestionBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputRecurringSuggestionBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["RecurringSuggestion"][];
+        };
         ListOutputTransactionBody: {
             /**
              * Format: uri
@@ -948,6 +1054,21 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        RecurringMatch: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/RecurringMatch.json
+             */
+            readonly $schema?: string;
+            /** @description Best matching active item; null when none matches */
+            item: components["schemas"]["RecurringItem"];
+            /**
+             * Format: date
+             * @description Due date the transaction would settle if linked
+             */
+            period_due_on: string | null;
+        };
         RecurringPayment: {
             /**
              * Format: int64
@@ -998,6 +1119,57 @@ export interface components {
              */
             status: "paid" | "pending" | "overdue";
         };
+        RecurringSuggestion: {
+            account_id: string;
+            account_name: string;
+            /**
+             * Format: int64
+             * @description Estimated amount of each occurrence (median of the matches), in minor units
+             */
+            amount: number;
+            /** @description Most common category of the matching transactions */
+            category_id: string | null;
+            category_name: string | null;
+            /**
+             * Format: double
+             * @description 0 to 1: more occurrences, regular dates and steady amounts score higher
+             */
+            confidence: number;
+            /** @example MXN */
+            currency: string;
+            /** @enum {string} */
+            frequency: "weekly" | "monthly" | "yearly";
+            /** Format: int64 */
+            interval_count: number;
+            /** @enum {string} */
+            interval_unit: "week" | "month" | "year";
+            /** @description Opaque identifier to accept or dismiss the suggestion. Stable while the pattern is the same account, type and description */
+            key: string;
+            /**
+             * Format: int64
+             * @example 2
+             */
+            minor_units: number;
+            /**
+             * @description Description of the most recent matching transaction
+             * @example Spotify
+             */
+            name: string;
+            /**
+             * Format: date
+             * @description Next due date on or after today
+             */
+            next_due_on: string | null;
+            /**
+             * Format: date
+             * @description First due date the accepted item will have
+             */
+            start_on: string;
+            /** @description Matching transactions that accepting links to the new item, oldest first */
+            transaction_ids: string[];
+            /** @enum {string} */
+            type: "expense" | "income";
+        };
         RecurringSummary: {
             /**
              * Format: uri
@@ -1019,6 +1191,16 @@ export interface components {
             /** @description Bearer token; only returned when the session is created */
             token?: string;
             user: components["schemas"]["User"];
+        };
+        SuggestionKeyInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/SuggestionKeyInput.json
+             */
+            readonly $schema?: string;
+            /** @description Key of a suggestion */
+            key: string;
         };
         Summary: {
             /**
@@ -1908,6 +2090,99 @@ export interface operations {
             };
         };
     };
+    "list-recurring-suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputRecurringSuggestionBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "accept-recurring-suggestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptSuggestionInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringItem"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "dismiss-recurring-suggestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SuggestionKeyInput"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "get-recurring-summary": {
         parameters: {
             query?: never;
@@ -2360,6 +2635,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "match-transaction-recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringMatch"];
                 };
             };
             /** @description Error */

@@ -95,6 +95,14 @@ type OauthRefreshToken struct {
 	CreatedAt time.Time
 }
 
+type RecurringDismissedSuggestion struct {
+	AccountID   uuid.UUID
+	Type        string
+	Description string
+	DismissedBy *uuid.UUID
+	DismissedAt time.Time
+}
+
 type RecurringItem struct {
 	ID            uuid.UUID
 	Name          string

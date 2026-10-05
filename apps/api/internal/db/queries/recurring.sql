@@ -64,3 +64,38 @@ ORDER BY recurring_id, occurred_on DESC, created_at DESC, id;
 SELECT id, name, status FROM recurring_items
 WHERE lower(name) = lower($1) AND status <> 'cancelled' AND id <> $2
 LIMIT 1;
+
+-- name: ListRecurringCandidates :many
+-- Unlinked expenses and incomes with a description on usable accounts: the
+-- input of the detection heuristic. Archived categories are reported as none (nil uuid, empty name).
+SELECT
+    t.id,
+    t.type,
+    t.account_id,
+    t.amount,
+    t.description,
+    t.occurred_on,
+    COALESCE(CASE WHEN c.archived_at IS NULL THEN t.category_id END, '00000000-0000-0000-0000-000000000000'::uuid)::uuid AS category_id,
+    COALESCE(CASE WHEN c.archived_at IS NULL THEN c.name END, '')::text AS category_name,
+    a.name AS account_name,
+    a.currency,
+    cur.minor_units
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+JOIN currencies cur ON cur.code = a.currency
+LEFT JOIN categories c ON c.id = t.category_id
+WHERE t.type IN ('expense', 'income')
+  AND t.recurring_id IS NULL
+  AND btrim(t.description) <> ''
+  AND a.archived_at IS NULL
+  AND t.occurred_on >= sqlc.arg('from_date')::date
+  AND t.occurred_on <= sqlc.arg('to_date')::date
+ORDER BY t.account_id, t.occurred_on, t.id;
+
+-- name: ListDismissedSuggestions :many
+SELECT account_id, type, description FROM recurring_dismissed_suggestions;
+
+-- name: DismissSuggestion :exec
+INSERT INTO recurring_dismissed_suggestions (account_id, type, description, dismissed_by)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT DO NOTHING;

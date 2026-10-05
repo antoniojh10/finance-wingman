@@ -27,6 +27,14 @@ type registerPaymentInput struct {
 	Body finance.RecurringPaymentInput
 }
 
+type acceptSuggestionInput struct {
+	Body finance.AcceptSuggestionInput
+}
+
+type dismissSuggestionInput struct {
+	Body finance.SuggestionKeyInput
+}
+
 type updateRecurringInput struct {
 	ID   string `path:"id" format:"uuid"`
 	Body finance.UpdateRecurringItemInput
@@ -85,6 +93,52 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 			return nil, h.fail(err)
 		}
 		return newList(items), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "list-recurring-suggestions",
+		Method:      http.MethodGet,
+		Path:        apiPrefix + "/recurring/suggestions",
+		Summary:     "Suggest recurring items",
+		Description: "Detects recurring patterns among unlinked expenses and incomes, on demand. A pattern needs a description (digits and symbols are ignored) and, within the lookback: weekly 4+ occurrences in 2 months (+-1 day), monthly 3+ in 6 months (+-4 days), yearly 2+ in 25 months (+-7 days), with amounts within 15% of the median. Dismissed patterns are left out. Ordered by confidence.",
+		Tags:        tags,
+	}, func(ctx context.Context, _ *struct{}) (*listOutput[finance.RecurringSuggestion], error) {
+		items, err := h.svc.ListRecurringSuggestions(ctx)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return newList(items), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "accept-recurring-suggestion",
+		Method:        http.MethodPost,
+		Path:          apiPrefix + "/recurring/suggestions/accept",
+		Summary:       "Accept a suggestion",
+		Description:   "Creates the recurring item and links the matching transactions to the due date closest to each one, atomically. 404 when the suggestion is no longer detected (or was dismissed); 409 when another active or paused item already has the name.",
+		Tags:          tags,
+		DefaultStatus: http.StatusCreated,
+	}, func(ctx context.Context, in *acceptSuggestionInput) (*bodyOutput[finance.RecurringItem], error) {
+		item, err := h.svc.AcceptRecurringSuggestion(ctx, in.Body)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return &bodyOutput[finance.RecurringItem]{Body: item}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "dismiss-recurring-suggestion",
+		Method:        http.MethodPost,
+		Path:          apiPrefix + "/recurring/suggestions/dismiss",
+		Summary:       "Dismiss a suggestion",
+		Description:   "Hides the suggestion for good. Idempotent.",
+		Tags:          tags,
+		DefaultStatus: http.StatusNoContent,
+	}, func(ctx context.Context, in *dismissSuggestionInput) (*struct{}, error) {
+		if err := h.svc.DismissRecurringSuggestion(ctx, in.Body); err != nil {
+			return nil, h.fail(err)
+		}
+		return nil, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -185,6 +239,25 @@ func (h *financeHandlers) registerTransactionLinks(api huma.API) {
 			return nil, h.fail(err)
 		}
 		return &bodyOutput[finance.Transaction]{Body: tx}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "match-transaction-recurring",
+		Method:      http.MethodGet,
+		Path:        apiPrefix + "/transactions/{id}/recurring-match",
+		Summary:     "Best recurring item for a transaction",
+		Description: "The active item an unlinked expense or income most likely pays (same type and account, matching name), with the due date it would settle. The item is null when nothing matches.",
+		Tags:        tags,
+	}, func(ctx context.Context, in *idInput) (*bodyOutput[finance.RecurringMatch], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		match, err := h.svc.MatchRecurringItem(ctx, id)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return &bodyOutput[finance.RecurringMatch]{Body: match}, nil
 	})
 
 	huma.Register(api, huma.Operation{
