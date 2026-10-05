@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { CategoryBreakdown } from "@/components/dashboard/category-breakdown";
+import { AccountStrip } from "@/components/dashboard/account-strip";
+import { BalanceOverview } from "@/components/dashboard/balance-overview";
 import { MonthPicker } from "@/components/dashboard/month-picker";
-import { SummaryCards } from "@/components/dashboard/summary-cards";
-import { Money } from "@/components/money";
 import { PageHeader } from "@/components/page-header";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
@@ -30,7 +29,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     api.GET("/api/v1/summary", { params: { query: { from, to } } }),
     api.GET("/api/v1/accounts"),
     api.GET("/api/v1/categories"),
-    api.GET("/api/v1/transactions", { params: { query: { from, to, limit: 8 } } }),
+    api.GET("/api/v1/transactions", { params: { query: { from, to, limit: 6 } } }),
   ]);
   const summary = expectData(summaryRes);
   const accounts = expectData(accountsRes).items;
@@ -58,68 +57,46 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   }
 
   return (
-    <>
-      <PageHeader
-        title={t("dashboard.title")}
-        actions={<MonthPicker month={month} />}
-      />
-
-      <div className="grid gap-8">
-        {summary.currencies.map((currency) => (
-          <section key={currency.currency} className="grid gap-4" aria-label={currency.currency}>
-            <SummaryCards summary={currency} />
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("dashboard.spendingByCategory")}</CardTitle>
-                <CardDescription>{currency.currency}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <CategoryBreakdown totals={currency.expenses} currency={currency.currency} minorUnits={currency.minor_units} />
-              </CardContent>
-            </Card>
-          </section>
-        ))}
-
-        <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("dashboard.recentTransactions")}</CardTitle>
-              <CardAction>
-                <Button nativeButton={false} render={<Link href={`/transactions?from=${from}&to=${to}`} />} variant="link" size="sm">
-                  {t("dashboard.viewAll")}
-                </Button>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <TransactionList
-                transactions={recent.items.map(toTransactionRow)}
-                accounts={accountOptions}
-                categories={categories}
-                defaultDate={todayDate}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t("dashboard.accounts")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="grid gap-3">
-                {accounts.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">{a.name}</span>
-                      <span className="text-xs text-muted-foreground">{t(`accounts.types.${a.type}`)}</span>
-                    </span>
-                    <Money amount={a.balance} currency={a.currency} minorUnits={a.minor_units} className="font-medium" />
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="grid gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="sr-only text-3xl font-bold tracking-tight md:not-sr-only">{t("dashboard.title")}</h1>
+        <MonthPicker month={month} caption={t("dashboard.transactionCount", { count: recent.total })} />
       </div>
-    </>
+
+      <BalanceOverview currencies={summary.currencies} />
+
+      <section className="grid gap-2.5" aria-labelledby="accounts-heading">
+        <div className="flex items-center justify-between px-1">
+          <h2 id="accounts-heading" className="text-[19px] font-bold tracking-tight">
+            {t("dashboard.accounts")}
+          </h2>
+          <Link href="/accounts" className="flex min-h-11 items-center text-sm font-bold text-primary">
+            {t("dashboard.viewAll")}
+          </Link>
+        </div>
+        <AccountStrip accounts={accounts} />
+      </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            <h2>{t("dashboard.recentTransactions")}</h2>
+          </CardTitle>
+          <CardAction>
+            <Link href={`/transactions?from=${from}&to=${to}`} className="flex min-h-9 items-center text-sm font-bold text-primary">
+              {t("dashboard.viewAll")}
+            </Link>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <TransactionList
+            transactions={recent.items.map(toTransactionRow)}
+            accounts={accountOptions}
+            categories={categories}
+            defaultDate={todayDate}
+          />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

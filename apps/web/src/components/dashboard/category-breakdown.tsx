@@ -1,5 +1,6 @@
 import { useLocale, useTranslations } from "next-intl";
 
+import { ColorTile } from "@/components/color-tile";
 import { Money } from "@/components/money";
 import { intlLocale, isLocale } from "@/i18n/locales";
 
@@ -39,9 +40,8 @@ export function toRows(totals: CategoryTotal[], labels: { uncategorized: string;
 }
 
 /**
- * Ranked horizontal bars of spending per category for one currency. A single
- * series, so every bar uses the same color; the category color is only an
- * identity dot next to its name.
+ * Spending per category for one currency: a stacked bar showing each
+ * category's share in its own color, then a ranked list with amounts.
  */
 export function CategoryBreakdown({
   totals,
@@ -60,40 +60,38 @@ export function CategoryBreakdown({
   });
 
   if (totals.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t("dashboard.noSpending")}</p>;
+    return <p className="py-6 text-center text-sm text-muted-foreground">{t("dashboard.noSpending")}</p>;
   }
 
   const rows = toRows(totals, { uncategorized: t("common.uncategorized"), other: t("common.other") });
   const sum = rows.reduce((acc, r) => acc + r.total, 0);
-  const max = Math.max(...rows.map((r) => r.total));
 
   return (
-    <ul className="grid gap-3">
-      {rows.map((row) => (
-        <li key={row.key} className="group grid gap-1.5 rounded-md">
-          <div className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="flex min-w-0 items-center gap-2">
-              <span
-                aria-hidden
-                className="size-2.5 shrink-0 rounded-full border border-foreground/10"
-                style={{ backgroundColor: row.color ?? "var(--muted-foreground)" }}
-              />
-              <span className="truncate">{row.name}</span>
-              <span className="hidden text-xs text-muted-foreground group-hover:inline">
+    <div className="grid gap-4">
+      <div className="flex h-3.5 gap-[3px]" aria-hidden>
+        {rows.map((row) => (
+          <div
+            key={row.key}
+            className="min-w-1.5 rounded-full"
+            style={{ flex: `${row.total} 1 0`, backgroundColor: row.color ?? "var(--muted-foreground)" }}
+          />
+        ))}
+      </div>
+      <ul className="grid gap-1">
+        {rows.map((row) => (
+          <li key={row.key} className="flex min-h-13 items-center gap-3">
+            <ColorTile color={row.color} label={row.name} className="size-10 rounded-[13px]" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold">{row.name}</p>
+              <p className="text-[12.5px] text-muted-foreground">
                 {t("dashboard.share", { percent: percent.format(row.total / sum) })} ·{" "}
                 {t("dashboard.transactionCount", { count: row.count })}
-              </span>
-            </span>
-            <Money amount={row.total} currency={currency} minorUnits={minorUnits} className="shrink-0 font-medium" />
-          </div>
-          <div className="h-2 rounded-full bg-muted" aria-hidden>
-            <div
-              className="h-full rounded-full bg-chart-1 transition-[width]"
-              style={{ width: `${Math.max((row.total / max) * 100, 1)}%` }}
-            />
-          </div>
-        </li>
-      ))}
-    </ul>
+              </p>
+            </div>
+            <Money amount={row.total} currency={currency} minorUnits={minorUnits} className="shrink-0 text-[15px] font-bold" />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

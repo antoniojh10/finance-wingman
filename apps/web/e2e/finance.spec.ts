@@ -79,12 +79,14 @@ test("manages accounts, categories and transactions", async ({ page }, testInfo)
   await page.getByRole("button", { name: "Filter" }).click();
   const row = page.getByTestId("transaction-row").filter({ hasText: description });
   await expect(row).toHaveCount(1);
-  await row.getByRole("button", { name: "Edit" }).click();
+  await row.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Edit" }).click();
   await page.getByRole("dialog").getByLabel(/^Amount/).fill("300");
   await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
   await expect(row).toContainText("−MX$300.00");
 
-  await row.getByRole("button", { name: "Delete" }).click();
+  await row.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
   await expect(page.getByText("Transaction deleted")).toBeVisible();
   await expect(row).toHaveCount(0);

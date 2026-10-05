@@ -104,7 +104,9 @@
     "saved": "Transaction saved",
     "recordedBy": "Recorded by {name}",
     "showing": "Showing {from}–{to} of {total}",
-    "needAccount": "Create an account before adding transactions."
+    "needAccount": "Create an account before adding transactions.",
+    "today": "Today",
+    "yesterday": "Yesterday"
   },
   "accounts": {
     "title": "Accounts",

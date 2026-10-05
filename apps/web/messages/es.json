@@ -104,7 +104,9 @@
     "saved": "Movimiento guardado",
     "recordedBy": "Registrado por {name}",
     "showing": "Mostrando {from}–{to} de {total}",
-    "needAccount": "Crea una cuenta antes de agregar movimientos."
+    "needAccount": "Crea una cuenta antes de agregar movimientos.",
+    "today": "Hoy",
+    "yesterday": "Ayer"
   },
   "accounts": {
     "title": "Cuentas",

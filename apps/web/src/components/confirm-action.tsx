@@ -28,16 +28,23 @@ export function ConfirmAction({
   confirmLabel,
   successMessage,
   action,
+  open: controlledOpen,
+  onOpenChange,
 }: {
-  trigger: React.ReactElement;
+  /** Omit when the dialog is opened through `open` (e.g. from a menu). */
+  trigger?: React.ReactElement;
   title: string;
   description: string;
   confirmLabel: string;
   successMessage: string;
   action: () => Promise<FormState>;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("common");
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const [pending, startTransition] = useTransition();
 
   function confirm() {
@@ -54,7 +61,7 @@ export function ConfirmAction({
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={trigger} />
+      {trigger && <AlertDialogTrigger render={trigger} />}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>

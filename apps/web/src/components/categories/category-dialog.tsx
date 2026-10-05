@@ -27,17 +27,24 @@ export function CategoryDialog({
   category,
   defaultKind = "expense",
   trigger,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   category?: EditableCategory;
   defaultKind?: "expense" | "income";
-  trigger: React.ReactElement;
+  /** Omit when the dialog is opened through `open` (e.g. from a menu). */
+  trigger?: React.ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
+      {trigger && <DialogTrigger render={trigger} />}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t(category ? "categories.editTitle" : "categories.addTitle")}</DialogTitle>

@@ -24,19 +24,26 @@ export function TransactionDialog({
   transaction,
   defaultDate,
   trigger,
+  open: controlledOpen,
+  onOpenChange,
 }: {
   accounts: AccountOption[];
   categories: CategoryOption[];
   transaction?: TransactionRow;
   defaultDate: string;
-  trigger: React.ReactElement;
+  /** Omit when the dialog is opened through `open` (e.g. from a menu). */
+  trigger?: React.ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={trigger} />
+      {trigger && <DialogTrigger render={trigger} />}
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t(transaction ? "transactions.editTitle" : "transactions.addTitle")}</DialogTitle>
