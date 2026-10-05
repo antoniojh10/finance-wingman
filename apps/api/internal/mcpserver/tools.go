@@ -50,6 +50,29 @@ type createCategoryArgs struct {
 	Color string `json:"color,omitempty" jsonschema:"Optional hex color like #22c55e"`
 }
 
+type createCategoriesArgs struct {
+	Items []createCategoryArgs `json:"items" jsonschema:"Categories to create (1 to 100). All are created or none are"`
+}
+
+type createAccountsArgs struct {
+	Items []createAccountArgs `json:"items" jsonschema:"Accounts to create (1 to 100). All are created or none are"`
+}
+
+type batchTransactionArgs struct {
+	Type              string   `json:"type" jsonschema:"expense, income or transfer"`
+	Amount            float64  `json:"amount" jsonschema:"Positive amount in the source account currency, e.g. 150.50"`
+	Account           string   `json:"account,omitempty" jsonschema:"Account name or ID (the source account for transfers). Optional when only one active account exists"`
+	ToAccount         string   `json:"to_account,omitempty" jsonschema:"Destination account name or ID. Required for transfers only"`
+	DestinationAmount *float64 `json:"destination_amount,omitempty" jsonschema:"Amount received in the destination currency. Required only for transfers between different currencies"`
+	Category          string   `json:"category,omitempty" jsonschema:"Existing category name matching the type (not for transfers). Optional"`
+	Description       string   `json:"description,omitempty" jsonschema:"Short note, e.g. the merchant or what was bought"`
+	Date              string   `json:"date,omitempty" jsonschema:"Date in YYYY-MM-DD format. Defaults to today"`
+}
+
+type addTransactionsArgs struct {
+	Items []batchTransactionArgs `json:"items" jsonschema:"Transactions to record (1 to 100). All are recorded or none are"`
+}
+
 type summaryArgs struct {
 	Period string `json:"period,omitempty" jsonschema:"One of this_month (default), last_month, this_year, last_30_days. Ignored when from/to are given"`
 	From   string `json:"from,omitempty" jsonschema:"Start date YYYY-MM-DD (inclusive)"`
@@ -204,6 +227,33 @@ func (s *Server) registerTools() {
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args createCategoryArgs) (*mcp.CallToolResult, categoryOut, error) {
 		return s.createCategory(ctx, args)
+	})
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "create_categories",
+		Title:       "Create several categories",
+		Description: "Create up to 100 expense or income categories at once. All-or-nothing: if any item is invalid nothing is created. Check list_categories first to avoid duplicates.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args createCategoriesArgs) (*mcp.CallToolResult, categoriesOut, error) {
+		return s.createCategories(ctx, args)
+	})
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "create_accounts",
+		Title:       "Create several accounts",
+		Description: "Create up to 100 accounts at once. All-or-nothing: if any item is invalid nothing is created. Check list_accounts first to avoid duplicates.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args createAccountsArgs) (*mcp.CallToolResult, accountsOut, error) {
+		return s.createAccounts(ctx, args)
+	})
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "add_transactions",
+		Title:       "Add several transactions",
+		Description: "Record up to 100 expenses, incomes or transfers at once; each item has its own type. All-or-nothing: if any item is invalid nothing is recorded, and the error names the failing item.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args addTransactionsArgs) (*mcp.CallToolResult, transactionsOut, error) {
+		return s.addTransactions(actorContext(ctx, req), args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -386,6 +436,149 @@ func (s *Server) createCategory(ctx context.Context, args createCategoryArgs) (*
 	}
 	out := categoryToOut(category)
 	return text(fmt.Sprintf("Created %s category %s (id %s).", out.Kind, out.Name, out.ID)), out, nil
+}
+
+func (s *Server) createCategories(ctx context.Context, args createCategoriesArgs) (*mcp.CallToolResult, categoriesOut, error) {
+	if err := checkBatch(len(args.Items)); err != nil {
+		return nil, categoriesOut{}, err
+	}
+	inputs := make([]finance.CreateCategoryInput, len(args.Items))
+	for i, item := range args.Items {
+		inputs[i] = finance.CreateCategoryInput{Name: item.Name, Kind: strings.ToLower(strings.TrimSpace(item.Kind))}
+		if item.Color != "" {
+			inputs[i].Color = &args.Items[i].Color
+		}
+	}
+	created, err := s.finance.CreateCategories(ctx, inputs)
+	if err != nil {
+		return nil, categoriesOut{}, batchFailure(err)
+	}
+	out := categoriesOut{Categories: make([]categoryOut, len(created))}
+	lines := make([]string, len(created))
+	for i, c := range created {
+		out.Categories[i] = categoryToOut(c)
+		lines[i] = fmt.Sprintf("- %s (%s)", c.Name, c.Kind)
+	}
+	return text(fmt.Sprintf("Created %d categories:\n%s", len(created), strings.Join(lines, "\n"))), out, nil
+}
+
+func (s *Server) createAccounts(ctx context.Context, args createAccountsArgs) (*mcp.CallToolResult, accountsOut, error) {
+	if err := checkBatch(len(args.Items)); err != nil {
+		return nil, accountsOut{}, err
+	}
+	inputs := make([]finance.CreateAccountInput, len(args.Items))
+	for i, item := range args.Items {
+		inputs[i] = finance.CreateAccountInput{Name: item.Name, Type: item.Type, Currency: item.Currency}
+		if item.InitialBalance != nil {
+			currency, err := s.findCurrency(ctx, item.Currency)
+			if err != nil {
+				return nil, accountsOut{}, batchFailure(itemErr(i, "currency", err))
+			}
+			inputs[i].InitialBalance, err = decimalToMinor(*item.InitialBalance, currency.MinorUnits, currency.Code, "initial_balance")
+			if err != nil {
+				return nil, accountsOut{}, batchFailure(itemErr(i, "", err))
+			}
+		}
+	}
+	created, err := s.finance.CreateAccounts(ctx, inputs)
+	if err != nil {
+		return nil, accountsOut{}, batchFailure(err)
+	}
+	out := accountsOut{Accounts: make([]accountOut, len(created))}
+	lines := make([]string, len(created))
+	for i, a := range created {
+		out.Accounts[i] = accountToOut(a)
+		lines[i] = fmt.Sprintf("- %s (%s, %s): %s %s", a.Name, a.Type, a.Currency, out.Accounts[i].Balance, a.Currency)
+	}
+	return text(fmt.Sprintf("Created %d accounts:\n%s", len(created), strings.Join(lines, "\n"))), out, nil
+}
+
+func (s *Server) addTransactions(ctx context.Context, args addTransactionsArgs) (*mcp.CallToolResult, transactionsOut, error) {
+	if err := checkBatch(len(args.Items)); err != nil {
+		return nil, transactionsOut{}, err
+	}
+	inputs := make([]finance.TransactionInput, len(args.Items))
+	for i, item := range args.Items {
+		in, err := s.batchTransactionInput(ctx, item)
+		if err != nil {
+			return nil, transactionsOut{}, batchFailure(itemErr(i, "", err))
+		}
+		inputs[i] = in
+	}
+	created, err := s.finance.CreateTransactions(ctx, inputs)
+	if err != nil {
+		return nil, transactionsOut{}, batchFailure(err)
+	}
+	out := transactionsOut{Transactions: make([]transactionOut, len(created)), Total: int64(len(created))}
+	lines := make([]string, len(created))
+	for i, tx := range created {
+		t := transactionToOut(tx)
+		out.Transactions[i] = t
+		target := t.Account
+		if t.ToAccount != "" {
+			target += " → " + t.ToAccount
+		}
+		lines[i] = fmt.Sprintf("- %s %s %s %s · %s%s%s [id %s]", t.Date, t.Type, t.Amount, t.Currency, target, categorySuffix(t.Category), descriptionSuffix(t.Description), t.ID)
+	}
+	return text(fmt.Sprintf("Recorded %d transactions:\n%s", len(created), strings.Join(lines, "\n"))), out, nil
+}
+
+// batchTransactionInput resolves account and category names and converts
+// decimal amounts for one item of add_transactions.
+func (s *Server) batchTransactionInput(ctx context.Context, item batchTransactionArgs) (finance.TransactionInput, error) {
+	typ := strings.ToLower(strings.TrimSpace(item.Type))
+	if typ != finance.TypeExpense && typ != finance.TypeIncome && typ != finance.TypeTransfer {
+		return finance.TransactionInput{}, errors.New("type must be expense, income or transfer")
+	}
+	account, err := s.resolveAccount(ctx, item.Account, "account")
+	if err != nil {
+		return finance.TransactionInput{}, err
+	}
+	amount, err := toMinor(item.Amount, account.MinorUnits, account.Currency, "amount")
+	if err != nil {
+		return finance.TransactionInput{}, err
+	}
+	in := finance.TransactionInput{
+		Type:        typ,
+		AccountID:   account.ID,
+		Amount:      amount,
+		Description: item.Description,
+		OccurredOn:  item.Date,
+	}
+	if typ == finance.TypeTransfer {
+		if strings.TrimSpace(item.Category) != "" {
+			return in, errors.New("transfers cannot have a category; omit category")
+		}
+		if strings.TrimSpace(item.ToAccount) == "" {
+			return in, errors.New("to_account is required for transfers")
+		}
+		to, err := s.resolveAccount(ctx, item.ToAccount, "to_account")
+		if err != nil {
+			return in, err
+		}
+		in.DestinationAccountID = &to.ID
+		if item.DestinationAmount != nil {
+			dest, err := toMinor(*item.DestinationAmount, to.MinorUnits, to.Currency, "destination_amount")
+			if err != nil {
+				return in, err
+			}
+			in.DestinationAmount = &dest
+		} else if account.Currency != to.Currency {
+			return in, fmt.Errorf("%s uses %s and %s uses %s: ask the user how much %s was received and pass destination_amount", account.Name, account.Currency, to.Name, to.Currency, to.Currency)
+		}
+		return in, nil
+	}
+	if strings.TrimSpace(item.ToAccount) != "" || item.DestinationAmount != nil {
+		return in, errors.New("to_account and destination_amount are only for transfers; omit them")
+	}
+	if strings.TrimSpace(item.Category) != "" {
+		category, err := s.resolveCategory(ctx, item.Category, typ)
+		if err != nil {
+			return in, err
+		}
+		in.CategoryID = &category.ID
+	}
+	return in, nil
 }
 
 func (s *Server) summary(ctx context.Context, args summaryArgs) (*mcp.CallToolResult, summaryOut, error) {
@@ -598,6 +791,30 @@ func decimalToMinor(amount float64, minorUnits int, currency, field string) (int
 		return 0, fmt.Errorf("%s is not a valid amount", field)
 	}
 	return v, nil
+}
+
+func checkBatch(n int) error {
+	if n == 0 {
+		return errors.New("items must contain at least one item")
+	}
+	if n > finance.MaxBatchSize {
+		return fmt.Errorf("items must contain at most %d items, got %d; split the call into several batches", finance.MaxBatchSize, n)
+	}
+	return nil
+}
+
+// itemErr prefixes an error with the index of the failing batch item (and
+// the field, when known) so the model knows what to fix.
+func itemErr(index int, field string, err error) error {
+	if field != "" {
+		return fmt.Errorf("items[%d].%s: %w", index, field, err)
+	}
+	return fmt.Errorf("items[%d]: %w", index, err)
+}
+
+// batchFailure explains that a failed batch created nothing.
+func batchFailure(err error) error {
+	return fmt.Errorf("nothing was created: %s. Fix that item and resend the whole batch", friendly(err).Error())
 }
 
 // friendly turns domain errors into messages the model can act on.
