@@ -75,7 +75,8 @@
     "subscriptions": "Suscripciones",
     "subscriptionsUpcoming": "Vencidas y próximas 7 días",
     "subscriptionsNothingDue": "Nada vence en los próximos 7 días.",
-    "subscriptionsCommitted": "Comprometido al mes"
+    "subscriptionsCommitted": "Comprometido al mes",
+    "subscriptionsSuggestions": "{count, plural, one {# sugerencia} other {# sugerencias}}"
   },
   "transactions": {
     "title": "Movimientos",
@@ -298,6 +299,19 @@
     "registerPeriod": "Pagando el periodo con vencimiento el {date}.",
     "paidOn": "Fecha del pago",
     "registeredToast": "Pago registrado",
+    "suggestions": {
+      "title": "Sugerencias",
+      "description": "Pagos recurrentes detectados en tus transacciones.",
+      "matches": "{count, plural, one {# transacción coincidente} other {# transacciones coincidentes}}",
+      "confidence": "{percent} de confianza",
+      "add": "Añadir",
+      "dismiss": "Descartar",
+      "acceptTitle": "Añadir suscripción: {name}",
+      "acceptDescription": "Las transacciones coincidentes se vinculan a la nueva suscripción. Puedes ajustar el nombre y el importe.",
+      "accept": "Añadir suscripción",
+      "acceptedToast": "Suscripción añadida",
+      "dismissedToast": "Sugerencia descartada"
+    },
     "dueOn": "Vence el {date}",
     "lastPaid": "Último pago: {date}"
   }

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { e2eUser } from "../playwright.config";
 import { codeFrom, linkFrom, navigate, openCategories, openNewTransaction, requestLogin, signIn } from "./helpers";
@@ -196,6 +196,76 @@ test("registers a subscription payment from the dashboard", async ({ page }, tes
   await expect(listRow).toContainText("Paid");
   await navigate(page, /transactions/i);
   await expect(page.getByTestId("transaction-row").filter({ hasText: `Subscription: ${name}` })).toContainText("−MX$310.00");
+
+  // Clean up: cancel it so it stops counting.
+  await navigate(page, /subscriptions/i);
+  await listRow.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
+  await expect(listRow).toContainText("Cancelled");
+});
+
+/** Waits for a toast and then for it to go away: stacked toasts break strict locators and cover header links. */
+async function expectToast(page: Page, message: string) {
+  const toast = page.getByText(message);
+  await expect(toast).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(toast).toHaveCount(0, { timeout: 15_000 });
+}
+
+test("accepts a detected subscription and sees its linked transactions", async ({ page }, testInfo) => {
+  const suffix = `${testInfo.project.name}-${Date.now()}`;
+  const accountName = `Detect ${suffix}`;
+  const description = `Streaming ${testInfo.project.name}`;
+  const name = `Streaming plan ${suffix}`;
+
+  await signIn(page, e2eUser);
+
+  await navigate(page, /accounts/i);
+  await page.getByRole("button", { name: "New account" }).click();
+  await page.getByRole("dialog").getByLabel("Name").fill(accountName);
+  await page.getByRole("dialog").getByLabel("Currency").selectOption("MXN");
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expectToast(page, "Account saved");
+
+  // Three monthly payments of the same amount on the 15th, 1 to 3 months ago.
+  const now = new Date();
+  for (const monthsAgo of [3, 2, 1]) {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsAgo, 15)).toISOString().slice(0, 10);
+    await navigate(page, /dashboard/i);
+    await openNewTransaction(page);
+    const form = page.getByRole("main");
+    await form.locator("label", { hasText: accountName }).click();
+    await form.getByLabel(/^Amount/).fill("120");
+    await form.getByLabel("Date", { exact: true }).fill(date);
+    await form.getByLabel("Description").fill(description);
+    await form.getByRole("button", { name: "Save" }).click();
+    await expectToast(page, "Transaction saved");
+  }
+
+  // The dashboard card points at the suggestions.
+  await navigate(page, /dashboard/i);
+  await expect(page.getByTestId("subscriptions-card").getByTestId("suggestions-link")).toContainText(/suggestion/);
+
+  // Accept the suggestion with a clean name.
+  await navigate(page, /subscriptions/i);
+  const suggestion = page.getByTestId("suggestion-row").filter({ hasText: accountName });
+  await expect(suggestion).toContainText("3 matching transactions");
+  await suggestion.getByRole("button", { name: "Add" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Amount (MXN)")).toHaveValue("120.00");
+  await dialog.getByLabel("Name").fill(name);
+  await dialog.getByRole("button", { name: "Add subscription" }).click();
+  await expectToast(page, "Subscription added");
+  await expect(suggestion).toHaveCount(0);
+  const listRow = page.getByTestId("recurring-row").filter({ hasText: name });
+  await expect(listRow).toContainText("−MX$120.00");
+
+  // The matching transactions are linked to the new subscription.
+  await navigate(page, /transactions/i);
+  await page.getByRole("searchbox", { name: "Search" }).fill(description);
+  await page.getByRole("button", { name: "Filter" }).click();
+  await expect(page.getByTestId("transaction-row").filter({ hasText: `Subscription: ${name}` })).toHaveCount(3);
 
   // Clean up: cancel it so it stops counting.
   await navigate(page, /subscriptions/i);

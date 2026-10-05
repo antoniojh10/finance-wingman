@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { RecurringDialog } from "@/components/recurring/recurring-dialog";
 import { RecurringList } from "@/components/recurring/recurring-list";
 import { RecurringSummary } from "@/components/recurring/recurring-summary";
+import { SuggestionsList } from "@/components/recurring/suggestions-list";
 import { Button } from "@/components/ui/button";
 import { today } from "@/lib/dates";
 import { authedApi, expectData } from "@/lib/session";
@@ -19,9 +20,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function SubscriptionsPage() {
   const t = await getTranslations("subscriptions");
   const api = await authedApi();
-  const [itemsRes, summaryRes, accountsRes, categoriesRes] = await Promise.all([
+  const [itemsRes, summaryRes, suggestionsRes, accountsRes, categoriesRes] = await Promise.all([
     api.GET("/api/v1/recurring"),
     api.GET("/api/v1/recurring/summary"),
+    api.GET("/api/v1/recurring/suggestions"),
     api.GET("/api/v1/accounts", { params: { query: { include_archived: true } } }),
     api.GET("/api/v1/categories", { params: { query: { include_archived: true } } }),
   ]);
@@ -49,6 +51,7 @@ export default async function SubscriptionsPage() {
       />
       <div className="grid grid-cols-1 gap-6">
         <RecurringSummary currencies={expectData(summaryRes).currencies} />
+        <SuggestionsList suggestions={expectData(suggestionsRes).items} />
         <RecurringList
           items={expectData(itemsRes).items}
           accounts={accounts}

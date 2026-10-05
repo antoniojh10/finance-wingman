@@ -33,10 +33,13 @@ export type CommittedCost = { currency: string; minor_units: number; expense: nu
 export function SubscriptionsCard({
   upcoming,
   committed,
+  suggestionCount = 0,
   defaultDate,
 }: {
   upcoming: UpcomingPayment[];
   committed: CommittedCost[];
+  /** Detected recurring patterns waiting to be accepted or dismissed. */
+  suggestionCount?: number;
   /** Today's date, the default payment date. */
   defaultDate: string;
 }) {
@@ -116,6 +119,15 @@ export function SubscriptionsCard({
               ))}
             </span>
           </div>
+        )}
+        {suggestionCount > 0 && (
+          <Link
+            href="/subscriptions"
+            className="flex min-h-9 items-center border-t border-border/70 pt-3 text-sm font-bold text-primary"
+            data-testid="suggestions-link"
+          >
+            {t("dashboard.subscriptionsSuggestions", { count: suggestionCount })}
+          </Link>
         )}
       </CardContent>
     </Card>

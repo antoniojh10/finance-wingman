@@ -4,7 +4,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { cookieJar, mockApi } from "@/test/server-mocks";
 
-import { registerRecurringPayment, saveRecurring, setRecurringStatus } from "./recurring";
+import {
+  acceptSuggestion,
+  dismissSuggestion,
+  registerRecurringPayment,
+  saveRecurring,
+  setRecurringStatus,
+} from "./recurring";
 
 function form(values: Record<string, string>): FormData {
   const data = new FormData();
@@ -167,5 +173,56 @@ describe("registerRecurringPayment", () => {
       ok: false,
       message: "This item no longer exists.",
     });
+  });
+});
+
+describe("acceptSuggestion", () => {
+  const suggestions = { items: [{ key: "k1", name: "Spotify", minor_units: 2 }] };
+  const input = { key: "k1", name: "Spotify Premium", amount: "10.5" };
+
+  it("accepts with the edited name and amount in minor units", async () => {
+    const requests = mockApi([
+      { method: "GET", path: "/api/v1/recurring/suggestions", status: 200, body: suggestions },
+      { method: "POST", path: "/api/v1/recurring/suggestions/accept", status: 201, body: {} },
+    ]);
+    expect((await acceptSuggestion({ ok: false }, form(input))).ok).toBe(true);
+    expect(requests[1].body).toEqual({ key: "k1", name: "Spotify Premium", amount: 1050 });
+  });
+
+  it("reports an invalid name and amount without posting", async () => {
+    const requests = mockApi([{ method: "GET", path: "/api/v1/recurring/suggestions", status: 200, body: suggestions }]);
+    const result = await acceptSuggestion({ ok: false }, form({ key: "k1", name: "", amount: "abc" }));
+    expect(result.ok).toBe(false);
+    expect(Object.keys(result.fieldErrors ?? {}).sort()).toEqual(["amount", "name"]);
+    expect(requests.map((r) => r.method)).toEqual(["GET"]);
+  });
+
+  it("reports a stale suggestion as not found", async () => {
+    const requests = mockApi([{ method: "GET", path: "/api/v1/recurring/suggestions", status: 200, body: { items: [] } }]);
+    expect(await acceptSuggestion({ ok: false }, form(input))).toEqual({ ok: false, message: "This item no longer exists." });
+    expect(requests).toHaveLength(1);
+  });
+
+  it("shows the API message on a name conflict", async () => {
+    mockApi([
+      { method: "GET", path: "/api/v1/recurring/suggestions", status: 200, body: suggestions },
+      { method: "POST", path: "/api/v1/recurring/suggestions/accept", status: 409, body: { status: 409, detail: "name already in use" } },
+    ]);
+    const result = await acceptSuggestion({ ok: false }, form(input));
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("name already in use");
+  });
+});
+
+describe("dismissSuggestion", () => {
+  it("posts the key", async () => {
+    const requests = mockApi([{ method: "POST", path: "/api/v1/recurring/suggestions/dismiss", status: 204 }]);
+    expect((await dismissSuggestion("k1")).ok).toBe(true);
+    expect(requests[0].body).toEqual({ key: "k1" });
+  });
+
+  it("reports a stale key", async () => {
+    mockApi([{ method: "POST", path: "/api/v1/recurring/suggestions/dismiss", status: 404, body: { status: 404 } }]);
+    expect(await dismissSuggestion("k1")).toEqual({ ok: false, message: "This item no longer exists." });
   });
 });
