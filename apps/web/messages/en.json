@@ -75,7 +75,8 @@
     "subscriptions": "Subscriptions",
     "subscriptionsUpcoming": "Overdue and due in the next 7 days",
     "subscriptionsNothingDue": "Nothing due in the next 7 days.",
-    "subscriptionsCommitted": "Committed per month"
+    "subscriptionsCommitted": "Committed per month",
+    "subscriptionsSuggestions": "{count, plural, one {# suggestion} other {# suggestions}}"
   },
   "transactions": {
     "title": "Transactions",
@@ -298,6 +299,19 @@
     "registerPeriod": "Paying the period due on {date}.",
     "paidOn": "Payment date",
     "registeredToast": "Payment registered",
+    "suggestions": {
+      "title": "Suggestions",
+      "description": "Recurring payments detected in your transactions.",
+      "matches": "{count, plural, one {# matching transaction} other {# matching transactions}}",
+      "confidence": "{percent} confidence",
+      "add": "Add",
+      "dismiss": "Dismiss",
+      "acceptTitle": "Add subscription: {name}",
+      "acceptDescription": "Matching transactions are linked to the new subscription. You can adjust the name and amount.",
+      "accept": "Add subscription",
+      "acceptedToast": "Subscription added",
+      "dismissedToast": "Suggestion dismissed"
+    },
     "dueOn": "Due {date}",
     "lastPaid": "Last paid: {date}"
   }

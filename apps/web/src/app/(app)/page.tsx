@@ -26,7 +26,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { from, to } = monthRange(month);
 
   const api = await authedApi();
-  const [summaryRes, accountsRes, categoriesRes, recentRes, upcomingRes, committedRes, recurringRes] = await Promise.all([
+  const [summaryRes, accountsRes, categoriesRes, recentRes, upcomingRes, committedRes, recurringRes, suggestionsRes] = await Promise.all([
     api.GET("/api/v1/summary", { params: { query: { from, to } } }),
     api.GET("/api/v1/accounts"),
     api.GET("/api/v1/categories"),
@@ -34,6 +34,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     api.GET("/api/v1/recurring/upcoming", { params: { query: { days: 7 } } }),
     api.GET("/api/v1/recurring/summary"),
     api.GET("/api/v1/recurring"),
+    api.GET("/api/v1/recurring/suggestions"),
   ]);
   const summary = expectData(summaryRes);
   const accounts = expectData(accountsRes).items;
@@ -72,6 +73,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <SubscriptionsCard
         upcoming={expectData(upcomingRes).items}
         committed={expectData(committedRes).currencies}
+        suggestionCount={expectData(suggestionsRes).items.length}
         defaultDate={todayDate}
       />
 

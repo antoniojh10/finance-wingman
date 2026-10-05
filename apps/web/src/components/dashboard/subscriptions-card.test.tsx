@@ -41,6 +41,21 @@ function renderCard(props: Partial<React.ComponentProps<typeof SubscriptionsCard
 }
 
 describe("SubscriptionsCard", () => {
+  it("links to the subscriptions page with the number of suggestions", () => {
+    renderCard({ suggestionCount: 2 });
+    expect(screen.getByRole("link", { name: "2 suggestions" })).toHaveAttribute("href", "/subscriptions");
+  });
+
+  it("uses the singular for one suggestion and hides the line without any", () => {
+    const { unmount } = renderWithIntl(
+      <SubscriptionsCard upcoming={[]} committed={[]} suggestionCount={1} defaultDate="2026-10-05" />,
+    );
+    expect(screen.getByRole("link", { name: "1 suggestion" })).toBeInTheDocument();
+    unmount();
+    renderCard();
+    expect(screen.queryByTestId("suggestions-link")).not.toBeInTheDocument();
+  });
+
   it("lists overdue and upcoming payments with their status", () => {
     renderCard();
     const [rent, netflix, gym] = screen.getAllByTestId("upcoming-row");
