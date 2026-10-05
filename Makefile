@@ -57,8 +57,9 @@ api-openapi: ## Export the OpenAPI document and regenerate the web API types
 web-install:
 	cd apps/web && pnpm install
 
+# The root .env (exported above) sets PORT for the API, so pin the web port.
 web-dev:
-	cd apps/web && pnpm dev
+	cd apps/web && pnpm dev --port 3000
 
 web-test:
 	cd apps/web && pnpm test
