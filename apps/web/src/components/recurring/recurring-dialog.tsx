@@ -91,7 +91,7 @@ export function RecurringDialog({
 export function RecurringForm({
   accounts,
   categories,
-  item,
+  item: itemProp,
   defaultDate,
   onSaved,
   onCancel,
@@ -104,6 +104,10 @@ export function RecurringForm({
   onCancel: () => void;
 }) {
   const t = useTranslations();
+  // Keep the values the form opened with: after saving, the revalidated item
+  // arrives before the dialog closes, and changing defaultValue on mounted
+  // inputs makes Base UI warn.
+  const [item] = useState(itemProp);
   const { state, onSubmit, pending } = useFormAction(saveRecurring, onSaved);
   const errors = state.fieldErrors ?? {};
 

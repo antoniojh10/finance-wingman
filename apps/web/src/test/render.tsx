@@ -6,12 +6,14 @@ import es from "../../messages/es.json";
 
 const messages = { en, es };
 
-/** Renders UI inside the i18n provider (English by default). */
+/** Renders UI inside the i18n provider (English by default); rerender keeps it. */
 export function renderWithIntl(ui: React.ReactElement, { locale = "en", ...options }: RenderOptions & { locale?: "en" | "es" } = {}) {
-  return render(
-    <NextIntlClientProvider locale={locale} messages={messages[locale]} timeZone="UTC">
-      {ui}
-    </NextIntlClientProvider>,
-    options,
-  );
+  function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <NextIntlClientProvider locale={locale} messages={messages[locale]} timeZone="UTC">
+        {children}
+      </NextIntlClientProvider>
+    );
+  }
+  return render(ui, { wrapper: Wrapper, ...options });
 }

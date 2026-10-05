@@ -22,9 +22,8 @@ const categories: CategoryOption[] = [
   { id: "salary", name: "Salary", kind: "income", archived: false },
 ];
 
-function renderForm(item?: RecurringRow) {
-  const onSaved = vi.fn();
-  renderWithIntl(
+function form(item: RecurringRow | undefined, onSaved: () => void) {
+  return (
     <RecurringForm
       accounts={accounts}
       categories={categories}
@@ -32,9 +31,14 @@ function renderForm(item?: RecurringRow) {
       defaultDate="2026-10-05"
       onSaved={onSaved}
       onCancel={vi.fn()}
-    />,
+    />
   );
-  return { onSaved, user: userEvent.setup() };
+}
+
+function renderForm(item?: RecurringRow) {
+  const onSaved = vi.fn();
+  const view = renderWithIntl(form(item, onSaved));
+  return { onSaved, user: userEvent.setup(), rerender: (next: RecurringRow) => view.rerender(form(next, onSaved)) };
 }
 
 function submittedData(): Record<string, string> {
@@ -126,6 +130,16 @@ describe("RecurringForm", () => {
     expect(screen.getByRole("radio", { name: "Fun" })).toBeChecked();
     expect(screen.queryByRole("radio", { name: /Dollars/ })).not.toBeInTheDocument();
     expect(screen.getByText(/cannot be changed after creation/)).toBeInTheDocument();
+  });
+
+  it("keeps the values it opened with when the item is revalidated", () => {
+    const warn = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { rerender } = renderForm(item);
+    rerender({ ...item, name: "Netflix Premium", amount: 2599 });
+    expect(screen.getByLabelText("Name")).toHaveValue("Netflix");
+    expect(screen.getByLabelText("Amount (USD)")).toHaveValue("15.99");
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it("submits the id when editing", async () => {
