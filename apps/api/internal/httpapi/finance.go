@@ -50,6 +50,7 @@ func registerFinance(api huma.API, svc *finance.Service, logger *slog.Logger) {
 	h.registerAccounts(api)
 	h.registerCategories(api)
 	h.registerTransactions(api)
+	h.registerRecurring(api)
 	h.registerSummary(api)
 }
 

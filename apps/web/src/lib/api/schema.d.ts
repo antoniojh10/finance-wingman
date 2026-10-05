@@ -222,6 +222,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List recurring items
+         * @description Subscriptions, bills, installments and recurring income, with their next due date.
+         */
+        get: operations["list-recurring-items"];
+        put?: never;
+        /** Create a recurring item */
+        post: operations["create-recurring-item"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Committed monthly cost
+         * @description Active recurring items normalized to an average month and grouped per currency (no conversion), split into expenses and income.
+         */
+        get: operations["get-recurring-summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recurring/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a recurring item */
+        get: operations["get-recurring-item"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a recurring item
+         * @description Partially updates an item. The type and account cannot be changed. There is no delete: set status to cancelled to retire an item.
+         */
+        patch: operations["update-recurring-item"];
+        trace?: never;
+    };
     "/api/v1/summary": {
         parameters: {
             query?: never;
@@ -466,6 +528,51 @@ export interface components {
             kind: "expense" | "income";
             name: string;
         };
+        CreateRecurringItemInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/CreateRecurringItemInput.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: uuid
+             * @description Account that is charged or credited; its currency applies to the item
+             */
+            account_id: string;
+            /**
+             * Format: int64
+             * @description Estimated amount of each occurrence, in minor units
+             */
+            amount: number;
+            /**
+             * Format: uuid
+             * @description Category whose kind matches the type
+             */
+            category_id?: string;
+            /**
+             * Format: int64
+             * @description Repeats every this many units
+             * @default 1
+             */
+            interval_count: number;
+            /** @enum {string} */
+            interval_unit: "week" | "month" | "year";
+            name: string;
+            notes?: string;
+            /**
+             * Format: date
+             * @description First due date. Defaults to today
+             */
+            start_on?: string;
+            /**
+             * Format: int64
+             * @description Number of payments for an installment plan. Omit for open-ended items
+             */
+            total_payments?: number;
+            /** @enum {string} */
+            type: "expense" | "income";
+        };
         Currency: {
             /** @example MXN */
             code: string;
@@ -605,6 +712,15 @@ export interface components {
             readonly $schema?: string;
             items: components["schemas"]["Currency"][];
         };
+        ListOutputRecurringItemBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputRecurringItemBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["RecurringItem"][];
+        };
         ListOutputTransactionBody: {
             /**
              * Format: uri
@@ -637,6 +753,117 @@ export interface components {
              */
             readonly $schema?: string;
             message: string;
+        };
+        RecurringCurrencySummary: {
+            /** @example MXN */
+            currency: string;
+            /**
+             * Format: int64
+             * @description Committed monthly expenses, in minor units
+             */
+            expense: number;
+            /**
+             * Format: int64
+             * @description Active recurring expenses included
+             */
+            expense_count: number;
+            /**
+             * Format: int64
+             * @description Expected monthly recurring income, in minor units
+             */
+            income: number;
+            /**
+             * Format: int64
+             * @description Active recurring incomes included
+             */
+            income_count: number;
+            /**
+             * Format: int64
+             * @example 2
+             */
+            minor_units: number;
+            /**
+             * Format: int64
+             * @description Income minus expenses
+             */
+            net: number;
+        };
+        RecurringItem: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/RecurringItem.json
+             */
+            readonly $schema?: string;
+            account_id: string;
+            account_name: string;
+            /**
+             * Format: int64
+             * @description Estimated amount of each occurrence, in minor units
+             */
+            amount: number;
+            category_id: string | null;
+            category_name: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** @example MXN */
+            currency: string;
+            id: string;
+            /**
+             * Format: int64
+             * @description Repeats every this many units
+             */
+            interval_count: number;
+            /** @enum {string} */
+            interval_unit: "week" | "month" | "year";
+            /**
+             * Format: date
+             * @description Final due date of an installment plan; null when open-ended
+             */
+            last_due_on: string | null;
+            /**
+             * Format: int64
+             * @example 2
+             */
+            minor_units: number;
+            /**
+             * Format: int64
+             * @description Amount normalized to an average month, in minor units (rounded half up)
+             */
+            monthly_amount: number;
+            /** @example Netflix */
+            name: string;
+            /**
+             * Format: date
+             * @description Next due date on or after today. Null unless the item is active and still has due dates
+             */
+            next_due_on: string | null;
+            notes: string;
+            /**
+             * Format: date
+             * @description First due date
+             */
+            start_on: string;
+            /** @enum {string} */
+            status: "active" | "paused" | "cancelled";
+            /**
+             * Format: int64
+             * @description Number of payments for installment plans; null when open-ended
+             */
+            total_payments: number | null;
+            /** @enum {string} */
+            type: "expense" | "income";
+            /** Format: date-time */
+            updated_at: string;
+        };
+        RecurringSummary: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/RecurringSummary.json
+             */
+            readonly $schema?: string;
+            currencies: components["schemas"]["RecurringCurrencySummary"][];
         };
         Session: {
             /**
@@ -810,6 +1037,36 @@ export interface components {
             /** @enum {string} */
             locale?: "en" | "es";
             name?: string;
+        };
+        UpdateRecurringItemInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/UpdateRecurringItemInput.json
+             */
+            readonly $schema?: string;
+            /** Format: int64 */
+            amount?: number;
+            /** Format: uuid */
+            category_id?: string;
+            /** @description Remove the category */
+            clear_category?: boolean;
+            clear_total_payments?: boolean;
+            /** Format: int64 */
+            interval_count?: number;
+            /** @enum {string} */
+            interval_unit?: "week" | "month" | "year";
+            name?: string;
+            notes?: string;
+            /** Format: date */
+            start_on?: string;
+            /**
+             * @description Set to cancelled to retire the item
+             * @enum {string}
+             */
+            status?: "active" | "paused" | "cancelled";
+            /** Format: int64 */
+            total_payments?: number;
         };
         User: {
             /**
@@ -1412,6 +1669,168 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListOutputCurrencyBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-recurring-items": {
+        parameters: {
+            query?: {
+                /** @description Only items with this status */
+                status?: "active" | "paused" | "cancelled";
+                /** @description Only items of this type */
+                type?: "expense" | "income";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputRecurringItemBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-recurring-item": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRecurringItemInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringItem"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-recurring-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringSummary"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-recurring-item": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringItem"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-recurring-item": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRecurringItemInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecurringItem"];
                 };
             };
             /** @description Error */

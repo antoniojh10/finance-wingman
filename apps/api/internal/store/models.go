@@ -95,6 +95,24 @@ type OauthRefreshToken struct {
 	CreatedAt time.Time
 }
 
+type RecurringItem struct {
+	ID            uuid.UUID
+	Name          string
+	Type          string
+	AccountID     uuid.UUID
+	CategoryID    *uuid.UUID
+	Amount        int64
+	Notes         string
+	IntervalUnit  string
+	IntervalCount int32
+	StartOn       time.Time
+	TotalPayments *int32
+	Status        string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
 type Session struct {
 	ID            uuid.UUID
 	UserID        uuid.UUID
