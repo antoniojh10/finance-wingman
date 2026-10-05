@@ -205,6 +205,79 @@ func (q *Queries) ListRecurringItems(ctx context.Context, arg ListRecurringItems
 	return items, nil
 }
 
+const listRecurringLastPayments = `-- name: ListRecurringLastPayments :many
+SELECT DISTINCT ON (recurring_id)
+    recurring_id, id, occurred_on, amount, recurring_due_on
+FROM transactions
+WHERE recurring_id = ANY($1::uuid[])
+ORDER BY recurring_id, occurred_on DESC, created_at DESC, id
+`
+
+type ListRecurringLastPaymentsRow struct {
+	RecurringID    *uuid.UUID
+	ID             uuid.UUID
+	OccurredOn     time.Time
+	Amount         int64
+	RecurringDueOn *time.Time
+}
+
+func (q *Queries) ListRecurringLastPayments(ctx context.Context, itemIds []uuid.UUID) ([]ListRecurringLastPaymentsRow, error) {
+	rows, err := q.db.Query(ctx, listRecurringLastPayments, itemIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecurringLastPaymentsRow{}
+	for rows.Next() {
+		var i ListRecurringLastPaymentsRow
+		if err := rows.Scan(
+			&i.RecurringID,
+			&i.ID,
+			&i.OccurredOn,
+			&i.Amount,
+			&i.RecurringDueOn,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecurringPaidPeriods = `-- name: ListRecurringPaidPeriods :many
+SELECT DISTINCT recurring_id, recurring_due_on
+FROM transactions
+WHERE recurring_id = ANY($1::uuid[])
+`
+
+type ListRecurringPaidPeriodsRow struct {
+	RecurringID    *uuid.UUID
+	RecurringDueOn *time.Time
+}
+
+func (q *Queries) ListRecurringPaidPeriods(ctx context.Context, itemIds []uuid.UUID) ([]ListRecurringPaidPeriodsRow, error) {
+	rows, err := q.db.Query(ctx, listRecurringPaidPeriods, itemIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecurringPaidPeriodsRow{}
+	for rows.Next() {
+		var i ListRecurringPaidPeriodsRow
+		if err := rows.Scan(&i.RecurringID, &i.RecurringDueOn); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateRecurringItem = `-- name: UpdateRecurringItem :exec
 UPDATE recurring_items SET
     name = $2,

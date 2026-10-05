@@ -76,3 +76,9 @@ SELECT * FROM transactions WHERE id = $1;
 
 -- name: DeleteTransaction :execrows
 DELETE FROM transactions WHERE id = $1;
+
+-- name: LinkTransactionToRecurring :exec
+UPDATE transactions SET recurring_id = $2, recurring_due_on = $3 WHERE id = $1;
+
+-- name: UnlinkTransactionFromRecurring :exec
+UPDATE transactions SET recurring_id = NULL, recurring_due_on = NULL WHERE id = $1;

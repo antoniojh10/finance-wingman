@@ -44,6 +44,8 @@ type Transaction struct {
 	CategoryName           *string    `json:"category_name"`
 	Description            string     `json:"description"`
 	OccurredOn             string     `json:"occurred_on" format:"date" example:"2026-10-04"`
+	RecurringID            *uuid.UUID `json:"recurring_id" format:"uuid" nullable:"true" doc:"Recurring item this transaction pays, if any"`
+	RecurringDueOn         *string    `json:"recurring_due_on" format:"date" nullable:"true" doc:"Due date (period) of the recurring item this transaction settles"`
 	CreatedBy              *UserRef   `json:"created_by,omitempty" doc:"Omitted when the creator is unknown"`
 	CreatedAt              time.Time  `json:"created_at"`
 	UpdatedAt              time.Time  `json:"updated_at"`
@@ -99,6 +101,11 @@ func transactionFromRow(r store.GetTransactionRow) Transaction {
 		OccurredOn:             formatDate(r.OccurredOn),
 		CreatedAt:              r.CreatedAt,
 		UpdatedAt:              r.UpdatedAt,
+		RecurringID:            r.RecurringID,
+	}
+	if r.RecurringDueOn != nil {
+		d := formatDate(*r.RecurringDueOn)
+		t.RecurringDueOn = &d
 	}
 	if r.DestinationMinorUnits != nil {
 		units := int(*r.DestinationMinorUnits)
@@ -179,6 +186,7 @@ func (s *Service) ListTransactions(ctx context.Context, f TransactionFilter) (Tr
 			ID: r.ID, Type: r.Type, AccountID: r.AccountID, Amount: r.Amount,
 			DestinationAccountID: r.DestinationAccountID, DestinationAmount: r.DestinationAmount,
 			CategoryID: r.CategoryID, Description: r.Description, OccurredOn: r.OccurredOn,
+			RecurringID: r.RecurringID, RecurringDueOn: r.RecurringDueOn,
 			CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 			AccountName: r.AccountName, Currency: r.Currency, MinorUnits: r.MinorUnits,
 			DestinationAccountName: r.DestinationAccountName, DestinationCurrency: r.DestinationCurrency,
@@ -344,6 +352,9 @@ func (s *Service) UpdateTransaction(ctx context.Context, id uuid.UUID, in Transa
 	r, err := s.validate(ctx, in, &existing)
 	if err != nil {
 		return Transaction{}, err
+	}
+	if existing.RecurringID != nil && (r.typ != existing.Type || r.accountID != existing.AccountID) {
+		return Transaction{}, Invalid("recurring_id", "transaction is linked to a recurring item: unlink it before changing its type or account")
 	}
 	err = s.q.UpdateTransaction(ctx, store.UpdateTransactionParams{
 		ID:                   id,

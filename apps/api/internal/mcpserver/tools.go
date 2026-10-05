@@ -139,6 +139,7 @@ type transactionOut struct {
 	Category            string `json:"category,omitempty"`
 	Description         string `json:"description,omitempty"`
 	RecordedBy          string `json:"recorded_by,omitempty"`
+	RecurringID         string `json:"recurring_id,omitempty"`
 }
 
 type transactionsOut struct {
@@ -956,6 +957,9 @@ func transactionToOut(tx finance.Transaction) transactionOut {
 	}
 	if tx.CategoryName != nil {
 		out.Category = *tx.CategoryName
+	}
+	if tx.RecurringID != nil {
+		out.RecurringID = tx.RecurringID.String()
 	}
 	if tx.DestinationAccountName != nil {
 		out.ToAccount = *tx.DestinationAccountName

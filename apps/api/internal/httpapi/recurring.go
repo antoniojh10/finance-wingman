@@ -18,6 +18,15 @@ type createRecurringInput struct {
 	Body finance.CreateRecurringItemInput
 }
 
+type upcomingRecurringInput struct {
+	Days int `query:"days" minimum:"1" maximum:"366" default:"30" doc:"Look this many days ahead (today included)"`
+}
+
+type registerPaymentInput struct {
+	ID   string `path:"id" format:"uuid"`
+	Body finance.RecurringPaymentInput
+}
+
 type updateRecurringInput struct {
 	ID   string `path:"id" format:"uuid"`
 	Body finance.UpdateRecurringItemInput
@@ -57,6 +66,45 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 			return nil, h.fail(err)
 		}
 		return &bodyOutput[finance.RecurringSummary]{Body: summary}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "list-upcoming-recurring",
+		Method:      http.MethodGet,
+		Path:        apiPrefix + "/recurring/upcoming",
+		Summary:     "Upcoming recurring payments",
+		Description: "Due dates of active items in the next days (today included) with their status, plus the current period of items that are overdue. Ordered by due date.",
+		Tags:        tags,
+	}, func(ctx context.Context, in *upcomingRecurringInput) (*listOutput[finance.UpcomingRecurring], error) {
+		days := in.Days
+		if days == 0 {
+			days = 30
+		}
+		items, err := h.svc.UpcomingRecurring(ctx, days)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return newList(items), nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "register-recurring-payment",
+		Method:        http.MethodPost,
+		Path:          apiPrefix + "/recurring/{id}/payments",
+		Summary:       "Register a payment",
+		Description:   "Creates the transaction for one period of an active item (type, account, category and description come from the item) and links it. The item's estimate is not changed by the amount paid.",
+		Tags:          tags,
+		DefaultStatus: http.StatusCreated,
+	}, func(ctx context.Context, in *registerPaymentInput) (*bodyOutput[finance.Transaction], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		tx, err := h.svc.RegisterRecurringPayment(ctx, id, in.Body)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return &bodyOutput[finance.Transaction]{Body: tx}, nil
 	})
 
 	huma.Register(api, huma.Operation{
@@ -109,5 +157,52 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 			return nil, h.fail(err)
 		}
 		return &bodyOutput[finance.RecurringItem]{Body: item}, nil
+	})
+}
+
+type linkRecurringInput struct {
+	ID   string `path:"id" format:"uuid"`
+	Body finance.LinkRecurringInput
+}
+
+func (h *financeHandlers) registerTransactionLinks(api huma.API) {
+	tags := []string{"Recurring"}
+
+	huma.Register(api, huma.Operation{
+		OperationID: "link-transaction-recurring",
+		Method:      http.MethodPut,
+		Path:        apiPrefix + "/transactions/{id}/recurring",
+		Summary:     "Link a transaction to a recurring item",
+		Description: "The transaction must have the item's type and account. An already linked transaction is re-linked. Several transactions may settle the same period.",
+		Tags:        tags,
+	}, func(ctx context.Context, in *linkRecurringInput) (*bodyOutput[finance.Transaction], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		tx, err := h.svc.LinkTransactionToRecurring(ctx, id, in.Body)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return &bodyOutput[finance.Transaction]{Body: tx}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "unlink-transaction-recurring",
+		Method:      http.MethodDelete,
+		Path:        apiPrefix + "/transactions/{id}/recurring",
+		Summary:     "Unlink a transaction from its recurring item",
+		Description: "Does nothing when the transaction is not linked.",
+		Tags:        tags,
+	}, func(ctx context.Context, in *idInput) (*bodyOutput[finance.Transaction], error) {
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		tx, err := h.svc.UnlinkTransactionFromRecurring(ctx, id)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return &bodyOutput[finance.Transaction]{Body: tx}, nil
 	})
 }

@@ -134,3 +134,42 @@ func MonthlyAmount(amount int64, unit string, count int) int64 {
 	}
 	return (amount*num + den/2) / den
 }
+
+// IsDueOn reports whether day is one of the schedule's due dates.
+func (s Schedule) IsDueOn(day time.Time) bool {
+	n := s.firstIndexOnOrAfter(day)
+	return !s.exhausted(n) && s.DueOn(n).Equal(day)
+}
+
+// LatestDueOnOrBefore returns the last due date that is on or before day.
+// It reports false when the schedule has not started yet.
+func (s Schedule) LatestDueOnOrBefore(day time.Time) (time.Time, bool) {
+	n := s.firstIndexOnOrAfter(day)
+	if !s.DueOn(n).Equal(day) {
+		n--
+	}
+	if s.TotalPayments != nil {
+		n = min(n, *s.TotalPayments-1)
+	}
+	if n < 0 {
+		return time.Time{}, false
+	}
+	return s.DueOn(n), true
+}
+
+// ClosestDueOn returns the due date nearest to day; on a tie the earlier
+// one wins. Only real due dates are considered (never past TotalPayments).
+func (s Schedule) ClosestDueOn(day time.Time) time.Time {
+	next, hasNext := s.NextDueOn(day)
+	prev, hasPrev := s.LatestDueOnOrBefore(day)
+	switch {
+	case !hasNext:
+		return prev
+	case !hasPrev:
+		return next
+	case next.Sub(day) < day.Sub(prev):
+		return next
+	default:
+		return prev
+	}
+}

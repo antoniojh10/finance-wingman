@@ -263,6 +263,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/recurring/upcoming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Upcoming recurring payments
+         * @description Due dates of active items in the next days (today included) with their status, plus the current period of items that are overdue. Ordered by due date.
+         */
+        get: operations["list-upcoming-recurring"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/recurring/{id}": {
         parameters: {
             query?: never;
@@ -282,6 +302,26 @@ export interface paths {
          * @description Partially updates an item. The type and account cannot be changed. There is no delete: set status to cancelled to retire an item.
          */
         patch: operations["update-recurring-item"];
+        trace?: never;
+    };
+    "/api/v1/recurring/{id}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a payment
+         * @description Creates the transaction for one period of an active item (type, account, category and description come from the item) and links it. The item's estimate is not changed by the amount paid.
+         */
+        post: operations["register-recurring-payment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/summary": {
@@ -365,6 +405,30 @@ export interface paths {
         post?: never;
         /** Delete a transaction */
         delete: operations["delete-transaction"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transactions/{id}/recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Link a transaction to a recurring item
+         * @description The transaction must have the item's type and account. An already linked transaction is re-linked. Several transactions may settle the same period.
+         */
+        put: operations["link-transaction-recurring"];
+        post?: never;
+        /**
+         * Unlink a transaction from its recurring item
+         * @description Does nothing when the transaction is not linked.
+         */
+        delete: operations["unlink-transaction-recurring"];
         options?: never;
         head?: never;
         patch?: never;
@@ -685,6 +749,21 @@ export interface components {
              */
             status: string;
         };
+        LinkRecurringInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/LinkRecurringInput.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: date
+             * @description Due date being paid; must be a due date of the item. Defaults to the due date closest to the transaction date
+             */
+            period?: string;
+            /** Format: uuid */
+            recurring_id: string;
+        };
         ListOutputAccountBody: {
             /**
              * Format: uri
@@ -729,6 +808,15 @@ export interface components {
              */
             readonly $schema?: string;
             items: components["schemas"]["Transaction"][];
+        };
+        ListOutputUpcomingRecurringBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputUpcomingRecurringBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["UpcomingRecurring"][];
         };
         LoginInputBody: {
             /**
@@ -808,6 +896,8 @@ export interface components {
             created_at: string;
             /** @example MXN */
             currency: string;
+            /** @description Period the item is in now (latest due date on or before today). Null unless the item is active */
+            current_period: components["schemas"]["RecurringPeriod"];
             id: string;
             /**
              * Format: int64
@@ -821,6 +911,8 @@ export interface components {
              * @description Final due date of an installment plan; null when open-ended
              */
             last_due_on: string | null;
+            /** @description Most recent linked transaction */
+            last_payment: components["schemas"]["RecurringPayment"];
             /**
              * Format: int64
              * @example 2
@@ -855,6 +947,56 @@ export interface components {
             type: "expense" | "income";
             /** Format: date-time */
             updated_at: string;
+        };
+        RecurringPayment: {
+            /**
+             * Format: int64
+             * @description Amount actually paid, in minor units
+             */
+            amount: number;
+            /**
+             * Format: date
+             * @description Date of the transaction
+             */
+            date: string;
+            /**
+             * Format: date
+             * @description Due date (period) the payment settles
+             */
+            due_on: string;
+            transaction_id: string;
+        };
+        RecurringPaymentInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/RecurringPaymentInput.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: int64
+             * @description Amount actually paid, in minor units. Defaults to the item's estimate, which is never changed by a payment
+             */
+            amount?: number;
+            /**
+             * Format: date
+             * @description Date of the transaction. Defaults to today
+             */
+            date?: string;
+            /**
+             * Format: date
+             * @description Due date being paid; must be a due date of the item. Defaults to the due date closest to date
+             */
+            period?: string;
+        };
+        RecurringPeriod: {
+            /** Format: date */
+            due_on: string;
+            /**
+             * @description paid: a linked transaction exists for this due date. overdue: the due date is before today and it is not paid. pending: otherwise
+             * @enum {string}
+             */
+            status: "paid" | "pending" | "overdue";
         };
         RecurringSummary: {
             /**
@@ -938,6 +1080,16 @@ export interface components {
              * @example 2026-10-04
              */
             occurred_on: string;
+            /**
+             * Format: date
+             * @description Due date (period) of the recurring item this transaction settles
+             */
+            recurring_due_on: string | null;
+            /**
+             * Format: uuid
+             * @description Recurring item this transaction pays, if any
+             */
+            recurring_id: string | null;
             /** @enum {string} */
             type: "expense" | "income" | "transfer";
             /** Format: date-time */
@@ -998,6 +1150,13 @@ export interface components {
             offset: number;
             /** Format: int64 */
             total: number;
+        };
+        UpcomingRecurring: {
+            /** Format: date */
+            due_on: string;
+            item: components["schemas"]["RecurringItem"];
+            /** @enum {string} */
+            status: "paid" | "pending" | "overdue";
         };
         UpdateAccountInput: {
             /**
@@ -1778,6 +1937,38 @@ export interface operations {
             };
         };
     };
+    "list-upcoming-recurring": {
+        parameters: {
+            query?: {
+                /** @description Look this many days ahead (today included) */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputUpcomingRecurringBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "get-recurring-item": {
         parameters: {
             query?: never;
@@ -1831,6 +2022,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecurringItem"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "register-recurring-payment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecurringPaymentInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
                 };
             };
             /** @description Error */
@@ -2069,6 +2295,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "link-transaction-recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkRecurringInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "unlink-transaction-recurring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
             };
             /** @description Error */
             default: {

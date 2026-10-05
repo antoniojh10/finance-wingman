@@ -47,3 +47,15 @@ UPDATE recurring_items SET
     total_payments = $9,
     status = $10
 WHERE id = $1;
+
+-- name: ListRecurringPaidPeriods :many
+SELECT DISTINCT recurring_id, recurring_due_on
+FROM transactions
+WHERE recurring_id = ANY(sqlc.arg('item_ids')::uuid[]);
+
+-- name: ListRecurringLastPayments :many
+SELECT DISTINCT ON (recurring_id)
+    recurring_id, id, occurred_on, amount, recurring_due_on
+FROM transactions
+WHERE recurring_id = ANY(sqlc.arg('item_ids')::uuid[])
+ORDER BY recurring_id, occurred_on DESC, created_at DESC, id;
