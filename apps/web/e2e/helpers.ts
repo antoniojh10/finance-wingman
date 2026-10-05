@@ -62,3 +62,16 @@ export async function openNewTransaction(page: Page): Promise<void> {
   await page.getByRole("link", { name: "Add transaction" }).filter({ visible: true }).first().click();
   await expect(page.getByRole("heading", { name: "New transaction" })).toBeVisible();
 }
+
+/**
+ * Opens the categories page: from the sidebar on desktop, and through the
+ * settings page on mobile, where categories are not in the tab bar.
+ */
+export async function openCategories(page: Page): Promise<void> {
+  const link = page.getByRole("link", { name: /categories/i }).filter({ visible: true });
+  if ((await link.count()) === 0) {
+    await page.getByRole("link", { name: /settings/i }).filter({ visible: true }).first().click();
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  }
+  await link.first().click();
+}

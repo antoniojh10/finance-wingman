@@ -27,7 +27,8 @@
     "accounts": "Cuentas",
     "categories": "Categorías",
     "settings": "Ajustes",
-    "signOut": "Cerrar sesión"
+    "signOut": "Cerrar sesión",
+    "subscriptions": "Suscripciones"
   },
   "auth": {
     "title": "Iniciar sesión",
@@ -198,7 +199,8 @@
       "dark": "Oscuro"
     },
     "session": "Sesión",
-    "signOutDescription": "Cierra la sesión de Finance Wingman en este dispositivo."
+    "signOutDescription": "Cierra la sesión de Finance Wingman en este dispositivo.",
+    "categoriesDescription": "Organiza tus gastos e ingresos."
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -210,6 +212,75 @@
     "notFound": "Este elemento ya no existe.",
     "sessionExpired": "Tu sesión expiró. Vuelve a iniciar sesión.",
     "pageTitle": "Algo salió mal",
-    "retry": "Intentar de nuevo"
+    "retry": "Intentar de nuevo",
+    "invalidWholeNumber": "Ingresa un número entero de 1 o más."
+  },
+  "subscriptions": {
+    "title": "Suscripciones",
+    "add": "Nueva suscripción",
+    "addTitle": "Nueva suscripción",
+    "editTitle": "Editar suscripción",
+    "empty": "Aún no hay suscripciones. Agrega los pagos e ingresos recurrentes que quieras seguir.",
+    "emptyFilter": "No hay nada con este filtro.",
+    "filterLabel": "Mostrar",
+    "name": "Nombre",
+    "namePlaceholder": "p. ej. Netflix",
+    "type": "Tipo",
+    "types": {
+      "expense": "Gasto",
+      "income": "Ingreso"
+    },
+    "filters": {
+      "all": "Todas",
+      "expense": "Gastos",
+      "income": "Ingresos"
+    },
+    "account": "Cuenta",
+    "lockedHint": "El tipo y la cuenta no se pueden cambiar después de crearla.",
+    "category": "Categoría",
+    "amount": "Monto",
+    "amountHint": "Monto estimado de cada pago.",
+    "every": "Se repite cada",
+    "unit": "Unidad",
+    "units": {
+      "week": "Semanas",
+      "month": "Meses",
+      "year": "Años"
+    },
+    "frequency": {
+      "week": "{count, plural, one {Cada semana} other {Cada # semanas}}",
+      "month": "{count, plural, one {Cada mes} other {Cada # meses}}",
+      "year": "{count, plural, one {Cada año} other {Cada # años}}"
+    },
+    "startOn": "Primera fecha de pago",
+    "totalPayments": "Número de pagos",
+    "totalPaymentsHint": "Solo para pagos a plazos. Déjalo vacío si no termina.",
+    "notes": "Notas",
+    "nextDue": "Próximo: {date}",
+    "noNextDue": "Sin pagos próximos",
+    "status": {
+      "active": "Activa",
+      "paused": "En pausa",
+      "cancelled": "Cancelada"
+    },
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "cancel": "Cancelar suscripción",
+    "reactivate": "Reactivar",
+    "cancelTitle": "¿Cancelar esta suscripción?",
+    "cancelDescription": "Deja de contar en tu costo comprometido. Se conserva en la lista y puedes reactivarla después.",
+    "saved": "Suscripción guardada",
+    "pausedToast": "Suscripción en pausa",
+    "resumedToast": "Suscripción reanudada",
+    "cancelledToast": "Suscripción cancelada",
+    "reactivatedToast": "Suscripción reactivada",
+    "committed": "Costo comprometido",
+    "perMonth": "Mensual",
+    "perYear": "Anual",
+    "expenses": "Gastos",
+    "income": "Ingresos",
+    "net": "Neto",
+    "activeCount": "{count, plural, one {# elemento activo} other {# elementos activos}}",
+    "summaryHint": "Solo suscripciones activas, promediadas por mes. El total anual es mensual x 12."
   }
 }

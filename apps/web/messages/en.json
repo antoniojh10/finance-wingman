@@ -27,7 +27,8 @@
     "accounts": "Accounts",
     "categories": "Categories",
     "settings": "Settings",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "subscriptions": "Subscriptions"
   },
   "auth": {
     "title": "Sign in",
@@ -198,7 +199,8 @@
       "dark": "Dark"
     },
     "session": "Session",
-    "signOutDescription": "Sign out of Finance Wingman on this device."
+    "signOutDescription": "Sign out of Finance Wingman on this device.",
+    "categoriesDescription": "Organize your expenses and income."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -210,6 +212,75 @@
     "notFound": "This item no longer exists.",
     "sessionExpired": "Your session expired. Please sign in again.",
     "pageTitle": "Something went wrong",
-    "retry": "Try again"
+    "retry": "Try again",
+    "invalidWholeNumber": "Enter a whole number of 1 or more."
+  },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "add": "New subscription",
+    "addTitle": "New subscription",
+    "editTitle": "Edit subscription",
+    "empty": "No subscriptions yet. Add the recurring bills and income you want to keep track of.",
+    "emptyFilter": "Nothing here with this filter.",
+    "filterLabel": "Show",
+    "name": "Name",
+    "namePlaceholder": "e.g. Netflix",
+    "type": "Type",
+    "types": {
+      "expense": "Expense",
+      "income": "Income"
+    },
+    "filters": {
+      "all": "All",
+      "expense": "Expenses",
+      "income": "Income"
+    },
+    "account": "Account",
+    "lockedHint": "The type and account cannot be changed after creation.",
+    "category": "Category",
+    "amount": "Amount",
+    "amountHint": "Estimated amount of each payment.",
+    "every": "Repeats every",
+    "unit": "Unit",
+    "units": {
+      "week": "Weeks",
+      "month": "Months",
+      "year": "Years"
+    },
+    "frequency": {
+      "week": "{count, plural, one {Every week} other {Every # weeks}}",
+      "month": "{count, plural, one {Every month} other {Every # months}}",
+      "year": "{count, plural, one {Every year} other {Every # years}}"
+    },
+    "startOn": "First due date",
+    "totalPayments": "Number of payments",
+    "totalPaymentsHint": "Only for installment plans. Leave empty if it never ends.",
+    "notes": "Notes",
+    "nextDue": "Next: {date}",
+    "noNextDue": "No upcoming payment",
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "cancelled": "Cancelled"
+    },
+    "pause": "Pause",
+    "resume": "Resume",
+    "cancel": "Cancel subscription",
+    "reactivate": "Reactivate",
+    "cancelTitle": "Cancel this subscription?",
+    "cancelDescription": "It stops counting toward your committed cost. It is kept in the list and you can reactivate it later.",
+    "saved": "Subscription saved",
+    "pausedToast": "Subscription paused",
+    "resumedToast": "Subscription resumed",
+    "cancelledToast": "Subscription cancelled",
+    "reactivatedToast": "Subscription reactivated",
+    "committed": "Committed cost",
+    "perMonth": "Monthly",
+    "perYear": "Yearly",
+    "expenses": "Expenses",
+    "income": "Income",
+    "net": "Net",
+    "activeCount": "{count, plural, one {# active item} other {# active items}}",
+    "summaryHint": "Active subscriptions only, averaged per month. Yearly is monthly x 12."
   }
 }
