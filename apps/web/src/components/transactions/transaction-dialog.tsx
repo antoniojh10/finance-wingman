@@ -83,7 +83,7 @@ export function TransactionDialog({
 export function TransactionForm({
   accounts,
   categories,
-  transaction,
+  transaction: transactionProp,
   defaultDate,
   onSaved,
   onCancel,
@@ -96,6 +96,10 @@ export function TransactionForm({
   onCancel: () => void;
 }) {
   const t = useTranslations();
+  // Keep the values the form opened with: after saving, the revalidated transaction
+  // arrives before the dialog closes, and changing defaultValue on mounted
+  // inputs makes Base UI warn.
+  const [transaction] = useState(transactionProp);
   const { state, onSubmit, pending } = useFormAction(saveTransaction, onSaved);
 
   // Archived accounts and categories are only offered when already selected.

@@ -72,7 +72,7 @@ export function AccountDialog({
 }
 
 export function AccountForm({
-  account,
+  account: accountProp,
   currencies,
   defaultCurrency,
   onSaved,
@@ -85,6 +85,10 @@ export function AccountForm({
   onCancel: () => void;
 }) {
   const t = useTranslations();
+  // Keep the values the form opened with: after saving, the revalidated account
+  // arrives before the dialog closes, and changing defaultValue on mounted
+  // inputs makes Base UI warn.
+  const [account] = useState(accountProp);
   const { state, onSubmit, pending } = useFormAction(saveAccount, onSaved);
   const errors = state.fieldErrors ?? {};
 

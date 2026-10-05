@@ -26,10 +26,10 @@ const categories: CategoryOption[] = [
 
 function renderForm(props: Partial<React.ComponentProps<typeof TransactionForm>> = {}) {
   const onSaved = vi.fn();
-  renderWithIntl(
+  const view = renderWithIntl(
     <TransactionForm accounts={accounts} categories={categories} defaultDate="2026-10-04" onSaved={onSaved} onCancel={vi.fn()} {...props} />,
   );
-  return { onSaved, user: userEvent.setup() };
+  return { onSaved, user: userEvent.setup(), rerender: (next: Partial<React.ComponentProps<typeof TransactionForm>>) => view.rerender(<TransactionForm accounts={accounts} categories={categories} defaultDate="2026-10-04" onSaved={onSaved} onCancel={vi.fn()} {...props} {...next} />) };
 }
 
 function submittedData(): Record<string, string> {
@@ -148,5 +148,53 @@ describe("TransactionForm", () => {
     expect(screen.getByRole("radio", { name: "Old category" })).toBeChecked();
     expect(screen.getByLabelText("Date")).toHaveValue("2026-01-15");
     expect(screen.getByDisplayValue("tx1")).toHaveAttribute("name", "id");
+  });
+
+  it("keeps the values it opened with when the transaction is revalidated", () => {
+    const warn = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { rerender } = renderForm({
+      transaction: {
+        id: "tx1",
+        type: "expense",
+        account_id: "mxn",
+        account_name: "Checking",
+        currency: "MXN",
+        minor_units: 2,
+        amount: 10000,
+        destination_account_id: null,
+        destination_account_name: null,
+        destination_currency: null,
+        destination_minor_units: null,
+        destination_amount: null,
+        category_id: "food",
+        category_name: "Food",
+        description: "Lunch",
+        occurred_on: "2026-01-15",
+      },
+    });
+    rerender({
+      transaction: {
+        id: "tx1",
+        type: "expense",
+        account_id: "mxn",
+        account_name: "Checking",
+        currency: "MXN",
+        minor_units: 2,
+        amount: 15000,
+        destination_account_id: null,
+        destination_account_name: null,
+        destination_currency: null,
+        destination_minor_units: null,
+        destination_amount: null,
+        category_id: "food",
+        category_name: "Food",
+        description: "Dinner",
+        occurred_on: "2026-01-15",
+      },
+    });
+    expect(screen.getByLabelText("Amount (MXN)")).toHaveValue("100.00");
+    expect(screen.getByLabelText("Description")).toHaveValue("Lunch");
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
   });
 });
