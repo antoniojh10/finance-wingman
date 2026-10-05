@@ -274,6 +274,32 @@ func TestRecurringSummary(t *testing.T) {
 	}
 }
 
+func TestRecurringNamesAreUniqueAmongOpenItems(t *testing.T) {
+	t.Parallel()
+	api := newTestAPI(t)
+	account := api.createAccount("Card", "MXN", 0)
+	body := func(name string) map[string]any {
+		return map[string]any{"name": name, "type": "expense", "account_id": account.ID, "amount": 500, "interval_unit": "month"}
+	}
+	netflix := api.createRecurring(body("Netflix"))
+	other := api.createRecurring(body("Spotify"))
+
+	// Create: case-insensitive clash.
+	api.do(http.MethodPost, "/api/v1/recurring", body("netflix")).expect(http.StatusConflict)
+	// Rename onto an existing name.
+	path := "/api/v1/recurring/" + other.ID.String()
+	api.do(http.MethodPatch, path, map[string]any{"name": "NETFLIX"}).expect(http.StatusConflict)
+	// Renaming to its own name (different case) is fine.
+	api.do(http.MethodPatch, path, map[string]any{"name": "SPOTIFY"}).expect(http.StatusOK)
+
+	// A cancelled name can be reused, but the old item cannot be reactivated
+	// while the new one is open.
+	netflixPath := "/api/v1/recurring/" + netflix.ID.String()
+	api.do(http.MethodPatch, netflixPath, map[string]any{"status": "cancelled"}).expect(http.StatusOK)
+	api.createRecurring(body("Netflix"))
+	api.do(http.MethodPatch, netflixPath, map[string]any{"status": "active"}).expect(http.StatusConflict)
+}
+
 func TestRecurringRequiresAuth(t *testing.T) {
 	t.Parallel()
 	api := newTestAPI(t)

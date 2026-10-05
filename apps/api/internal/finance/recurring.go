@@ -2,6 +2,7 @@ package finance
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -243,6 +244,16 @@ func (s *Service) recurringCategory(ctx context.Context, id uuid.UUID, itemType 
 	return nil
 }
 
+// recurringNameConflict builds the conflict error for a name that clashes
+// with another non-cancelled item, naming that item so callers can act on it.
+func (s *Service) recurringNameConflict(ctx context.Context, name string, self uuid.UUID) error {
+	other, err := s.q.FindOpenRecurringItemByName(ctx, store.FindOpenRecurringItemByNameParams{Lower: name, ID: self})
+	if err != nil {
+		return Conflict("a recurring item with this name already exists; names are unique among non-cancelled items")
+	}
+	return Conflict(fmt.Sprintf("a recurring item named %q already exists (status %s, id %s); names are unique among non-cancelled items, so rename or cancel it first", other.Name, other.Status, other.ID))
+}
+
 func (s *Service) CreateRecurringItem(ctx context.Context, in CreateRecurringItemInput) (RecurringItem, error) {
 	name, err := normalizeName("name", in.Name)
 	if err != nil {
@@ -298,6 +309,9 @@ func (s *Service) CreateRecurringItem(ctx context.Context, in CreateRecurringIte
 		params.CreatedBy = &actor
 	}
 	id, err := s.q.CreateRecurringItem(ctx, params)
+	if pgErrorCode(err) == pgUniqueViolation {
+		return RecurringItem{}, s.recurringNameConflict(ctx, name, uuid.Nil)
+	}
 	if err != nil {
 		return RecurringItem{}, err
 	}
@@ -390,7 +404,9 @@ func (s *Service) UpdateRecurringItem(ctx context.Context, id uuid.UUID, in Upda
 		p.Status = *in.Status
 	}
 
-	if err := s.q.UpdateRecurringItem(ctx, p); err != nil {
+	if err := s.q.UpdateRecurringItem(ctx, p); pgErrorCode(err) == pgUniqueViolation {
+		return RecurringItem{}, s.recurringNameConflict(ctx, p.Name, id)
+	} else if err != nil {
 		return RecurringItem{}, err
 	}
 	return s.GetRecurringItem(ctx, id)

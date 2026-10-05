@@ -116,7 +116,7 @@ func TestRegisterRecurringPaymentRules(t *testing.T) {
 	account := api.createAccount("Card", "MXN", 0)
 
 	for _, status := range []string{"paused", "cancelled"} {
-		item := api.weeklyItem(account, nil)
+		item := api.weeklyItem(account, map[string]any{"name": "Gym " + status})
 		api.do(http.MethodPatch, "/api/v1/recurring/"+item.ID.String(), map[string]any{"status": status}).expect(http.StatusOK)
 		api.do(http.MethodPost, "/api/v1/recurring/"+item.ID.String()+"/payments", map[string]any{}).expectError(http.StatusConflict)
 		if got := api.getRecurring(item.ID.String()); got.CurrentPeriod != nil {
@@ -124,7 +124,7 @@ func TestRegisterRecurringPaymentRules(t *testing.T) {
 		}
 	}
 
-	archivedItem := api.weeklyItem(account, nil)
+	archivedItem := api.weeklyItem(account, map[string]any{"name": "Archived account"})
 	api.do(http.MethodPatch, "/api/v1/accounts/"+account.ID.String(), map[string]any{"archived": true}).expect(http.StatusOK)
 	body := api.do(http.MethodPost, "/api/v1/recurring/"+archivedItem.ID.String()+"/payments", map[string]any{}).expectError(http.StatusUnprocessableEntity)
 	if body.Errors[0].Location != "account_id" {
