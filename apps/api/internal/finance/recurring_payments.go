@@ -191,11 +191,39 @@ func resolvePeriod(item RecurringItem, period string, date time.Time) (time.Time
 	return due, nil
 }
 
+// PeriodPaidError is returned by RegisterRecurringPayment with
+// RejectIfPaid when the target period already has a linked transaction.
+type PeriodPaidError struct {
+	Conflict *Error
+	DueOn    string
+	// NextDueOn is the following due date, empty when the schedule ends.
+	NextDueOn string
+}
+
+func (e *PeriodPaidError) Error() string { return e.Conflict.Error() }
+
+func (e *PeriodPaidError) Unwrap() error { return e.Conflict }
+
+// PaymentOption changes how RegisterRecurringPayment behaves.
+type PaymentOption func(*paymentOptions)
+
+type paymentOptions struct{ rejectIfPaid bool }
+
+// RejectIfPaid makes RegisterRecurringPayment fail with a PeriodPaidError
+// (a conflict) when the target period is already paid, instead of
+// recording another payment for it. Callers that let the period default
+// use it to avoid accidental double charges.
+func RejectIfPaid() PaymentOption { return func(o *paymentOptions) { o.rejectIfPaid = true } }
+
 // RegisterRecurringPayment creates the transaction that pays one period of
 // an active recurring item (type, account, category and description come
 // from the item) and links it, atomically. The item's estimate is not
 // changed by the amount actually paid.
-func (s *Service) RegisterRecurringPayment(ctx context.Context, itemID uuid.UUID, in RecurringPaymentInput) (Transaction, error) {
+func (s *Service) RegisterRecurringPayment(ctx context.Context, itemID uuid.UUID, in RecurringPaymentInput, opts ...PaymentOption) (Transaction, error) {
+	var o paymentOptions
+	for _, opt := range opts {
+		opt(&o)
+	}
 	item, err := s.GetRecurringItem(ctx, itemID)
 	if err != nil {
 		return Transaction{}, err
@@ -212,6 +240,22 @@ func (s *Service) RegisterRecurringPayment(ctx context.Context, itemID uuid.UUID
 	period, err := resolvePeriod(item, in.Period, date)
 	if err != nil {
 		return Transaction{}, err
+	}
+	if o.rejectIfPaid {
+		periods, err := s.q.ListRecurringPaidPeriods(ctx, []uuid.UUID{itemID})
+		if err != nil {
+			return Transaction{}, err
+		}
+		for _, p := range periods {
+			if p.RecurringDueOn != nil && p.RecurringDueOn.Equal(period) {
+				due := formatDate(period)
+				paidErr := &PeriodPaidError{Conflict: Conflict("recurring item is already paid for " + due), DueOn: due}
+				if next, ok := item.schedule().NextDueOn(period.AddDate(0, 0, 1)); ok {
+					paidErr.NextDueOn = formatDate(next)
+				}
+				return Transaction{}, paidErr
+			}
+		}
 	}
 	amount := item.Amount
 	if in.Amount != nil {

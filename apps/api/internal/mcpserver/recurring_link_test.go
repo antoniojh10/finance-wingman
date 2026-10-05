@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
@@ -25,13 +26,19 @@ func TestTransactionsExposeRecurringID(t *testing.T) {
 	h.mustCall("add_expense", map[string]any{"amount": 10, "account": "Card", "description": "Coffee"}, nil)
 
 	var out transactionsOut
-	h.mustCall("list_transactions", nil, &out)
+	text := h.mustCall("list_transactions", nil, &out)
+	if !strings.Contains(text, "pays recurring Netflix") {
+		t.Fatalf("text should name the recurring item: %s", text)
+	}
 	linked := 0
 	for _, tx := range out.Transactions {
 		switch tx.Description {
 		case "Netflix":
 			if tx.RecurringID != item.ID.String() {
 				t.Fatalf("expected recurring_id %s, got %q", item.ID, tx.RecurringID)
+			}
+			if tx.RecurringName != "Netflix" || tx.RecurringDueOn == "" {
+				t.Fatalf("expected recurring_name and due date: %+v", tx)
 			}
 			linked++
 		case "Coffee":

@@ -149,6 +149,8 @@ type transactionOut struct {
 	Description         string `json:"description,omitempty"`
 	RecordedBy          string `json:"recorded_by,omitempty"`
 	RecurringID         string `json:"recurring_id,omitempty"`
+	RecurringName       string `json:"recurring_name,omitempty"`
+	RecurringDueOn      string `json:"recurring_due_on,omitempty"`
 }
 
 type transactionsOut struct {
@@ -741,14 +743,26 @@ func (s *Server) listTransactions(ctx context.Context, args listTransactionsArgs
 	}
 	out := transactionsOut{Transactions: make([]transactionOut, len(page.Items)), Total: page.Total}
 	lines := make([]string, len(page.Items))
+	var recurringNames map[uuid.UUID]string
+	for _, tx := range page.Items {
+		if tx.RecurringID != nil {
+			if recurringNames, err = s.recurringNames(ctx); err != nil {
+				return nil, transactionsOut{}, err
+			}
+			break
+		}
+	}
 	for i, tx := range page.Items {
 		t := transactionToOut(tx)
+		if tx.RecurringID != nil {
+			t.RecurringName = recurringNames[*tx.RecurringID]
+		}
 		out.Transactions[i] = t
 		target := t.Account
 		if t.ToAccount != "" {
 			target += " → " + t.ToAccount
 		}
-		lines[i] = fmt.Sprintf("- %s %s %s %s · %s%s%s [id %s]", t.Date, t.Type, t.Amount, t.Currency, target, categorySuffix(t.Category), descriptionSuffix(t.Description), t.ID)
+		lines[i] = fmt.Sprintf("- %s %s %s %s · %s%s%s [id %s]", t.Date, t.Type, t.Amount, t.Currency, target, categorySuffix(t.Category), descriptionSuffix(t.Description)+recurringSuffix(t), t.ID)
 	}
 	if len(lines) == 0 {
 		return text("No transactions match."), out, nil
@@ -1053,6 +1067,9 @@ func transactionToOut(tx finance.Transaction) transactionOut {
 	if tx.RecurringID != nil {
 		out.RecurringID = tx.RecurringID.String()
 	}
+	if tx.RecurringDueOn != nil {
+		out.RecurringDueOn = *tx.RecurringDueOn
+	}
 	if tx.DestinationAccountName != nil {
 		out.ToAccount = *tx.DestinationAccountName
 	}
@@ -1088,6 +1105,13 @@ func descriptionSuffix(description string) string {
 		return ""
 	}
 	return " — " + description
+}
+
+func recurringSuffix(t transactionOut) string {
+	if t.RecurringName == "" {
+		return ""
+	}
+	return " (pays recurring " + t.RecurringName + " due " + t.RecurringDueOn + ")"
 }
 
 func text(s string) *mcp.CallToolResult {
