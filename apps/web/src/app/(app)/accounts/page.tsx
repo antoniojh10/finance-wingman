@@ -7,6 +7,7 @@ import { AccountDialog } from "@/components/accounts/account-dialog";
 import { AccountList } from "@/components/accounts/account-list";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { today } from "@/lib/dates";
 import { authedApi, expectData } from "@/lib/session";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,6 +28,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
   const currencies = expectData(currenciesRes).items.map((c) => ({ code: c.code, name: c.name }));
   // New accounts default to the currency used most, or MXN.
   const defaultCurrency = accounts[0]?.currency ?? process.env.DEFAULT_CURRENCY ?? "MXN";
+  const defaultDate = today(process.env.APP_TIMEZONE);
 
   return (
     <>
@@ -36,6 +38,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
           <AccountDialog
             currencies={currencies}
             defaultCurrency={defaultCurrency}
+            defaultDate={defaultDate}
             trigger={
               <Button>
                 <PlusIcon />
@@ -46,7 +49,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
         }
       />
       <div className="grid grid-cols-1 gap-4">
-        <AccountList accounts={accounts} currencies={currencies} defaultCurrency={defaultCurrency} />
+        <AccountList accounts={accounts} currencies={currencies} defaultCurrency={defaultCurrency} defaultDate={defaultDate} />
         <Link
           href={showArchived ? "/accounts" : "/accounts?archived=1"}
           className="flex min-h-11 items-center justify-self-center px-4 text-sm font-bold underline underline-offset-4"

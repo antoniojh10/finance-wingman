@@ -20,6 +20,7 @@ const account = (overrides: Partial<AccountListItem>): AccountListItem => ({
   currency: "MXN",
   minor_units: 2,
   initial_balance: 0,
+  balance_as_of: "2026-09-01",
   balance: 100000,
   archived: false,
   ...overrides,
@@ -46,7 +47,7 @@ describe("groupByCurrency", () => {
 
 describe("AccountList", () => {
   it("shows a section per currency with its total", () => {
-    renderWithIntl(<AccountList accounts={accounts} currencies={currencies} defaultCurrency="MXN" />);
+    renderWithIntl(<AccountList accounts={accounts} currencies={currencies} defaultCurrency="MXN" defaultDate="2026-10-05" />);
     const mxn = screen.getByRole("region", { name: "MXN" });
     expect(within(mxn).getByText("2 active accounts")).toBeInTheDocument();
     expect(within(mxn).getByText("MX$750.00")).toBeInTheDocument();
@@ -58,14 +59,14 @@ describe("AccountList", () => {
   it("archives an account from its menu", async () => {
     setAccountArchived.mockResolvedValue({ ok: true, nonce: 1 });
     const user = userEvent.setup();
-    renderWithIntl(<AccountList accounts={accounts.slice(0, 1)} currencies={currencies} defaultCurrency="MXN" />);
+    renderWithIntl(<AccountList accounts={accounts.slice(0, 1)} currencies={currencies} defaultCurrency="MXN" defaultDate="2026-10-05" />);
     await user.click(screen.getByRole("button", { name: "Actions" }));
     await user.click(await screen.findByRole("menuitem", { name: "Archive" }));
     await waitFor(() => expect(setAccountArchived).toHaveBeenCalledWith("a", true));
   });
 
   it("shows an empty state", () => {
-    renderWithIntl(<AccountList accounts={[]} currencies={currencies} defaultCurrency="MXN" />);
+    renderWithIntl(<AccountList accounts={[]} currencies={currencies} defaultCurrency="MXN" defaultDate="2026-10-05" />);
     expect(screen.getByText("No accounts yet.")).toBeInTheDocument();
   });
 });

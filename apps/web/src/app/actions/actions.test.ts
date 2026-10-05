@@ -189,8 +189,25 @@ describe("account actions", () => {
       { method: "GET", path: "/api/v1/currencies", status: 200, body: { items: [{ code: "JPY", name: "Yen", minor_units: 0 }] } },
       { method: "POST", path: "/api/v1/accounts", status: 201, body: {} },
     ]);
-    expect((await saveAccount({ ok: false }, form({ name: "Yen", type: "cash", currency: "JPY", initial_balance: "-1500" }))).ok).toBe(true);
-    expect(requests[1].body).toEqual({ name: "Yen", type: "cash", currency: "JPY", initial_balance: -1500 });
+    expect((await saveAccount({ ok: false }, form({ name: "Yen", type: "cash", currency: "JPY", initial_balance: "-1500", balance_as_of: "2026-09-01" }))).ok).toBe(true);
+    expect(requests[1].body).toEqual({ name: "Yen", type: "cash", currency: "JPY", initial_balance: -1500, balance_as_of: "2026-09-01" });
+  });
+
+  it("sends the balance date when editing an account", async () => {
+    const requests = mockApi([
+      { method: "GET", path: "/api/v1/accounts/a1", status: 200, body: { minor_units: 2 } },
+      { method: "PATCH", path: "/api/v1/accounts/a1", status: 200, body: {} },
+    ]);
+    const data = form({ id: "a1", name: "Main", type: "cash", initial_balance: "10.50", balance_as_of: "2026-10-05" });
+    expect((await saveAccount({ ok: false }, data)).ok).toBe(true);
+    expect(requests[1].body).toEqual({ name: "Main", type: "cash", initial_balance: 1050, balance_as_of: "2026-10-05" });
+  });
+
+  it("requires the balance date", async () => {
+    mockApi([{ method: "GET", path: "/api/v1/currencies", status: 200, body: { items: [{ code: "MXN", name: "Peso", minor_units: 2 }] } }]);
+    const result = await saveAccount({ ok: false }, form({ name: "Main", type: "cash", currency: "MXN", initial_balance: "1" }));
+    expect(result.ok).toBe(false);
+    expect(result.fieldErrors).toMatchObject({ balance_as_of: "This field is required." });
   });
 
   it("explains name conflicts", async () => {
@@ -198,7 +215,7 @@ describe("account actions", () => {
       { method: "GET", path: "/api/v1/currencies", status: 200, body: { items: [{ code: "MXN", name: "Peso", minor_units: 2 }] } },
       { method: "POST", path: "/api/v1/accounts", status: 409, body: { status: 409, detail: "conflict" } },
     ]);
-    expect(await saveAccount({ ok: false }, form({ name: "Main", type: "cash", currency: "MXN" }))).toEqual({
+    expect(await saveAccount({ ok: false }, form({ name: "Main", type: "cash", currency: "MXN", balance_as_of: "2026-09-01" }))).toEqual({
       ok: false,
       message: "An active account with this name already exists.",
     });

@@ -11,14 +11,16 @@ import (
 )
 
 type Account struct {
-	ID             uuid.UUID
-	Name           string
-	Type           string
-	Currency       string
+	ID       uuid.UUID
+	Name     string
+	Type     string
+	Currency string
+	// Balance on balance_as_of, in minor units.
 	InitialBalance int64
 	ArchivedAt     *time.Time
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
+	BalanceAsOf    time.Time
 }
 
 type Category struct {

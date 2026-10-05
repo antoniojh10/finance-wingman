@@ -40,7 +40,7 @@ func newHarness(t *testing.T) *harness {
 
 func (h *harness) account(name, currency string) finance.Account {
 	h.t.Helper()
-	a, err := h.svc.CreateAccount(context.Background(), finance.CreateAccountInput{Name: name, Type: "checking", Currency: currency})
+	a, err := h.svc.CreateAccount(context.Background(), finance.CreateAccountInput{Name: name, Type: "checking", Currency: currency, BalanceAsOf: "2000-01-01"})
 	if err != nil {
 		h.t.Fatal(err)
 	}

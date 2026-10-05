@@ -57,9 +57,14 @@
             "type": "boolean"
           },
           "balance": {
-            "description": "Current balance in minor units",
+            "description": "Current balance in minor units: initial balance plus transactions dated after balance_as_of",
             "format": "int64",
             "type": "integer"
+          },
+          "balance_as_of": {
+            "description": "Date the initial balance refers to. Only transactions after this day change the balance",
+            "format": "date",
+            "type": "string"
           },
           "created_at": {
             "format": "date-time",
@@ -75,7 +80,7 @@
             "type": "string"
           },
           "initial_balance": {
-            "description": "Opening balance in minor units",
+            "description": "Balance on balance_as_of, in minor units",
             "format": "int64",
             "type": "integer"
           },
@@ -115,6 +120,7 @@
           "currency",
           "minor_units",
           "initial_balance",
+          "balance_as_of",
           "balance",
           "archived",
           "created_at",
@@ -326,6 +332,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "balance_as_of": {
+            "description": "Date the initial balance refers to (YYYY-MM-DD). Defaults to today. Transactions on or before it are already included in the initial balance",
+            "format": "date",
+            "type": "string"
+          },
           "currency": {
             "description": "ISO 4217 currency code",
             "examples": [
@@ -336,7 +347,7 @@
             "type": "string"
           },
           "initial_balance": {
-            "description": "Opening balance in minor units (may be negative, e.g. credit cards)",
+            "description": "Balance on balance_as_of in minor units (may be negative, e.g. credit cards)",
             "format": "int64",
             "type": "integer"
           },
@@ -1819,7 +1830,13 @@
           "archived": {
             "type": "boolean"
           },
+          "balance_as_of": {
+            "description": "New anchor date (YYYY-MM-DD). Editing initial_balance alone keeps the current anchor",
+            "format": "date",
+            "type": "string"
+          },
           "initial_balance": {
+            "description": "Balance on balance_as_of, in minor units",
             "format": "int64",
             "type": "integer"
           },

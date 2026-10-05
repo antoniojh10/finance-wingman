@@ -18,7 +18,7 @@ export async function saveAccount(_: FormState, formData: FormData): Promise<For
   const type = text(formData, "type") as AccountType;
 
   try {
-    // The opening balance is entered as a decimal in the account currency.
+    // The initial balance is entered as a decimal in the account currency.
     let minorUnits: number;
     if (id) {
       minorUnits = unwrap(await api.GET("/api/v1/accounts/{id}", { params: { path: { id } } })).minor_units;
@@ -35,6 +35,10 @@ export async function saveAccount(_: FormState, formData: FormData): Promise<For
     if (!name) {
       fieldErrors.name = t("errors.required");
     }
+    const balanceAsOf = text(formData, "balance_as_of");
+    if (!balanceAsOf) {
+      fieldErrors.balance_as_of = t("errors.required");
+    }
     const initialBalance = parseSignedAmount(text(formData, "initial_balance"), minorUnits);
     if (initialBalance === null) {
       fieldErrors.initial_balance = t("errors.invalidInitialBalance", { decimals: minorUnits });
@@ -47,13 +51,19 @@ export async function saveAccount(_: FormState, formData: FormData): Promise<For
       unwrap(
         await api.PATCH("/api/v1/accounts/{id}", {
           params: { path: { id } },
-          body: { name, type, initial_balance: initialBalance ?? 0 },
+          body: { name, type, initial_balance: initialBalance ?? 0, balance_as_of: balanceAsOf },
         }),
       );
     } else {
       unwrap(
         await api.POST("/api/v1/accounts", {
-          body: { name, type, currency: text(formData, "currency"), initial_balance: initialBalance ?? 0 },
+          body: {
+            name,
+            type,
+            currency: text(formData, "currency"),
+            initial_balance: initialBalance ?? 0,
+            balance_as_of: balanceAsOf,
+          },
         }),
       );
     }

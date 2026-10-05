@@ -21,8 +21,9 @@ type Account struct {
 	Type           string    `json:"type" enum:"checking,savings,credit_card,cash,investment,other"`
 	Currency       string    `json:"currency" example:"MXN"`
 	MinorUnits     int       `json:"minor_units" example:"2"`
-	InitialBalance int64     `json:"initial_balance" doc:"Opening balance in minor units"`
-	Balance        int64     `json:"balance" doc:"Current balance in minor units"`
+	InitialBalance int64     `json:"initial_balance" doc:"Balance on balance_as_of, in minor units"`
+	BalanceAsOf    string    `json:"balance_as_of" format:"date" doc:"Date the initial balance refers to. Only transactions after this day change the balance"`
+	Balance        int64     `json:"balance" doc:"Current balance in minor units: initial balance plus transactions dated after balance_as_of"`
 	Archived       bool      `json:"archived"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
@@ -32,13 +33,15 @@ type CreateAccountInput struct {
 	Name           string `json:"name" minLength:"1" maxLength:"100"`
 	Type           string `json:"type" enum:"checking,savings,credit_card,cash,investment,other"`
 	Currency       string `json:"currency" minLength:"3" maxLength:"3" example:"MXN" doc:"ISO 4217 currency code"`
-	InitialBalance int64  `json:"initial_balance,omitempty" doc:"Opening balance in minor units (may be negative, e.g. credit cards)"`
+	InitialBalance int64  `json:"initial_balance,omitempty" doc:"Balance on balance_as_of in minor units (may be negative, e.g. credit cards)"`
+	BalanceAsOf    string `json:"balance_as_of,omitempty" format:"date" doc:"Date the initial balance refers to (YYYY-MM-DD). Defaults to today. Transactions on or before it are already included in the initial balance"`
 }
 
 type UpdateAccountInput struct {
 	Name           *string `json:"name,omitempty" minLength:"1" maxLength:"100"`
 	Type           *string `json:"type,omitempty" enum:"checking,savings,credit_card,cash,investment,other"`
-	InitialBalance *int64  `json:"initial_balance,omitempty"`
+	InitialBalance *int64  `json:"initial_balance,omitempty" doc:"Balance on balance_as_of, in minor units"`
+	BalanceAsOf    *string `json:"balance_as_of,omitempty" format:"date" doc:"New anchor date (YYYY-MM-DD). Editing initial_balance alone keeps the current anchor"`
 	Archived       *bool   `json:"archived,omitempty"`
 }
 
@@ -50,6 +53,7 @@ func accountFromRow(r store.GetAccountRow) Account {
 		Currency:       r.Currency,
 		MinorUnits:     int(r.MinorUnits),
 		InitialBalance: r.InitialBalance,
+		BalanceAsOf:    formatDate(r.BalanceAsOf),
 		Balance:        r.Balance,
 		Archived:       r.ArchivedAt != nil,
 		CreatedAt:      r.CreatedAt,
@@ -113,11 +117,19 @@ func (s *Service) CreateAccount(ctx context.Context, in CreateAccountInput) (Acc
 		return Account{}, err
 	}
 
+	balanceAsOf := s.Today()
+	if in.BalanceAsOf != "" {
+		if balanceAsOf, err = parseDate("balance_as_of", in.BalanceAsOf); err != nil {
+			return Account{}, err
+		}
+	}
+
 	id, err := s.q.CreateAccount(ctx, store.CreateAccountParams{
 		Name:           name,
 		Type:           in.Type,
 		Currency:       currency,
 		InitialBalance: in.InitialBalance,
+		BalanceAsOf:    balanceAsOf,
 	})
 	if pgErrorCode(err) == pgUniqueViolation {
 		return Account{}, Conflict("an active account with this name already exists")
@@ -141,6 +153,14 @@ func (s *Service) UpdateAccount(ctx context.Context, id uuid.UUID, in UpdateAcco
 			return Account{}, err
 		}
 	}
+	var balanceAsOf *time.Time
+	if in.BalanceAsOf != nil {
+		d, err := parseDate("balance_as_of", *in.BalanceAsOf)
+		if err != nil {
+			return Account{}, err
+		}
+		balanceAsOf = &d
+	}
 	if _, err := s.GetAccount(ctx, id); err != nil {
 		return Account{}, err
 	}
@@ -150,6 +170,7 @@ func (s *Service) UpdateAccount(ctx context.Context, id uuid.UUID, in UpdateAcco
 		Name:           in.Name,
 		Type:           in.Type,
 		InitialBalance: in.InitialBalance,
+		BalanceAsOf:    balanceAsOf,
 		Archived:       in.Archived,
 	})
 	if pgErrorCode(err) == pgUniqueViolation {

@@ -41,6 +41,9 @@ test("manages accounts, categories and transactions", async ({ page }, testInfo)
   await accountDialog.getByLabel("Name").fill(accountName);
   await accountDialog.getByLabel("Currency").selectOption("MXN");
   await accountDialog.getByLabel("Opening balance").fill("1000");
+  // Anchor the opening balance in the past: transactions on or before that
+  // day are already part of it, so today's expense must come after it.
+  await accountDialog.getByLabel("Balance as of").fill("2020-01-01");
   await accountDialog.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Account saved")).toBeVisible();
   const accountRow = page.getByTestId("account-row").filter({ hasText: accountName });

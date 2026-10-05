@@ -22,6 +22,8 @@ export type EditableAccount = {
   currency: string;
   minor_units: number;
   initial_balance: number;
+  /** Date (YYYY-MM-DD) the initial balance refers to. */
+  balance_as_of: string;
 };
 
 export type CurrencyOption = { code: string; name: string };
@@ -30,6 +32,7 @@ export function AccountDialog({
   account,
   currencies,
   defaultCurrency,
+  defaultDate,
   trigger,
   open: controlledOpen,
   onOpenChange,
@@ -37,6 +40,8 @@ export function AccountDialog({
   account?: EditableAccount;
   currencies: CurrencyOption[];
   defaultCurrency: string;
+  /** Today, used as the default balance date of new accounts. */
+  defaultDate: string;
   /** Omit when the dialog is opened through `open` (e.g. from a menu). */
   trigger?: React.ReactElement;
   open?: boolean;
@@ -59,6 +64,7 @@ export function AccountDialog({
             account={account}
             currencies={currencies}
             defaultCurrency={defaultCurrency}
+            defaultDate={defaultDate}
             onSaved={() => {
               toast.success(t("accounts.saved"));
               setOpen(false);
@@ -75,12 +81,14 @@ export function AccountForm({
   account: accountProp,
   currencies,
   defaultCurrency,
+  defaultDate,
   onSaved,
   onCancel,
 }: {
   account?: EditableAccount;
   currencies: CurrencyOption[];
   defaultCurrency: string;
+  defaultDate: string;
   onSaved: () => void;
   onCancel: () => void;
 }) {
@@ -144,6 +152,21 @@ export function AccountForm({
           placeholder="0.00"
           defaultValue={account ? toDecimalString(account.initial_balance, account.minor_units) : ""}
           aria-invalid={Boolean(errors.initial_balance)}
+        />
+      </Field>
+      <Field
+        id="balance_as_of"
+        label={t("accounts.balanceAsOf")}
+        hint={t("accounts.balanceAsOfHint")}
+        error={errors.balance_as_of}
+      >
+        <Input
+          id="balance_as_of"
+          name="balance_as_of"
+          type="date"
+          required
+          defaultValue={account?.balance_as_of ?? defaultDate}
+          aria-invalid={Boolean(errors.balance_as_of)}
         />
       </Field>
       {state.message && !state.ok && (

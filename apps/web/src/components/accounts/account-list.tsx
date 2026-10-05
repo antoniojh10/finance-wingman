@@ -48,10 +48,12 @@ export function AccountList({
   accounts,
   currencies,
   defaultCurrency,
+  defaultDate,
 }: {
   accounts: AccountListItem[];
   currencies: CurrencyOption[];
   defaultCurrency: string;
+  defaultDate: string;
 }) {
   const t = useTranslations();
 
@@ -77,7 +79,13 @@ export function AccountList({
           </div>
           <ul className="divide-y divide-border/70 rounded-3xl bg-card px-4 ring-1 ring-foreground/5">
             {group.accounts.map((account) => (
-              <AccountRow key={account.id} account={account} currencies={currencies} defaultCurrency={defaultCurrency} />
+              <AccountRow
+                key={account.id}
+                account={account}
+                currencies={currencies}
+                defaultCurrency={defaultCurrency}
+                defaultDate={defaultDate}
+              />
             ))}
           </ul>
         </section>
@@ -90,10 +98,12 @@ function AccountRow({
   account,
   currencies,
   defaultCurrency,
+  defaultDate,
 }: {
   account: AccountListItem;
   currencies: CurrencyOption[];
   defaultCurrency: string;
+  defaultDate: string;
 }) {
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
@@ -147,6 +157,7 @@ function AccountRow({
         account={account}
         currencies={currencies}
         defaultCurrency={defaultCurrency}
+        defaultDate={defaultDate}
         open={editing}
         onOpenChange={setEditing}
       />

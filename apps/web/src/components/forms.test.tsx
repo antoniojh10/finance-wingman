@@ -32,7 +32,7 @@ describe("AccountForm", () => {
     saveAccount.mockResolvedValue({ ok: true, nonce: 1 });
     const onSaved = vi.fn();
     const user = userEvent.setup();
-    renderWithIntl(<AccountForm currencies={currencies} defaultCurrency="MXN" onSaved={onSaved} onCancel={vi.fn()} />);
+    renderWithIntl(<AccountForm currencies={currencies} defaultCurrency="MXN" defaultDate="2026-10-05" onSaved={onSaved} onCancel={vi.fn()} />);
 
     await user.type(screen.getByLabelText("Name"), "Wallet");
     await user.selectOptions(screen.getByLabelText("Type"), "cash");
@@ -41,7 +41,7 @@ describe("AccountForm", () => {
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(lastData(saveAccount)).toEqual({ name: "Wallet", type: "cash", currency: "USD", initial_balance: "50" });
+    expect(lastData(saveAccount)).toEqual({ name: "Wallet", type: "cash", currency: "USD", initial_balance: "50", balance_as_of: "2026-10-05" });
   });
 
   it("locks the currency when editing and shows server errors", async () => {
@@ -49,9 +49,10 @@ describe("AccountForm", () => {
     const user = userEvent.setup();
     renderWithIntl(
       <AccountForm
-        account={{ id: "a1", name: "Card", type: "credit_card", currency: "MXN", minor_units: 2, initial_balance: -150000 }}
+        account={{ id: "a1", name: "Card", type: "credit_card", currency: "MXN", minor_units: 2, initial_balance: -150000, balance_as_of: "2026-09-01" }}
         currencies={currencies}
         defaultCurrency="MXN"
+        defaultDate="2026-10-05"
         onSaved={vi.fn()}
         onCancel={vi.fn()}
       />,
