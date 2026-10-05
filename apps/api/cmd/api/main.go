@@ -86,7 +86,7 @@ func run(args []string, logger *slog.Logger) error {
 		}
 		financeSvc := finance.NewService(pool, cfg.Location)
 		oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: cfg.PublicURL}, logger)
-		mcpHandler := mcpserver.New(financeSvc, httpapi.Version).Handler(authSvc, oauthSrv.ResourceMetadataURL(), logger)
+		mcpHandler := mcpserver.New(financeSvc, httpapi.Version).Handler(authSvc, cfg.PublicURL, oauthSrv.ResourceMetadataURL(), logger)
 		go purgeExpiredPeriodically(ctx, logger, authSvc.PurgeExpired, oauthSrv.PurgeExpired)
 		handler := httpapi.NewHandler(httpapi.Deps{
 			Logger:  logger,

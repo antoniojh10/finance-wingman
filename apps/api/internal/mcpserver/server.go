@@ -6,7 +6,10 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/google/uuid"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
@@ -44,11 +47,15 @@ func New(fin *finance.Service, version string) *Server {
 }
 
 // Handler serves the MCP Streamable HTTP transport, protected by bearer
-// tokens issued by the OAuth server (or regular API sessions).
-func (s *Server) Handler(authSvc *auth.Service, resourceMetadataURL string, logger *slog.Logger) http.Handler {
+// tokens issued by the OAuth server (or regular API sessions). publicURL is
+// the API's public origin (PUBLIC_URL), accepted as Host by the DNS
+// rebinding check.
+func (s *Server) Handler(authSvc *auth.Service, publicURL, resourceMetadataURL string, logger *slog.Logger) http.Handler {
 	streamable := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return s.mcp }, &mcp.StreamableHTTPOptions{
 		Stateless: true,
 		Logger:    logger,
+		// Replaced by hostGuard, which also accepts the public host.
+		DisableLocalhostProtection: true,
 	})
 	verifier := func(ctx context.Context, token string, _ *http.Request) (*mcpauth.TokenInfo, error) {
 		session, err := authSvc.Authenticate(ctx, token)
@@ -64,9 +71,44 @@ func (s *Server) Handler(authSvc *auth.Service, resourceMetadataURL string, logg
 			Scopes:     []string{"finance"},
 		}, nil
 	}
-	return mcpauth.RequireBearerToken(verifier, &mcpauth.RequireBearerTokenOptions{
+	return hostGuard(publicURL, mcpauth.RequireBearerToken(verifier, &mcpauth.RequireBearerTokenOptions{
 		ResourceMetadataURL: resourceMetadataURL,
-	})(streamable)
+	})(streamable))
+}
+
+// hostGuard is the SDK's DNS rebinding protection (on a loopback listener,
+// reject Host headers that are not loopback) extended to accept the public
+// host. Tunnels such as Tailscale Funnel forward public traffic to the
+// loopback listener with that Host, which the SDK check would reject.
+func hostGuard(publicURL string, next http.Handler) http.Handler {
+	publicHost := ""
+	if u, err := url.Parse(publicURL); err == nil {
+		publicHost = u.Host
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		localAddr, ok := r.Context().Value(http.LocalAddrContextKey).(net.Addr)
+		if ok && localAddr != nil && isLoopback(localAddr.String()) &&
+			!isLoopback(r.Host) && !strings.EqualFold(r.Host, publicHost) {
+			http.Error(w, "Forbidden: invalid Host header", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// isLoopback reports whether a host or host:port names the loopback
+// interface.
+func isLoopback(hostport string) bool {
+	host := hostport
+	if h, _, err := net.SplitHostPort(hostport); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // MCP exposes the underlying server, e.g. for in-memory tests.

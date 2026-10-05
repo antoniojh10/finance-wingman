@@ -92,3 +92,49 @@ func TestMCPEndToEnd(t *testing.T) {
 		t.Fatalf("unexpected summary: %s", text)
 	}
 }
+
+// TestMCPHostCheck covers tunnels such as Tailscale Funnel, which forward
+// public traffic to the loopback listener with the public Host (PUBLIC_URL),
+// while DNS rebinding hosts stay rejected.
+func TestMCPHostCheck(t *testing.T) {
+	t.Parallel()
+	api := newTestAPI(t)
+	client := newOAuthClient(t, api, "none")
+	tokens := client.exchange(client.authorize(t, "owner@example.com"))
+
+	server := httptest.NewServer(api.handler)
+	defer server.Close()
+
+	tests := []struct {
+		host string
+		want int
+	}{
+		{"api.test", http.StatusOK},  // host of PUBLIC_URL (testIssuer)
+		{"API.TEST", http.StatusOK},  // hosts are case-insensitive
+		{"", http.StatusOK},          // the loopback address of the listener
+		{"localhost", http.StatusOK}, // loopback name
+		{"evil.example", http.StatusForbidden},
+		{"api.test.evil.example", http.StatusForbidden},
+	}
+	for _, tt := range tests {
+		req, err := http.NewRequest(http.MethodPost, server.URL+"/mcp", strings.NewReader(
+			`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"host-test","version":"1"}}}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tt.host != "" {
+			req.Host = tt.host
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		req.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != tt.want {
+			t.Errorf("Host %q: expected %d, got %d", tt.host, tt.want, res.StatusCode)
+		}
+	}
+}
