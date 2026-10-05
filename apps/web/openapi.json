@@ -82,6 +82,87 @@
         ],
         "type": "object"
       },
+      "BatchInputCreateAccountInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BatchInputCreateAccountInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "description": "Items to create (1 to 100). All are created or none are",
+            "items": {
+              "$ref": "#/components/schemas/CreateAccountInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "BatchInputCreateCategoryInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BatchInputCreateCategoryInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "description": "Items to create (1 to 100). All are created or none are",
+            "items": {
+              "$ref": "#/components/schemas/CreateCategoryInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "BatchInputTransactionInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BatchInputTransactionInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "description": "Items to create (1 to 100). All are created or none are",
+            "items": {
+              "$ref": "#/components/schemas/TransactionInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "Category": {
         "additionalProperties": false,
         "properties": {
@@ -557,6 +638,30 @@
           "items": {
             "items": {
               "$ref": "#/components/schemas/Currency"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ListOutputTransactionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputTransactionBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Transaction"
             },
             "type": "array"
           }
@@ -1204,6 +1309,48 @@
         ]
       }
     },
+    "/api/v1/accounts/batch": {
+      "post": {
+        "description": "Creates up to 100 accounts in a single transaction: if any item is invalid, nothing is created. Errors point at the failing item, e.g. items[3].name.",
+        "operationId": "create-accounts-batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchInputCreateAccountInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputAccountBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create several accounts",
+        "tags": [
+          "Accounts"
+        ]
+      }
+    },
     "/api/v1/accounts/{id}": {
       "delete": {
         "description": "Permanently deletes an account without transactions. Accounts with transactions must be archived instead.",
@@ -1607,6 +1754,48 @@
         ]
       }
     },
+    "/api/v1/categories/batch": {
+      "post": {
+        "description": "Creates up to 100 categories in a single transaction: if any item is invalid, nothing is created. Errors point at the failing item, e.g. items[3].name.",
+        "operationId": "create-categories-batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchInputCreateCategoryInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputCategoryBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create several categories",
+        "tags": [
+          "Categories"
+        ]
+      }
+    },
     "/api/v1/categories/{id}": {
       "delete": {
         "description": "Deletes a category. Its transactions are kept and become uncategorized.",
@@ -1978,6 +2167,48 @@
           }
         },
         "summary": "Create a transaction",
+        "tags": [
+          "Transactions"
+        ]
+      }
+    },
+    "/api/v1/transactions/batch": {
+      "post": {
+        "description": "Creates up to 100 transactions in a single transaction: if any item is invalid, nothing is created. Errors point at the failing item, e.g. items[3].name.",
+        "operationId": "create-transactions-batch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchInputTransactionInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputTransactionBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create several transactions",
         "tags": [
           "Transactions"
         ]
