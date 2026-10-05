@@ -66,7 +66,7 @@ export function CategoryDialog({
 }
 
 export function CategoryForm({
-  category,
+  category: categoryProp,
   defaultKind,
   onSaved,
   onCancel,
@@ -77,6 +77,10 @@ export function CategoryForm({
   onCancel: () => void;
 }) {
   const t = useTranslations();
+  // Keep the values the form opened with: after saving, the revalidated category
+  // arrives before the dialog closes, and changing defaultValue on mounted
+  // inputs makes Base UI warn.
+  const [category] = useState(categoryProp);
   const { state, onSubmit, pending } = useFormAction(saveCategory, onSaved);
   const [color, setColor] = useState(category?.color ?? categoryColors[0]);
   const errors = state.fieldErrors ?? {};
