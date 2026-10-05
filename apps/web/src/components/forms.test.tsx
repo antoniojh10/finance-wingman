@@ -75,11 +75,11 @@ describe("CategoryForm", () => {
 
     expect(screen.getByLabelText("Kind")).toHaveValue("income");
     await user.type(screen.getByLabelText("Name"), "Bonus");
-    await user.click(screen.getByRole("radio", { name: "#eb6834" }));
+    await user.click(screen.getByRole("radio", { name: "#ff6b4a" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(lastData(saveCategory)).toEqual({ color: "#eb6834", name: "Bonus", kind: "income" });
+    expect(lastData(saveCategory)).toEqual({ color: "#ff6b4a", name: "Bonus", kind: "income" });
   });
 
   it("shows field errors from the server", async () => {

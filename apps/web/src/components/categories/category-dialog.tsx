@@ -14,7 +14,7 @@ import { useFormAction } from "@/hooks/use-form-action";
 import { cn } from "@/lib/utils";
 
 // A small palette of distinguishable colors to tag categories.
-export const categoryColors = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#8a63d2", "#64748b", "#d14343"];
+export const categoryColors = ["#6d4aff", "#ff6b4a", "#ffb020", "#2f8cff", "#14b8a6", "#f05aa6", "#12a150", "#9aa0b8"];
 
 export type EditableCategory = {
   id: string;

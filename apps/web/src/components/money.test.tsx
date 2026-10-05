@@ -24,8 +24,8 @@ describe("Money", () => {
         <Money amount={-500} currency="USD" minorUnits={2} />
       </>,
     );
-    expect(screen.getByText("+$10.00")).toHaveClass("text-emerald-700");
-    expect(screen.getByText("−$10.00")).not.toHaveClass("text-emerald-700");
+    expect(screen.getByText("+$10.00")).toHaveClass("text-income");
+    expect(screen.getByText("−$10.00")).not.toHaveClass("text-income");
     expect(screen.getByText("−$5.00")).toBeInTheDocument();
   });
 });

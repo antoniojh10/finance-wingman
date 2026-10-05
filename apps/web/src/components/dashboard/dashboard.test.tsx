@@ -58,7 +58,7 @@ describe("SummaryCards", () => {
       <SummaryCards summary={{ currency: "USD", minor_units: 2, income: 0, expense: 1299, net: -1299, balance: 138701 }} />,
     );
     expect(screen.getByText("Income · USD")).toBeInTheDocument();
-    expect(screen.getByText("$0.00")).not.toHaveClass("text-emerald-700");
+    expect(screen.getByText("$0.00")).not.toHaveClass("text-income");
     expect(screen.getByText("$12.99")).toBeInTheDocument();
     expect(screen.getByText("−$12.99")).toBeInTheDocument();
     expect(screen.getByText("$1,387.01")).toBeInTheDocument();

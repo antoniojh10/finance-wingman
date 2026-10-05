@@ -30,7 +30,7 @@ export function Money({
     <span
       className={cn(
         "tabular-nums",
-        tone === "income" && "text-emerald-700 dark:text-emerald-400",
+        tone === "income" && "text-income",
         className,
       )}
     >
