@@ -98,7 +98,8 @@ func (s *Server) Mount(r chi.Router) {
 		BearerMethodsSupported: []string{"header"},
 		ResourceName:           "Finance Wingman",
 	})
-	r.Handle("/.well-known/oauth-protected-resource", resourceMeta)
+	// Advertised only at the path-suffixed URL (RFC 9728), so a connector
+	// saved with the bare API URL fails at discovery instead of after login.
 	r.Handle("/.well-known/oauth-protected-resource"+s.cfg.ResourcePath, resourceMeta)
 
 	r.Group(func(r chi.Router) {

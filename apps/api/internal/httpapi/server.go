@@ -70,6 +70,9 @@ func build(deps Deps) (chi.Router, huma.API) {
 	}
 	if deps.MCP != nil {
 		router.Handle("/mcp", deps.MCP)
+		if deps.OAuth != nil {
+			router.HandleFunc("/", mcpHint(deps.OAuth.ResourceURL()))
+		}
 	}
 
 	config := huma.DefaultConfig(apiTitle, Version)
@@ -91,13 +94,31 @@ func build(deps Deps) (chi.Router, huma.API) {
 	return router, api
 }
 
+// mcpHint answers requests to the bare root with a pointer to the MCP
+// endpoint, for connectors saved without the /mcp path.
+func mcpHint(mcpURL string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"error":   "not_found",
+			"message": "No MCP endpoint at this URL. The MCP endpoint is " + mcpURL,
+		})
+	}
+}
+
 func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 			next.ServeHTTP(ww, r)
-			logger.Info("request",
+			level := slog.LevelInfo
+			if r.URL.Path == "/" && ww.Status() == http.StatusNotFound {
+				// Connectors configured with the bare URL retry constantly.
+				level = slog.LevelDebug
+			}
+			logger.Log(r.Context(), level, "request",
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", ww.Status(),
