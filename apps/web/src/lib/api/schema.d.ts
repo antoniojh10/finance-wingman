@@ -570,9 +570,14 @@ export interface components {
             archived: boolean;
             /**
              * Format: int64
-             * @description Current balance in minor units
+             * @description Current balance in minor units: initial balance plus transactions dated after balance_as_of
              */
             balance: number;
+            /**
+             * Format: date
+             * @description Date the initial balance refers to. Only transactions after this day change the balance
+             */
+            balance_as_of: string;
             /** Format: date-time */
             created_at: string;
             /** @example MXN */
@@ -580,7 +585,7 @@ export interface components {
             id: string;
             /**
              * Format: int64
-             * @description Opening balance in minor units
+             * @description Balance on balance_as_of, in minor units
              */
             initial_balance: number;
             /**
@@ -668,13 +673,18 @@ export interface components {
              */
             readonly $schema?: string;
             /**
+             * Format: date
+             * @description Date the initial balance refers to (YYYY-MM-DD). Defaults to today. Transactions on or before it are already included in the initial balance
+             */
+            balance_as_of?: string;
+            /**
              * @description ISO 4217 currency code
              * @example MXN
              */
             currency: string;
             /**
              * Format: int64
-             * @description Opening balance in minor units (may be negative, e.g. credit cards)
+             * @description Balance on balance_as_of in minor units (may be negative, e.g. credit cards)
              */
             initial_balance?: number;
             name: string;
@@ -1353,7 +1363,15 @@ export interface components {
              */
             readonly $schema?: string;
             archived?: boolean;
-            /** Format: int64 */
+            /**
+             * Format: date
+             * @description New anchor date (YYYY-MM-DD). Editing initial_balance alone keeps the current anchor
+             */
+            balance_as_of?: string;
+            /**
+             * Format: int64
+             * @description Balance on balance_as_of, in minor units
+             */
             initial_balance?: number;
             name?: string;
             /** @enum {string} */

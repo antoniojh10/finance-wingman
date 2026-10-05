@@ -41,14 +41,16 @@ type createAccountArgs struct {
 	Name           string   `json:"name" jsonschema:"Account name, e.g. BBVA Checking"`
 	Type           string   `json:"type" jsonschema:"One of checking, savings, credit_card, cash, investment, other"`
 	Currency       string   `json:"currency" jsonschema:"ISO 4217 currency code, e.g. MXN or USD. Cannot be changed later"`
-	InitialBalance *float64 `json:"initial_balance,omitempty" jsonschema:"Opening balance in the account currency, e.g. 1500.00. May be negative (e.g. credit card debt). Defaults to 0"`
+	InitialBalance *float64 `json:"initial_balance,omitempty" jsonschema:"The balance the account holds on balance_as_of, in the account currency, e.g. 1500.00. May be negative (e.g. credit card debt). Defaults to 0. Transactions dated on or before balance_as_of are already included in it"`
+	BalanceAsOf    string   `json:"balance_as_of,omitempty" jsonschema:"Date (YYYY-MM-DD) the initial_balance refers to. Defaults to today. Only transactions dated after it change the balance, so past transactions can be backfilled without altering it"`
 }
 
 type updateAccountArgs struct {
 	Account        string   `json:"account" jsonschema:"Name or ID of the account to edit. Archived accounts are accepted too, so they can be unarchived"`
 	Name           *string  `json:"name,omitempty" jsonschema:"New account name. Must not clash with another active account"`
 	Type           *string  `json:"type,omitempty" jsonschema:"New type: one of checking, savings, credit_card, cash, investment, other"`
-	InitialBalance *float64 `json:"initial_balance,omitempty" jsonschema:"New opening balance in the account currency, e.g. 1500.00. May be negative. The current balance shifts by the difference; transactions are kept"`
+	InitialBalance *float64 `json:"initial_balance,omitempty" jsonschema:"New balance on balance_as_of (the current anchor date unless balance_as_of is also passed), in the account currency, e.g. 1500.00. May be negative. Transactions are kept"`
+	BalanceAsOf    *string  `json:"balance_as_of,omitempty" jsonschema:"New date (YYYY-MM-DD) the initial_balance refers to. To say the balance is X today, pass initial_balance X and balance_as_of today. Editing initial_balance alone keeps the existing date"`
 	Archived       *bool    `json:"archived,omitempty" jsonschema:"true to archive the account (hidden from list_accounts and unusable for new transactions, history is kept), false to restore it"`
 }
 
@@ -116,8 +118,10 @@ type accountOut struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Currency string `json:"currency"`
-	Balance  string `json:"balance"`
-	Archived bool   `json:"archived,omitempty"`
+	Balance  string `json:"balance" jsonschema:"Current balance: initial balance plus transactions dated after balance_as_of"`
+	// BalanceAsOf is the date the account's initial balance refers to.
+	BalanceAsOf string `json:"balance_as_of"`
+	Archived    bool   `json:"archived,omitempty"`
 }
 
 type accountsOut struct {
@@ -220,7 +224,7 @@ func (s *Server) registerTools() {
 	mcp.AddTool(s.mcp, &mcp.Tool{
 		Name:        "list_accounts",
 		Title:       "List accounts",
-		Description: "List active accounts with their currency and current balance.",
+		Description: "List active accounts with their currency and current balance (initial balance plus transactions dated after balance_as_of).",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, accountsOut, error) {
 		return s.listAccounts(ctx)
@@ -238,7 +242,7 @@ func (s *Server) registerTools() {
 	mcp.AddTool(s.mcp, &mcp.Tool{
 		Name:        "create_account",
 		Title:       "Create account",
-		Description: "Create a new account (bank account, card, cash, ...) with its currency and opening balance. Only create accounts the user asked for; check list_accounts first to avoid duplicates.",
+		Description: "Create a new account (bank account, card, cash, ...) with its currency and initial_balance, the balance it holds on balance_as_of (default today): transactions dated on or before that date are already included in it and do not change the balance, so past transactions can be added later for history. Only create accounts the user asked for; check list_accounts first to avoid duplicates.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args createAccountArgs) (*mcp.CallToolResult, accountOut, error) {
 		return s.createAccount(ctx, args)
@@ -247,7 +251,7 @@ func (s *Server) registerTools() {
 	mcp.AddTool(s.mcp, &mcp.Tool{
 		Name:        "update_account",
 		Title:       "Update account",
-		Description: "Edit an existing account in place, keeping its transactions: rename it, change its type, fix its opening balance (initial_balance), or archive/unarchive it. Only the fields you pass change; the currency can never be changed. Archived accounts disappear from list_accounts and cannot receive new transactions. Confirm with the user before changing a balance or archiving.",
+		Description: "Edit an existing account in place, keeping its transactions: rename it, change its type, fix its initial_balance and/or the balance_as_of date it refers to, or archive/unarchive it. Only the fields you pass change; the currency can never be changed. Editing initial_balance alone keeps balance_as_of; to set the balance as of today pass both. Archived accounts disappear from list_accounts and cannot receive new transactions. Confirm with the user before changing a balance or archiving.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), IdempotentHint: true, OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args updateAccountArgs) (*mcp.CallToolResult, accountOut, error) {
 		return s.updateAccount(ctx, args)
@@ -453,7 +457,7 @@ func (s *Server) listCategories(ctx context.Context, args listCategoriesArgs) (*
 }
 
 func (s *Server) createAccount(ctx context.Context, args createAccountArgs) (*mcp.CallToolResult, accountOut, error) {
-	in := finance.CreateAccountInput{Name: args.Name, Type: args.Type, Currency: args.Currency}
+	in := finance.CreateAccountInput{Name: args.Name, Type: args.Type, Currency: args.Currency, BalanceAsOf: args.BalanceAsOf}
 	if args.InitialBalance != nil {
 		currency, err := s.findCurrency(ctx, args.Currency)
 		if err != nil {
@@ -473,14 +477,14 @@ func (s *Server) createAccount(ctx context.Context, args createAccountArgs) (*mc
 }
 
 func (s *Server) updateAccount(ctx context.Context, args updateAccountArgs) (*mcp.CallToolResult, accountOut, error) {
-	if args.Name == nil && args.Type == nil && args.InitialBalance == nil && args.Archived == nil {
-		return nil, accountOut{}, errors.New("nothing to update; pass at least one of name, type, initial_balance or archived")
+	if args.Name == nil && args.Type == nil && args.InitialBalance == nil && args.BalanceAsOf == nil && args.Archived == nil {
+		return nil, accountOut{}, errors.New("nothing to update; pass at least one of name, type, initial_balance, balance_as_of or archived")
 	}
 	account, err := s.resolveAnyAccount(ctx, args.Account)
 	if err != nil {
 		return nil, accountOut{}, err
 	}
-	in := finance.UpdateAccountInput{Name: args.Name, Type: args.Type, Archived: args.Archived}
+	in := finance.UpdateAccountInput{Name: args.Name, Type: args.Type, BalanceAsOf: args.BalanceAsOf, Archived: args.Archived}
 	if args.InitialBalance != nil {
 		v, err := decimalToMinor(*args.InitialBalance, account.MinorUnits, account.Currency, "initial_balance")
 		if err != nil {
@@ -564,7 +568,7 @@ func (s *Server) createAccounts(ctx context.Context, args createAccountsArgs) (*
 	}
 	inputs := make([]finance.CreateAccountInput, len(args.Items))
 	for i, item := range args.Items {
-		inputs[i] = finance.CreateAccountInput{Name: item.Name, Type: item.Type, Currency: item.Currency}
+		inputs[i] = finance.CreateAccountInput{Name: item.Name, Type: item.Type, Currency: item.Currency, BalanceAsOf: item.BalanceAsOf}
 		if item.InitialBalance != nil {
 			currency, err := s.findCurrency(ctx, item.Currency)
 			if err != nil {
@@ -1052,7 +1056,7 @@ func periodRange(today time.Time, period string) (string, string, error) {
 }
 
 func accountToOut(a finance.Account) accountOut {
-	return accountOut{ID: a.ID.String(), Name: a.Name, Type: a.Type, Currency: a.Currency, Balance: money.Format(a.Balance, a.MinorUnits), Archived: a.Archived}
+	return accountOut{ID: a.ID.String(), Name: a.Name, Type: a.Type, Currency: a.Currency, Balance: money.Format(a.Balance, a.MinorUnits), BalanceAsOf: a.BalanceAsOf, Archived: a.Archived}
 }
 
 func categoryToOut(c finance.Category) categoryOut {

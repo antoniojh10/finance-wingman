@@ -1,4 +1,7 @@
--- Balance = initial balance + income - expenses - transfers out + transfers in.
+-- Balance = initial balance + income - expenses - transfers out + transfers in,
+-- counting only transactions dated after the account's balance_as_of day
+-- (the initial balance already includes everything up to and including it).
+-- Transfers apply the rule per side, using each account's own anchor.
 
 -- name: ListAccounts :many
 SELECT
@@ -16,7 +19,8 @@ LEFT JOIN LATERAL (
         END
     ) AS delta
     FROM transactions t
-    WHERE t.account_id = a.id OR t.destination_account_id = a.id
+    WHERE (t.account_id = a.id OR t.destination_account_id = a.id)
+      AND t.occurred_on > a.balance_as_of
 ) b ON true
 WHERE sqlc.arg('include_archived')::boolean OR a.archived_at IS NULL
 ORDER BY a.archived_at IS NOT NULL, lower(a.name);
@@ -37,13 +41,14 @@ LEFT JOIN LATERAL (
         END
     ) AS delta
     FROM transactions t
-    WHERE t.account_id = a.id OR t.destination_account_id = a.id
+    WHERE (t.account_id = a.id OR t.destination_account_id = a.id)
+      AND t.occurred_on > a.balance_as_of
 ) b ON true
 WHERE a.id = $1;
 
 -- name: CreateAccount :one
-INSERT INTO accounts (name, type, currency, initial_balance)
-VALUES ($1, $2, $3, $4)
+INSERT INTO accounts (name, type, currency, initial_balance, balance_as_of)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id;
 
 -- name: UpdateAccount :exec
@@ -51,6 +56,7 @@ UPDATE accounts SET
     name = COALESCE(sqlc.narg('name'), name),
     type = COALESCE(sqlc.narg('type'), type),
     initial_balance = COALESCE(sqlc.narg('initial_balance'), initial_balance),
+    balance_as_of = COALESCE(sqlc.narg('balance_as_of'), balance_as_of),
     archived_at = CASE
         WHEN sqlc.narg('archived')::boolean IS NULL THEN archived_at
         WHEN sqlc.narg('archived')::boolean THEN COALESCE(archived_at, now())

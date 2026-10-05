@@ -157,6 +157,8 @@ func (a *testAPI) createAccount(name, currency string, initialBalance int64) fin
 	var account finance.Account
 	a.do(http.MethodPost, "/api/v1/accounts", map[string]any{
 		"name": name, "type": "checking", "currency": currency, "initial_balance": initialBalance,
+		// Anchored far in the past so fixture transactions with fixed dates all count.
+		"balance_as_of": "2000-01-01",
 	}).expect(http.StatusCreated).decode(&account)
 	return account
 }
