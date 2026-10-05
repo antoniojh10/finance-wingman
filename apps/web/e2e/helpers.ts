@@ -49,7 +49,16 @@ export async function signIn(page: Page, email: string): Promise<void> {
   await expect(page).toHaveURL(/\/$/);
 }
 
-/** Navigates using the visible navigation (sidebar or bottom tabs). */
+/**
+ * Navigates using the visible links: the sidebar on desktop; the bottom tabs
+ * and the header avatar (settings) on mobile.
+ */
 export async function navigate(page: Page, name: RegExp): Promise<void> {
-  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name }).filter({ visible: true }).first().click();
+  await page.getByRole("link", { name }).filter({ visible: true }).first().click();
+}
+
+/** Opens the new transaction page from the sidebar button or the tab bar. */
+export async function openNewTransaction(page: Page): Promise<void> {
+  await page.getByRole("link", { name: "Add transaction" }).filter({ visible: true }).first().click();
+  await expect(page.getByRole("heading", { name: "New transaction" })).toBeVisible();
 }

@@ -8,7 +8,7 @@ import { saveTransaction } from "@/app/actions/transactions";
 import { Field } from "@/components/field";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useFormAction } from "@/hooks/use-form-action";
 import { toDecimalString } from "@/lib/money";
@@ -219,14 +219,14 @@ export function TransactionForm({
         </p>
       )}
 
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>
+      <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" size="lg" onClick={onCancel}>
           {t("common.cancel")}
         </Button>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" size="lg" disabled={pending} className="sm:min-w-36">
           {pending ? t("common.saving") : t("common.save")}
         </Button>
-      </DialogFooter>
+      </div>
     </form>
   );
 }

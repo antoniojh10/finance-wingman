@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageHref, parseTransactionQuery } from "./query";
+import { newTransactionHref, pageHref, parseTransactionQuery, safeReturnPath } from "./query";
 
 const id = "3f2b8c1e-5a4d-4c3b-9e8f-1a2b3c4d5e6f";
 
@@ -39,5 +39,26 @@ describe("pageHref", () => {
     expect(pageHref(query, 2)).toBe("?type=expense&q=a+b&page=2");
     expect(pageHref(query, 1)).toBe("?type=expense&q=a+b");
     expect(pageHref(parseTransactionQuery({}), 1)).toBe("?");
+  });
+});
+
+describe("safeReturnPath", () => {
+  it("keeps same-origin paths", () => {
+    expect(safeReturnPath("/transactions?type=income")).toBe("/transactions?type=income");
+    expect(safeReturnPath(["/accounts", "/other"])).toBe("/accounts");
+  });
+
+  it("falls back for missing or external targets", () => {
+    expect(safeReturnPath(undefined)).toBe("/");
+    expect(safeReturnPath("https://evil.example")).toBe("/");
+    expect(safeReturnPath("//evil.example")).toBe("/");
+    expect(safeReturnPath("/\\evil.example", "/transactions")).toBe("/transactions");
+  });
+});
+
+describe("newTransactionHref", () => {
+  it("only adds a return path when leaving a page other than the dashboard", () => {
+    expect(newTransactionHref("/")).toBe("/transactions/new");
+    expect(newTransactionHref("/transactions?type=income")).toBe("/transactions/new?return=%2Ftransactions%3Ftype%3Dincome");
   });
 });

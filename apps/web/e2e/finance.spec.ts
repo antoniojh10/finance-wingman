@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { e2eUser } from "../playwright.config";
-import { codeFrom, linkFrom, navigate, requestLogin, signIn } from "./helpers";
+import { codeFrom, linkFrom, navigate, openNewTransaction, requestLogin, signIn } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -55,17 +55,18 @@ test("manages accounts, categories and transactions", async ({ page }, testInfo)
 
   // Transaction from the dashboard
   await navigate(page, /dashboard/i);
-  await page.getByRole("button", { name: "Add transaction" }).click();
-  const txDialog = page.getByRole("dialog");
-  await txDialog.getByLabel("Account").selectOption({ label: `${accountName} (MXN)` });
-  await txDialog.getByLabel(/^Amount/).fill("abc");
-  await txDialog.getByRole("button", { name: "Save" }).click();
-  await expect(txDialog.getByText(/positive amount/i)).toBeVisible();
-  await txDialog.getByLabel(/^Amount/).fill("250.50");
-  await txDialog.getByLabel("Category").selectOption({ label: categoryName });
-  await txDialog.getByLabel("Description").fill(description);
-  await txDialog.getByRole("button", { name: "Save" }).click();
+  await openNewTransaction(page);
+  const txForm = page.getByRole("main");
+  await txForm.getByLabel("Account").selectOption({ label: `${accountName} (MXN)` });
+  await txForm.getByLabel(/^Amount/).fill("abc");
+  await txForm.getByRole("button", { name: "Save" }).click();
+  await expect(txForm.getByText(/positive amount/i)).toBeVisible();
+  await txForm.getByLabel(/^Amount/).fill("250.50");
+  await txForm.getByLabel("Category").selectOption({ label: categoryName });
+  await txForm.getByLabel("Description").fill(description);
+  await txForm.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Transaction saved")).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId("transaction-row").filter({ hasText: description })).toContainText("−MX$250.50");
 
   // The balance reflects the expense.

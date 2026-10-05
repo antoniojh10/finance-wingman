@@ -1,4 +1,3 @@
-import { PlusIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -8,7 +7,6 @@ import { MonthPicker } from "@/components/dashboard/month-picker";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { Money } from "@/components/money";
 import { PageHeader } from "@/components/page-header";
-import { TransactionDialog } from "@/components/transactions/transaction-dialog";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,22 +61,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <>
       <PageHeader
         title={t("dashboard.title")}
-        actions={
-          <>
-            <MonthPicker month={month} />
-            <TransactionDialog
-              accounts={accountOptions}
-              categories={categories}
-              defaultDate={todayDate}
-              trigger={
-                <Button>
-                  <PlusIcon />
-                  {t("transactions.add")}
-                </Button>
-              }
-            />
-          </>
-        }
+        actions={<MonthPicker month={month} />}
       />
 
       <div className="grid gap-8">

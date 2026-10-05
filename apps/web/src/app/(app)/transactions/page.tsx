@@ -1,10 +1,8 @@
-import { PlusIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/page-header";
-import { TransactionDialog } from "@/components/transactions/transaction-dialog";
 import { TransactionFilters } from "@/components/transactions/transaction-filters";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
@@ -59,24 +57,7 @@ export default async function TransactionsPage({
 
   return (
     <>
-      <PageHeader
-        title={t("transactions.title")}
-        actions={
-          hasActiveAccounts ? (
-            <TransactionDialog
-              accounts={accounts}
-              categories={categories}
-              defaultDate={todayDate}
-              trigger={
-                <Button>
-                  <PlusIcon />
-                  {t("transactions.add")}
-                </Button>
-              }
-            />
-          ) : undefined
-        }
-      />
+      <PageHeader title={t("transactions.title")} />
       <div className="grid gap-4">
         {!hasActiveAccounts && (
           <p className="rounded-lg bg-muted px-4 py-3 text-sm">

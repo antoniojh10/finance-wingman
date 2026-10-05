@@ -44,3 +44,20 @@ export function pageHref(query: TransactionQuery, page: number): string {
   const qs = params.toString();
   return qs ? `?${qs}` : "?";
 }
+
+/**
+ * Returns a same-origin path to go back to after a flow, or the fallback.
+ * Rejects absolute and protocol-relative URLs to avoid open redirects.
+ */
+export function safeReturnPath(value: string | string[] | undefined, fallback = "/"): string {
+  const path = Array.isArray(value) ? value[0] : value;
+  if (!path || !path.startsWith("/") || path.startsWith("//") || path.startsWith("/\\")) {
+    return fallback;
+  }
+  return path;
+}
+
+/** Link to the new transaction page that returns to `returnTo` afterwards. */
+export function newTransactionHref(returnTo: string): string {
+  return returnTo === "/" ? "/transactions/new" : `/transactions/new?return=${encodeURIComponent(returnTo)}`;
+}
