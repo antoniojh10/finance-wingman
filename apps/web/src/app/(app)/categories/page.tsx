@@ -1,13 +1,8 @@
-import { PlusIcon } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { CategoryDialog } from "@/components/categories/category-dialog";
-import { CategoryList } from "@/components/categories/category-list";
-import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CategoryBoard, type CategoryMonthTotal } from "@/components/categories/category-list";
+import { monthOf, monthRange, today } from "@/lib/dates";
 import { authedApi, expectData } from "@/lib/session";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,46 +11,22 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CategoriesPage({ searchParams }: { searchParams: Promise<{ archived?: string }> }) {
-  const t = await getTranslations();
   const showArchived = (await searchParams).archived === "1";
+  const { from, to } = monthRange(monthOf(today(process.env.APP_TIMEZONE)));
   const api = await authedApi();
-  const categories = expectData(
-    await api.GET("/api/v1/categories", { params: { query: { include_archived: showArchived } } }),
-  ).items;
+  const [categoriesRes, summaryRes] = await Promise.all([
+    api.GET("/api/v1/categories", { params: { query: { include_archived: showArchived } } }),
+    api.GET("/api/v1/summary", { params: { query: { from, to } } }),
+  ]);
 
-  return (
-    <>
-      <PageHeader
-        title={t("categories.title")}
-        actions={
-          <Button nativeButton={false} render={<Link href={showArchived ? "/categories" : "/categories?archived=1"} />} variant="ghost" size="sm">
-            {t(showArchived ? "accounts.hideArchived" : "accounts.showArchived")}
-          </Button>
-        }
-      />
-      <div className="grid gap-4 md:grid-cols-2">
-        {(["expense", "income"] as const).map((kind) => (
-          <Card key={kind}>
-            <CardHeader>
-              <CardTitle>{t(kind === "expense" ? "categories.expenseCategories" : "categories.incomeCategories")}</CardTitle>
-              <CardAction>
-                <CategoryDialog
-                  defaultKind={kind}
-                  trigger={
-                    <Button variant="outline" size="sm">
-                      <PlusIcon />
-                      {t("categories.add")}
-                    </Button>
-                  }
-                />
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <CategoryList categories={categories.filter((c) => c.kind === kind)} />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </>
-  );
+  const totals: Record<string, CategoryMonthTotal[]> = {};
+  for (const summary of expectData(summaryRes).currencies) {
+    for (const entry of [...summary.expenses, ...summary.incomes]) {
+      if (entry.category_id) {
+        (totals[entry.category_id] ??= []).push({ currency: summary.currency, minor_units: summary.minor_units, total: entry.total });
+      }
+    }
+  }
+
+  return <CategoryBoard categories={expectData(categoriesRes).items} totals={totals} showArchived={showArchived} />;
 }

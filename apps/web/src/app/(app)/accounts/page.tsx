@@ -7,7 +7,6 @@ import { AccountDialog } from "@/components/accounts/account-dialog";
 import { AccountList } from "@/components/accounts/account-list";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { authedApi, expectData } from "@/lib/session";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,28 +33,27 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title={t("accounts.title")}
         actions={
-          <>
-            <Button nativeButton={false} render={<Link href={showArchived ? "/accounts" : "/accounts?archived=1"} />} variant="ghost" size="sm">
-              {t(showArchived ? "accounts.hideArchived" : "accounts.showArchived")}
-            </Button>
-            <AccountDialog
-              currencies={currencies}
-              defaultCurrency={defaultCurrency}
-              trigger={
-                <Button>
-                  <PlusIcon />
-                  {t("accounts.add")}
-                </Button>
-              }
-            />
-          </>
+          <AccountDialog
+            currencies={currencies}
+            defaultCurrency={defaultCurrency}
+            trigger={
+              <Button>
+                <PlusIcon />
+                {t("accounts.add")}
+              </Button>
+            }
+          />
         }
       />
-      <Card>
-        <CardContent>
-          <AccountList accounts={accounts} currencies={currencies} defaultCurrency={defaultCurrency} />
-        </CardContent>
-      </Card>
+      <div className="grid gap-4">
+        <AccountList accounts={accounts} currencies={currencies} defaultCurrency={defaultCurrency} />
+        <Link
+          href={showArchived ? "/accounts" : "/accounts?archived=1"}
+          className="flex min-h-11 items-center justify-self-center px-4 text-sm font-bold underline underline-offset-4"
+        >
+          {t(showArchived ? "accounts.hideArchived" : "accounts.showArchived")}
+        </Link>
+      </div>
     </>
   );
 }

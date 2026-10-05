@@ -140,7 +140,8 @@
       "cash": "Efectivo",
       "investment": "Inversión",
       "other": "Otra"
-    }
+    },
+    "activeCount": "{count, plural, one {# cuenta activa} other {# cuentas activas}}"
   },
   "categories": {
     "title": "Categorías",
@@ -165,7 +166,8 @@
     "deleteTitle": "¿Eliminar esta categoría?",
     "deleteDescription": "Los movimientos de esta categoría se conservarán sin categoría.",
     "deleted": "Categoría eliminada",
-    "nameTaken": "Ya existe una categoría activa con este nombre."
+    "nameTaken": "Ya existe una categoría activa con este nombre.",
+    "thisMonth": "Este mes"
   },
   "settings": {
     "title": "Ajustes",

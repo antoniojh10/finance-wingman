@@ -93,7 +93,8 @@ test("manages accounts, categories and transactions", async ({ page }, testInfo)
 
   // Clean up: the account has no transactions left, so it can be deleted.
   await navigate(page, /accounts/i);
-  await page.getByTestId("account-row").filter({ hasText: accountName }).getByRole("button", { name: "Delete" }).click();
+  await page.getByTestId("account-row").filter({ hasText: accountName }).getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
   await expect(page.getByText("Account deleted")).toBeVisible();
 });

@@ -140,7 +140,8 @@
       "cash": "Cash",
       "investment": "Investment",
       "other": "Other"
-    }
+    },
+    "activeCount": "{count, plural, one {# active account} other {# active accounts}}"
   },
   "categories": {
     "title": "Categories",
@@ -165,7 +166,8 @@
     "deleteTitle": "Delete this category?",
     "deleteDescription": "Transactions in this category will be kept as uncategorized.",
     "deleted": "Category deleted",
-    "nameTaken": "An active category with this name already exists."
+    "nameTaken": "An active category with this name already exists.",
+    "thisMonth": "This month"
   },
   "settings": {
     "title": "Settings",
