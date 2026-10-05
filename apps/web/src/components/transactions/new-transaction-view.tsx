@@ -4,12 +4,12 @@ import { XIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { toast } from "sonner";
 
 import { buttonVariants } from "@/components/ui/button";
 
 import { TransactionForm } from "./transaction-dialog";
 import type { AccountOption, CategoryOption } from "./types";
+import { useSavedToast } from "./use-saved-toast";
 
 /** Full-page form for adding a transaction, returning to `returnTo` when done. */
 export function NewTransactionView({
@@ -25,6 +25,7 @@ export function NewTransactionView({
 }) {
   const t = useTranslations();
   const router = useRouter();
+  const announceSaved = useSavedToast();
 
   return (
     <div className="mx-auto grid max-w-lg gap-6">
@@ -50,8 +51,8 @@ export function NewTransactionView({
           accounts={accounts}
           categories={categories}
           defaultDate={defaultDate}
-          onSaved={() => {
-            toast.success(t("transactions.saved"));
+          onSaved={({ transactionId }) => {
+            void announceSaved(transactionId);
             router.push(returnTo);
           }}
           onCancel={() => router.push(returnTo)}

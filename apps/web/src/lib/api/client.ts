@@ -8,6 +8,7 @@ export type Schemas = components["schemas"];
 export type Account = Schemas["Account"];
 export type Category = Schemas["Category"];
 export type Currency = Schemas["Currency"];
+export type RecurringItem = Schemas["RecurringItem"];
 export type Transaction = Schemas["Transaction"];
 export type TransactionPage = Schemas["TransactionPage"];
 export type Summary = Schemas["Summary"];

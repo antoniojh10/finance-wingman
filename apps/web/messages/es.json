@@ -115,7 +115,21 @@
     "today": "Hoy",
     "yesterday": "Ayer",
     "moreFilters": "Más filtros",
-    "paysSubscription": "Suscripción: {name}"
+    "paysSubscription": "Suscripción: {name}",
+    "subscriptionLabel": "Suscripción",
+    "selectSubscription": "Suscripción a vincular",
+    "linkSubscription": "Vincular",
+    "unlinkSubscription": "Desvincular",
+    "linkedTo": "Paga {name}",
+    "linkedToUnknown": "Vinculada a una suscripción",
+    "period": "Periodo",
+    "periodClosest": "El más cercano a la fecha de la transacción",
+    "periodCurrent": "Periodo actual · {date}",
+    "periodNext": "Próximo periodo · {date}",
+    "noSubscriptions": "No hay suscripciones con esta cuenta y tipo.",
+    "linked": "Vinculada a {name}",
+    "unlinked": "Desvinculada de la suscripción",
+    "linkSuggestion": "¿Vincular a {name}?"
   },
   "accounts": {
     "title": "Cuentas",

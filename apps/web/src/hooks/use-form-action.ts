@@ -11,11 +11,11 @@ import { initialFormState, type FormState } from "@/lib/forms";
  * every submission, wiping the user's input on validation errors and leaving
  * controlled <select>s out of sync with their state. Dispatching from onSubmit
  * inside a transition keeps the form as it is. onSuccess runs once per
- * successful submission.
+ * successful submission, receiving the resulting state.
  */
 export function useFormAction(
   action: (state: FormState, formData: FormData) => Promise<FormState>,
-  onSuccess?: () => void,
+  onSuccess?: (state: FormState) => void,
 ) {
   const [state, dispatch, pending] = useActionState(action, initialFormState);
   const [, startTransition] = useTransition();
@@ -29,7 +29,7 @@ export function useFormAction(
   useEffect(() => {
     if (state.ok && state.nonce !== handled.current) {
       handled.current = state.nonce;
-      callback.current?.();
+      callback.current?.(state);
     }
   }, [state]);
 
