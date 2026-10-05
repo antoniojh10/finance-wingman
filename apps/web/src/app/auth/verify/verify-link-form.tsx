@@ -31,7 +31,7 @@ export function VerifyLinkForm({ token }: { token: string }) {
   return (
     <form action={action}>
       <input type="hidden" name="token" value={token} />
-      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="h-14 w-full rounded-[18px]" disabled={pending}>
         {pending ? t("verifying") : t("continue")}
       </Button>
     </form>

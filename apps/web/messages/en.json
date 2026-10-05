@@ -49,7 +49,8 @@
     "continue": "Continue",
     "linkInvalid": "This sign-in link is invalid or has expired. Request a new one.",
     "backToLogin": "Back to sign in",
-    "sessionExpired": "Your session expired. Please sign in again."
+    "sessionExpired": "Your session expired. Please sign in again.",
+    "emailPlaceholder": "you@example.com"
   },
   "dashboard": {
     "title": "Dashboard",

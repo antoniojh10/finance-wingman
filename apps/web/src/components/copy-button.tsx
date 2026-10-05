@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-export function CopyButton({ value }: { value: string }) {
+export function CopyButton({ value, className }: { value: string; className?: string }) {
   const t = useTranslations("common");
   const [copied, setCopied] = useState(false);
 
@@ -17,7 +17,7 @@ export function CopyButton({ value }: { value: string }) {
   }
 
   return (
-    <Button type="button" variant="outline" size="sm" onClick={copy}>
+    <Button type="button" variant="outline" size="sm" onClick={copy} className={className}>
       {copied ? <CheckIcon /> : <CopyIcon />}
       {copied ? t("copied") : t("copy")}
     </Button>

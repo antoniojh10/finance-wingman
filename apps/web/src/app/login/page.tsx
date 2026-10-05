@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthHeading, AuthLayout } from "@/components/auth-layout";
 import { getSessionToken } from "@/lib/session";
 
 import { LoginForm } from "./login-form";
@@ -20,24 +20,14 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { expired } = await searchParams;
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-10">
-      <div className="w-full max-w-sm">
-        <p className="mb-6 text-center text-lg font-semibold tracking-tight">{t("common.appName")}</p>
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("auth.title")}</CardTitle>
-            <CardDescription>{t("auth.subtitle")}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            {expired && (
-              <p className="rounded-lg bg-muted px-3 py-2 text-sm" role="status">
-                {t("auth.sessionExpired")}
-              </p>
-            )}
-            <LoginForm />
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+    <AuthLayout appName={t("common.appName")}>
+      <AuthHeading title={t("auth.title")} description={t("auth.subtitle")} />
+      {expired && (
+        <p className="rounded-2xl bg-card px-4 py-3 text-sm ring-1 ring-foreground/5" role="status">
+          {t("auth.sessionExpired")}
+        </p>
+      )}
+      <LoginForm />
+    </AuthLayout>
   );
 }

@@ -67,3 +67,41 @@ export function ChipRadioGroup({
     </div>
   );
 }
+
+/** A labelled pill switch made of native radio buttons, for a few short options. */
+export function SegmentedRadioGroup({
+  name,
+  label,
+  options,
+  defaultValue,
+}: {
+  name: string;
+  label: string;
+  options: { value: string; label: string }[];
+  defaultValue?: string;
+}) {
+  const id = useId();
+  return (
+    <div className="grid gap-1.5">
+      <p id={`${id}-label`} className="text-[13px] font-bold text-muted-foreground">
+        {label}
+      </p>
+      <div
+        role="radiogroup"
+        aria-labelledby={`${id}-label`}
+        className="grid gap-1 rounded-2xl bg-muted p-1"
+        style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      >
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl text-sm font-bold text-muted-foreground transition-colors select-none hover:text-foreground has-checked:bg-card has-checked:text-foreground has-checked:shadow-sm has-focus-visible:ring-3 has-focus-visible:ring-ring/50"
+          >
+            <input type="radio" name={name} value={option.value} defaultChecked={defaultValue === option.value} className="sr-only" />
+            {option.label}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -104,13 +104,13 @@ test("switches language and signs out", async ({ page }) => {
   await navigate(page, /settings/i);
   await expect(page.getByTestId("mcp-url")).toHaveText("http://localhost:8081/mcp");
 
-  await page.getByLabel("Language").selectOption("es");
+  await page.locator("label", { hasText: "Español" }).click();
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Main" }).first()).toContainText("Movimientos");
 
   // Restore English for other tests.
-  await page.getByLabel("Idioma").selectOption("en");
+  await page.locator("label", { hasText: "English" }).click();
   await page.getByRole("button", { name: "Guardar" }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 

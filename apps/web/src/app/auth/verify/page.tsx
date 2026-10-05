@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthHeading, AuthLayout } from "@/components/auth-layout";
+import { buttonVariants } from "@/components/ui/button";
 
 import { VerifyLinkForm } from "./verify-link-form";
 
@@ -13,26 +13,19 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function VerifyPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
-  const t = await getTranslations("auth");
+  const t = await getTranslations();
   const { token } = await searchParams;
 
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-10">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>{t("verifyTitle")}</CardTitle>
-          <CardDescription>{token ? t("verifyDescription") : t("linkInvalid")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {token ? (
-            <VerifyLinkForm token={token} />
-          ) : (
-            <Button nativeButton={false} render={<Link href="/login" />} variant="outline" className="w-full">
-              {t("backToLogin")}
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+    <AuthLayout appName={t("common.appName")}>
+      <AuthHeading title={t("auth.verifyTitle")} description={token ? t("auth.verifyDescription") : t("auth.linkInvalid")} />
+      {token ? (
+        <VerifyLinkForm token={token} />
+      ) : (
+        <Link href="/login" className={buttonVariants({ variant: "outline", size: "lg", className: "w-full" })}>
+          {t("auth.backToLogin")}
+        </Link>
+      )}
+    </AuthLayout>
   );
 }

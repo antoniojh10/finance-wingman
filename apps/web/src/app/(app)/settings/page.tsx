@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { logout } from "@/app/actions/auth";
+import { Avatar } from "@/components/brand";
 import { CopyButton } from "@/components/copy-button";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -22,63 +23,79 @@ export default async function SettingsPage() {
   const user = await getCurrentUser();
   // The public API URL may differ from the internal one used by the server.
   const mcpUrl = `${(process.env.API_PUBLIC_URL ?? apiBaseUrl()).replace(/\/$/, "")}/mcp`;
+  const steps = [
+    { title: t("settings.claudeTitle"), text: t("settings.claudeSteps"), color: "bg-[#ff8f75]" },
+    { title: t("settings.chatgptTitle"), text: t("settings.chatgptSteps"), color: "bg-[#7fb6ff]" },
+  ];
 
   return (
     <>
       <PageHeader title={t("settings.title")} />
-      <div className="grid gap-4">
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         <Card>
-          <CardHeader>
-            <CardTitle>{t("settings.profile")}</CardTitle>
+          <CardHeader className="flex items-center gap-3.5">
+            <Avatar name={user.name || user.email} className="size-14 text-2xl" />
+            <CardTitle>
+              <h2>{t("settings.profile")}</h2>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ProfileForm name={user.name} email={user.email} locale={user.locale} />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("settings.assistants")}</CardTitle>
-            <CardDescription>{t("settings.assistantsDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5">
+        <div className="grid gap-5">
+          <section className="relative grid gap-4 overflow-hidden rounded-3xl bg-hero px-5 py-5.5 text-hero-foreground">
+            <span aria-hidden className="absolute -top-7.5 -right-7.5 size-25 rounded-full bg-lime" />
+            <span aria-hidden className="absolute -top-11 right-12.5 size-17.5 rounded-full bg-primary dark:bg-[#5b3df5]" />
+            <div className="relative grid gap-1.5 pr-24">
+              <h2 className="text-[21px] font-bold">{t("settings.assistants")}</h2>
+              <p className="text-sm leading-relaxed text-hero-muted">{t("settings.assistantsDescription")}</p>
+            </div>
             <div className="grid gap-1.5">
-              <p className="text-sm font-medium">{t("settings.mcpUrl")}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <code className="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 text-sm" data-testid="mcp-url">
+              <p className="text-[13px] font-bold text-hero-muted">{t("settings.mcpUrl")}</p>
+              <div className="flex items-center gap-2 rounded-2xl bg-white/8 py-1.5 pr-1.5 pl-3.5">
+                <code className="min-w-0 flex-1 truncate font-mono text-[13px]" data-testid="mcp-url">
                   {mcpUrl}
                 </code>
-                <CopyButton value={mcpUrl} />
+                <CopyButton value={mcpUrl} className="border-0 bg-lime text-lime-foreground hover:bg-lime/85" />
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <p className="text-sm font-medium">{t("settings.claudeTitle")}</p>
-                <p className="text-sm text-muted-foreground">{t("settings.claudeSteps")}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">{t("settings.chatgptTitle")}</p>
-                <p className="text-sm text-muted-foreground">{t("settings.chatgptSteps")}</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">{t("settings.assistantsHint")}</p>
-          </CardContent>
-        </Card>
+            <ol className="grid gap-2.5">
+              {steps.map((step, index) => (
+                <li key={step.title} className="flex gap-3 rounded-2xl bg-white/6 p-3.5">
+                  <span
+                    className={`flex size-7.5 shrink-0 items-center justify-center rounded-[10px] text-sm font-bold text-[#16133a] ${step.color}`}
+                  >
+                    {index + 1}
+                  </span>
+                  <div className="grid gap-1">
+                    <h3 className="font-sans text-[15px] font-bold">{step.title}</h3>
+                    <p className="text-[13.5px] leading-relaxed text-hero-muted">{step.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <p className="text-[13px] leading-relaxed text-hero-muted">{t("settings.assistantsHint")}</p>
+          </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("settings.session")}</CardTitle>
-            <CardDescription>{t("settings.signOutDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form action={logout}>
-              <Button type="submit" variant="outline">
-                <LogOutIcon />
-                {t("nav.signOut")}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <h2>{t("settings.session")}</h2>
+              </CardTitle>
+              <CardDescription>{t("settings.signOutDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form action={logout}>
+                <Button type="submit" variant="destructive" size="lg" className="w-full border-2 border-destructive/25">
+                  <LogOutIcon />
+                  {t("nav.signOut")}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </>
   );

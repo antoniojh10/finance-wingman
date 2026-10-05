@@ -1,5 +1,6 @@
 "use client";
 
+import { MailIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useActionState, useState } from "react";
 
@@ -29,13 +30,16 @@ export function LoginForm() {
             name="email"
             type="email"
             autoComplete="email"
+            placeholder={t("emailPlaceholder")}
             required
             autoFocus
             defaultValue={requestState.email}
             aria-invalid={Boolean(requestState.error)}
+            className="h-13.5 rounded-2xl px-4 text-base"
           />
         </Field>
-        <Button type="submit" size="lg" disabled={requesting}>
+        <Button type="submit" size="lg" disabled={requesting} className="h-14 rounded-[18px]">
+          <MailIcon />
           {requesting ? t("sending") : t("sendLink")}
         </Button>
       </form>
@@ -43,10 +47,10 @@ export function LoginForm() {
   }
 
   return (
-    <div className="grid gap-4">
-      <div>
-        <h2 className="font-medium">{t("checkEmail")}</h2>
-        <p className="text-sm text-muted-foreground">{t("sentTo", { email: requestState.email ?? "" })}</p>
+    <div className="grid gap-4 rounded-3xl bg-card p-5 ring-1 ring-foreground/5">
+      <div className="grid gap-1.5">
+        <h2 className="text-2xl font-bold tracking-tight">{t("checkEmail")}</h2>
+        <p className="text-sm leading-relaxed text-muted-foreground">{t("sentTo", { email: requestState.email ?? "" })}</p>
       </div>
       <form action={verifyAction} className="grid gap-4">
         <input type="hidden" name="email" value={requestState.email ?? ""} />
@@ -60,15 +64,15 @@ export function LoginForm() {
             maxLength={6}
             required
             autoFocus
-            className="h-11 text-center font-mono text-xl tracking-[0.5em]"
+            className="h-15 rounded-2xl bg-background text-center font-heading text-3xl font-bold tracking-[0.45em]"
             aria-invalid={Boolean(verifyState.error)}
           />
         </Field>
-        <Button type="submit" size="lg" disabled={verifying}>
+        <Button type="submit" size="lg" disabled={verifying} className="h-14 rounded-[18px]">
           {verifying ? t("verifying") : t("verify")}
         </Button>
       </form>
-      <Button type="button" variant="ghost" onClick={() => setEditingEmail(true)}>
+      <Button type="button" variant="link" className="text-foreground underline underline-offset-4" onClick={() => setEditingEmail(true)}>
         {t("useDifferentEmail")}
       </Button>
     </div>
