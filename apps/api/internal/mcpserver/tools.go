@@ -44,6 +44,14 @@ type createAccountArgs struct {
 	InitialBalance *float64 `json:"initial_balance,omitempty" jsonschema:"Opening balance in the account currency, e.g. 1500.00. May be negative (e.g. credit card debt). Defaults to 0"`
 }
 
+type updateAccountArgs struct {
+	Account        string   `json:"account" jsonschema:"Name or ID of the account to edit. Archived accounts are accepted too, so they can be unarchived"`
+	Name           *string  `json:"name,omitempty" jsonschema:"New account name. Must not clash with another active account"`
+	Type           *string  `json:"type,omitempty" jsonschema:"New type: one of checking, savings, credit_card, cash, investment, other"`
+	InitialBalance *float64 `json:"initial_balance,omitempty" jsonschema:"New opening balance in the account currency, e.g. 1500.00. May be negative. The current balance shifts by the difference; transactions are kept"`
+	Archived       *bool    `json:"archived,omitempty" jsonschema:"true to archive the account (hidden from list_accounts and unusable for new transactions, history is kept), false to restore it"`
+}
+
 type createCategoryArgs struct {
 	Name  string `json:"name" jsonschema:"Category name, e.g. Groceries"`
 	Kind  string `json:"kind" jsonschema:"expense or income"`
@@ -101,6 +109,7 @@ type accountOut struct {
 	Type     string `json:"type"`
 	Currency string `json:"currency"`
 	Balance  string `json:"balance"`
+	Archived bool   `json:"archived,omitempty"`
 }
 
 type accountsOut struct {
@@ -218,6 +227,15 @@ func (s *Server) registerTools() {
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args createAccountArgs) (*mcp.CallToolResult, accountOut, error) {
 		return s.createAccount(ctx, args)
+	})
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "update_account",
+		Title:       "Update account",
+		Description: "Edit an existing account in place, keeping its transactions: rename it, change its type, fix its opening balance (initial_balance), or archive/unarchive it. Only the fields you pass change; the currency can never be changed. Archived accounts disappear from list_accounts and cannot receive new transactions. Confirm with the user before changing a balance or archiving.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), IdempotentHint: true, OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args updateAccountArgs) (*mcp.CallToolResult, accountOut, error) {
+		return s.updateAccount(ctx, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -423,6 +441,34 @@ func (s *Server) createAccount(ctx context.Context, args createAccountArgs) (*mc
 	}
 	out := accountToOut(account)
 	return text(fmt.Sprintf("Created %s account %s in %s with a balance of %s %s (id %s).", out.Type, out.Name, out.Currency, out.Balance, out.Currency, out.ID)), out, nil
+}
+
+func (s *Server) updateAccount(ctx context.Context, args updateAccountArgs) (*mcp.CallToolResult, accountOut, error) {
+	if args.Name == nil && args.Type == nil && args.InitialBalance == nil && args.Archived == nil {
+		return nil, accountOut{}, errors.New("nothing to update; pass at least one of name, type, initial_balance or archived")
+	}
+	account, err := s.resolveAnyAccount(ctx, args.Account)
+	if err != nil {
+		return nil, accountOut{}, err
+	}
+	in := finance.UpdateAccountInput{Name: args.Name, Type: args.Type, Archived: args.Archived}
+	if args.InitialBalance != nil {
+		v, err := decimalToMinor(*args.InitialBalance, account.MinorUnits, account.Currency, "initial_balance")
+		if err != nil {
+			return nil, accountOut{}, err
+		}
+		in.InitialBalance = &v
+	}
+	updated, err := s.finance.UpdateAccount(ctx, account.ID, in)
+	if err != nil {
+		return nil, accountOut{}, friendly(err)
+	}
+	out := accountToOut(updated)
+	state := ""
+	if updated.Archived {
+		state = " It is archived."
+	}
+	return text(fmt.Sprintf("Updated %s account %s in %s: balance is now %s %s (id %s).%s", out.Type, out.Name, out.Currency, out.Balance, out.Currency, out.ID, state)), out, nil
 }
 
 func (s *Server) createCategory(ctx context.Context, args createCategoryArgs) (*mcp.CallToolResult, categoryOut, error) {
@@ -720,6 +766,52 @@ func (s *Server) resolveAccount(ctx context.Context, ref, field string) (finance
 	return finance.Account{}, fmt.Errorf("no account matches %q for %s; available accounts: %s", ref, field, accountNames(accounts))
 }
 
+// resolveAnyAccount finds an account by ID or name among all accounts,
+// archived ones included (so they can be unarchived). Active accounts win
+// over archived ones with the same name.
+func (s *Server) resolveAnyAccount(ctx context.Context, ref string) (finance.Account, error) {
+	accounts, err := s.finance.ListAccounts(ctx, true)
+	if err != nil {
+		return finance.Account{}, err
+	}
+	if len(accounts) == 0 {
+		return finance.Account{}, errors.New("there are no accounts; create one with create_account first")
+	}
+	ref = strings.TrimSpace(ref)
+	var exact, partial []finance.Account
+	for _, a := range accounts {
+		switch {
+		case a.ID.String() == ref || strings.EqualFold(a.Name, ref):
+			exact = append(exact, a)
+		case ref != "" && strings.Contains(strings.ToLower(a.Name), strings.ToLower(ref)):
+			partial = append(partial, a)
+		}
+	}
+	for _, a := range exact {
+		if !a.Archived {
+			return a, nil
+		}
+	}
+	if len(exact) > 0 {
+		return exact[0], nil
+	}
+	if len(partial) == 1 {
+		return partial[0], nil
+	}
+	return finance.Account{}, fmt.Errorf("no account matches %q for account; available accounts: %s", ref, accountNamesWithState(accounts))
+}
+
+func accountNamesWithState(accounts []finance.Account) string {
+	names := make([]string, len(accounts))
+	for i, a := range accounts {
+		names[i] = fmt.Sprintf("%s (%s)", a.Name, a.Currency)
+		if a.Archived {
+			names[i] = fmt.Sprintf("%s (%s, archived)", a.Name, a.Currency)
+		}
+	}
+	return strings.Join(names, ", ")
+}
+
 // resolveCategory finds an active category by ID or case-insensitive name.
 // kind restricts the search to expense or income categories when set.
 func (s *Server) resolveCategory(ctx context.Context, ref, kind string) (finance.Category, error) {
@@ -845,7 +937,7 @@ func periodRange(today time.Time, period string) (string, string, error) {
 }
 
 func accountToOut(a finance.Account) accountOut {
-	return accountOut{ID: a.ID.String(), Name: a.Name, Type: a.Type, Currency: a.Currency, Balance: money.Format(a.Balance, a.MinorUnits)}
+	return accountOut{ID: a.ID.String(), Name: a.Name, Type: a.Type, Currency: a.Currency, Balance: money.Format(a.Balance, a.MinorUnits), Archived: a.Archived}
 }
 
 func categoryToOut(c finance.Category) categoryOut {

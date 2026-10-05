@@ -113,7 +113,7 @@ func TestToolsAreListed(t *testing.T) {
 	for _, tool := range res.Tools {
 		got[tool.Name] = tool
 	}
-	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction", "create_account", "create_category", "create_categories", "create_accounts", "add_transactions"} {
+	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction", "create_account", "create_category", "create_categories", "create_accounts", "add_transactions", "update_account"} {
 		if got[name] == nil {
 			t.Errorf("missing tool %s", name)
 		}
@@ -420,4 +420,65 @@ func TestDeleteTransaction(t *testing.T) {
 	}
 	h.mustFail("delete_transaction", map[string]any{"id": created.ID}, "not found")
 	h.mustFail("delete_transaction", map[string]any{"id": "abc"}, "UUID")
+}
+
+func TestUpdateAccount(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	a := h.account("BBVA", "MXN")
+	h.account("Cash", "MXN")
+	if _, err := h.svc.CreateTransaction(context.Background(), finance.TransactionInput{Type: "income", AccountID: a.ID, Amount: 10000}); err != nil {
+		t.Fatal(err)
+	}
+
+	var out accountOut
+	text := h.mustCall("update_account", map[string]any{"account": "bbva", "initial_balance": 500.25}, &out)
+	if out.Balance != "600.25" || out.Name != "BBVA" || !strings.Contains(text, "balance is now 600.25 MXN") {
+		t.Fatalf("balance fix: %+v / %s", out, text)
+	}
+	h.mustCall("update_account", map[string]any{"account": "BBVA", "name": "BBVA Checking", "type": "savings"}, &out)
+	if out.Name != "BBVA Checking" || out.Type != "savings" || out.Balance != "600.25" {
+		t.Fatalf("rename: %+v", out)
+	}
+	// History is kept.
+	var txs transactionsOut
+	h.mustCall("list_transactions", nil, &txs)
+	if txs.Total != 1 {
+		t.Fatalf("transactions lost: %+v", txs)
+	}
+
+	// Archive: hidden from list_accounts and unusable, but still editable.
+	h.mustCall("update_account", map[string]any{"account": a.ID.String(), "archived": true}, &out)
+	if !out.Archived {
+		t.Fatalf("archive: %+v", out)
+	}
+	var accounts accountsOut
+	h.mustCall("list_accounts", nil, &accounts)
+	if len(accounts.Accounts) != 1 || accounts.Accounts[0].Name != "Cash" {
+		t.Fatalf("archived account listed: %+v", accounts)
+	}
+	h.mustFail("add_expense", map[string]any{"amount": 1, "account": "BBVA Checking"}, "no account matches")
+	out = accountOut{}
+	h.mustCall("update_account", map[string]any{"account": "BBVA Checking", "archived": false}, &out)
+	if out.Archived {
+		t.Fatalf("unarchive: %+v", out)
+	}
+	h.mustCall("list_accounts", nil, &accounts)
+	if len(accounts.Accounts) != 2 {
+		t.Fatalf("restored account not listed: %+v", accounts)
+	}
+}
+
+func TestUpdateAccountErrors(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("BBVA", "MXN")
+	h.account("Cash", "MXN")
+
+	h.mustFail("update_account", map[string]any{"account": "Nope", "name": "X"}, "available accounts: BBVA (MXN), Cash (MXN)")
+	h.mustFail("update_account", map[string]any{"account": "BBVA", "name": "cash"}, "already exists")
+	h.mustFail("update_account", map[string]any{"account": "BBVA", "type": "piggy_bank"}, "checking, savings, credit_card")
+	h.mustFail("update_account", map[string]any{"account": "BBVA", "name": "  "}, "name: must not be empty")
+	h.mustFail("update_account", map[string]any{"account": "BBVA", "initial_balance": 10.123}, "too many decimals for MXN")
+	h.mustFail("update_account", map[string]any{"account": "BBVA"}, "nothing to update")
 }
