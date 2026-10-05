@@ -189,6 +189,14 @@
     "chatgptTitle": "ChatGPT",
     "chatgptSteps": "In ChatGPT, enable developer mode under Settings → Apps & Connectors → Advanced, create a connector with the URL, and sign in with your email.",
     "assistantsHint": "Once connected on the web, the connector is also available in the mobile apps.",
+    "appearance": "Appearance",
+    "appearanceDescription": "Choose how Finance Wingman looks on this device.",
+    "theme": "Theme",
+    "themes": {
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
     "session": "Session",
     "signOutDescription": "Sign out of Finance Wingman on this device."
   },
