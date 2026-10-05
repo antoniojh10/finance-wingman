@@ -65,7 +65,7 @@ func (q *Queries) DeleteTransaction(ctx context.Context, id uuid.UUID) (int64, e
 
 const getTransaction = `-- name: GetTransaction :one
 SELECT
-    t.id, t.type, t.account_id, t.amount, t.destination_account_id, t.destination_amount, t.category_id, t.description, t.occurred_on, t.created_by, t.created_at, t.updated_at,
+    t.id, t.type, t.account_id, t.amount, t.destination_account_id, t.destination_amount, t.category_id, t.description, t.occurred_on, t.created_by, t.created_at, t.updated_at, t.recurring_id, t.recurring_due_on,
     a.name AS account_name,
     a.currency AS currency,
     cur.minor_units AS minor_units,
@@ -98,6 +98,8 @@ type GetTransactionRow struct {
 	CreatedBy              *uuid.UUID
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
+	RecurringID            *uuid.UUID
+	RecurringDueOn         *time.Time
 	AccountName            string
 	Currency               string
 	MinorUnits             int16
@@ -125,6 +127,8 @@ func (q *Queries) GetTransaction(ctx context.Context, id uuid.UUID) (GetTransact
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RecurringID,
+		&i.RecurringDueOn,
 		&i.AccountName,
 		&i.Currency,
 		&i.MinorUnits,
@@ -139,7 +143,7 @@ func (q *Queries) GetTransaction(ctx context.Context, id uuid.UUID) (GetTransact
 }
 
 const getTransactionRecord = `-- name: GetTransactionRecord :one
-SELECT id, type, account_id, amount, destination_account_id, destination_amount, category_id, description, occurred_on, created_by, created_at, updated_at FROM transactions WHERE id = $1
+SELECT id, type, account_id, amount, destination_account_id, destination_amount, category_id, description, occurred_on, created_by, created_at, updated_at, recurring_id, recurring_due_on FROM transactions WHERE id = $1
 `
 
 func (q *Queries) GetTransactionRecord(ctx context.Context, id uuid.UUID) (Transaction, error) {
@@ -158,13 +162,30 @@ func (q *Queries) GetTransactionRecord(ctx context.Context, id uuid.UUID) (Trans
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.RecurringID,
+		&i.RecurringDueOn,
 	)
 	return i, err
 }
 
+const linkTransactionToRecurring = `-- name: LinkTransactionToRecurring :exec
+UPDATE transactions SET recurring_id = $2, recurring_due_on = $3 WHERE id = $1
+`
+
+type LinkTransactionToRecurringParams struct {
+	ID             uuid.UUID
+	RecurringID    *uuid.UUID
+	RecurringDueOn *time.Time
+}
+
+func (q *Queries) LinkTransactionToRecurring(ctx context.Context, arg LinkTransactionToRecurringParams) error {
+	_, err := q.db.Exec(ctx, linkTransactionToRecurring, arg.ID, arg.RecurringID, arg.RecurringDueOn)
+	return err
+}
+
 const listTransactions = `-- name: ListTransactions :many
 SELECT
-    t.id, t.type, t.account_id, t.amount, t.destination_account_id, t.destination_amount, t.category_id, t.description, t.occurred_on, t.created_by, t.created_at, t.updated_at,
+    t.id, t.type, t.account_id, t.amount, t.destination_account_id, t.destination_amount, t.category_id, t.description, t.occurred_on, t.created_by, t.created_at, t.updated_at, t.recurring_id, t.recurring_due_on,
     a.name AS account_name,
     a.currency AS currency,
     cur.minor_units AS minor_units,
@@ -218,6 +239,8 @@ type ListTransactionsRow struct {
 	CreatedBy              *uuid.UUID
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
+	RecurringID            *uuid.UUID
+	RecurringDueOn         *time.Time
 	AccountName            string
 	Currency               string
 	MinorUnits             int16
@@ -261,6 +284,8 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.RecurringID,
+			&i.RecurringDueOn,
 			&i.AccountName,
 			&i.Currency,
 			&i.MinorUnits,
@@ -280,6 +305,15 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 		return nil, err
 	}
 	return items, nil
+}
+
+const unlinkTransactionFromRecurring = `-- name: UnlinkTransactionFromRecurring :exec
+UPDATE transactions SET recurring_id = NULL, recurring_due_on = NULL WHERE id = $1
+`
+
+func (q *Queries) UnlinkTransactionFromRecurring(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, unlinkTransactionFromRecurring, id)
+	return err
 }
 
 const updateTransaction = `-- name: UpdateTransaction :exec

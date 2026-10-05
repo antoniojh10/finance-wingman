@@ -35,27 +35,29 @@ const (
 )
 
 type RecurringItem struct {
-	ID            uuid.UUID  `json:"id"`
-	Name          string     `json:"name" example:"Netflix"`
-	Type          string     `json:"type" enum:"expense,income"`
-	AccountID     uuid.UUID  `json:"account_id"`
-	AccountName   string     `json:"account_name"`
-	Currency      string     `json:"currency" example:"MXN"`
-	MinorUnits    int        `json:"minor_units" example:"2"`
-	CategoryID    *uuid.UUID `json:"category_id" nullable:"true"`
-	CategoryName  *string    `json:"category_name"`
-	Amount        int64      `json:"amount" doc:"Estimated amount of each occurrence, in minor units"`
-	MonthlyAmount int64      `json:"monthly_amount" doc:"Amount normalized to an average month, in minor units (rounded half up)"`
-	Notes         string     `json:"notes"`
-	IntervalUnit  string     `json:"interval_unit" enum:"week,month,year"`
-	IntervalCount int        `json:"interval_count" doc:"Repeats every this many units"`
-	StartOn       string     `json:"start_on" format:"date" doc:"First due date"`
-	TotalPayments *int       `json:"total_payments" nullable:"true" doc:"Number of payments for installment plans; null when open-ended"`
-	LastDueOn     *string    `json:"last_due_on" format:"date" nullable:"true" doc:"Final due date of an installment plan; null when open-ended"`
-	NextDueOn     *string    `json:"next_due_on" format:"date" nullable:"true" doc:"Next due date on or after today. Null unless the item is active and still has due dates"`
-	Status        string     `json:"status" enum:"active,paused,cancelled"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	ID            uuid.UUID         `json:"id"`
+	Name          string            `json:"name" example:"Netflix"`
+	Type          string            `json:"type" enum:"expense,income"`
+	AccountID     uuid.UUID         `json:"account_id"`
+	AccountName   string            `json:"account_name"`
+	Currency      string            `json:"currency" example:"MXN"`
+	MinorUnits    int               `json:"minor_units" example:"2"`
+	CategoryID    *uuid.UUID        `json:"category_id" nullable:"true"`
+	CategoryName  *string           `json:"category_name"`
+	Amount        int64             `json:"amount" doc:"Estimated amount of each occurrence, in minor units"`
+	MonthlyAmount int64             `json:"monthly_amount" doc:"Amount normalized to an average month, in minor units (rounded half up)"`
+	Notes         string            `json:"notes"`
+	IntervalUnit  string            `json:"interval_unit" enum:"week,month,year"`
+	IntervalCount int               `json:"interval_count" doc:"Repeats every this many units"`
+	StartOn       string            `json:"start_on" format:"date" doc:"First due date"`
+	TotalPayments *int              `json:"total_payments" nullable:"true" doc:"Number of payments for installment plans; null when open-ended"`
+	LastDueOn     *string           `json:"last_due_on" format:"date" nullable:"true" doc:"Final due date of an installment plan; null when open-ended"`
+	NextDueOn     *string           `json:"next_due_on" format:"date" nullable:"true" doc:"Next due date on or after today. Null unless the item is active and still has due dates"`
+	Status        string            `json:"status" enum:"active,paused,cancelled"`
+	CurrentPeriod *RecurringPeriod  `json:"current_period" doc:"Period the item is in now (latest due date on or before today). Null unless the item is active"`
+	LastPayment   *RecurringPayment `json:"last_payment" doc:"Most recent linked transaction"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
 }
 
 type CreateRecurringItemInput struct {
@@ -169,6 +171,9 @@ func (s *Service) ListRecurringItems(ctx context.Context, f RecurringFilter) ([]
 	for i, r := range rows {
 		out[i] = s.recurringFromRow(store.GetRecurringItemRow(r))
 	}
+	if _, err := s.enrichRecurring(ctx, out); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -185,7 +190,11 @@ func (s *Service) GetRecurringItem(ctx context.Context, id uuid.UUID) (Recurring
 	if err != nil {
 		return RecurringItem{}, err
 	}
-	return s.recurringFromRow(row), nil
+	items := []RecurringItem{s.recurringFromRow(row)}
+	if _, err := s.enrichRecurring(ctx, items); err != nil {
+		return RecurringItem{}, err
+	}
+	return items[0], nil
 }
 
 func validateRecurringAmount(amount int64) error {

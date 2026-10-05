@@ -658,6 +658,33 @@
         ],
         "type": "object"
       },
+      "LinkRecurringInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/LinkRecurringInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "period": {
+            "description": "Due date being paid; must be a due date of the item. Defaults to the due date closest to the transaction date",
+            "format": "date",
+            "type": "string"
+          },
+          "recurring_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recurring_id"
+        ],
+        "type": "object"
+      },
       "ListOutputAccountBody": {
         "additionalProperties": false,
         "properties": {
@@ -769,6 +796,30 @@
           "items": {
             "items": {
               "$ref": "#/components/schemas/Transaction"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ListOutputUpcomingRecurringBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputUpcomingRecurringBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UpcomingRecurring"
             },
             "type": "array"
           }
@@ -928,6 +979,10 @@
             ],
             "type": "string"
           },
+          "current_period": {
+            "$ref": "#/components/schemas/RecurringPeriod",
+            "description": "Period the item is in now (latest due date on or before today). Null unless the item is active"
+          },
           "id": {
             "type": "string"
           },
@@ -951,6 +1006,10 @@
               "string",
               "null"
             ]
+          },
+          "last_payment": {
+            "$ref": "#/components/schemas/RecurringPayment",
+            "description": "Most recent linked transaction"
           },
           "minor_units": {
             "examples": [
@@ -1034,8 +1093,94 @@
           "last_due_on",
           "next_due_on",
           "status",
+          "current_period",
+          "last_payment",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "RecurringPayment": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "description": "Amount actually paid, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "date": {
+            "description": "Date of the transaction",
+            "format": "date",
+            "type": "string"
+          },
+          "due_on": {
+            "description": "Due date (period) the payment settles",
+            "format": "date",
+            "type": "string"
+          },
+          "transaction_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "transaction_id",
+          "date",
+          "amount",
+          "due_on"
+        ],
+        "type": "object"
+      },
+      "RecurringPaymentInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RecurringPaymentInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "amount": {
+            "description": "Amount actually paid, in minor units. Defaults to the item's estimate, which is never changed by a payment",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "date": {
+            "description": "Date of the transaction. Defaults to today",
+            "format": "date",
+            "type": "string"
+          },
+          "period": {
+            "description": "Due date being paid; must be a due date of the item. Defaults to the due date closest to date",
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "RecurringPeriod": {
+        "additionalProperties": false,
+        "properties": {
+          "due_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "status": {
+            "description": "paid: a linked transaction exists for this due date. overdue: the due date is before today and it is not paid. pending: otherwise",
+            "enum": [
+              "paid",
+              "pending",
+              "overdue"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "due_on",
+          "status"
         ],
         "type": "object"
       },
@@ -1232,6 +1377,22 @@
             "format": "date",
             "type": "string"
           },
+          "recurring_due_on": {
+            "description": "Due date (period) of the recurring item this transaction settles",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recurring_id": {
+            "description": "Recurring item this transaction pays, if any",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "type": {
             "enum": [
               "expense",
@@ -1262,6 +1423,8 @@
           "category_name",
           "description",
           "occurred_on",
+          "recurring_id",
+          "recurring_due_on",
           "created_at",
           "updated_at"
         ],
@@ -1367,6 +1530,32 @@
           "total",
           "limit",
           "offset"
+        ],
+        "type": "object"
+      },
+      "UpcomingRecurring": {
+        "additionalProperties": false,
+        "properties": {
+          "due_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/RecurringItem"
+          },
+          "status": {
+            "enum": [
+              "paid",
+              "pending",
+              "overdue"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "due_on",
+          "status"
         ],
         "type": "object"
       },
@@ -2502,6 +2691,54 @@
         ]
       }
     },
+    "/api/v1/recurring/upcoming": {
+      "get": {
+        "description": "Due dates of active items in the next days (today included) with their status, plus the current period of items that are overdue. Ordered by due date.",
+        "operationId": "list-upcoming-recurring",
+        "parameters": [
+          {
+            "description": "Look this many days ahead (today included)",
+            "explode": false,
+            "in": "query",
+            "name": "days",
+            "schema": {
+              "default": 30,
+              "description": "Look this many days ahead (today included)",
+              "format": "int64",
+              "maximum": 366,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputUpcomingRecurringBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Upcoming recurring payments",
+        "tags": [
+          "Recurring"
+        ]
+      }
+    },
     "/api/v1/recurring/{id}": {
       "get": {
         "operationId": "get-recurring-item",
@@ -2590,6 +2827,59 @@
           }
         },
         "summary": "Update a recurring item",
+        "tags": [
+          "Recurring"
+        ]
+      }
+    },
+    "/api/v1/recurring/{id}/payments": {
+      "post": {
+        "description": "Creates the transaction for one period of an active item (type, account, category and description come from the item) and links it. The item's estimate is not changed by the amount paid.",
+        "operationId": "register-recurring-payment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecurringPaymentInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Register a payment",
         "tags": [
           "Recurring"
         ]
@@ -2978,6 +3268,100 @@
         "summary": "Replace a transaction",
         "tags": [
           "Transactions"
+        ]
+      }
+    },
+    "/api/v1/transactions/{id}/recurring": {
+      "delete": {
+        "description": "Does nothing when the transaction is not linked.",
+        "operationId": "unlink-transaction-recurring",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Unlink a transaction from its recurring item",
+        "tags": [
+          "Recurring"
+        ]
+      },
+      "put": {
+        "description": "The transaction must have the item's type and account. An already linked transaction is re-linked. Several transactions may settle the same period.",
+        "operationId": "link-transaction-recurring",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkRecurringInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transaction"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Link a transaction to a recurring item",
+        "tags": [
+          "Recurring"
         ]
       }
     },

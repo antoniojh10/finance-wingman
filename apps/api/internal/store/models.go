@@ -138,6 +138,8 @@ type Transaction struct {
 	CreatedBy            *uuid.UUID
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	RecurringID          *uuid.UUID
+	RecurringDueOn       *time.Time
 }
 
 type User struct {
