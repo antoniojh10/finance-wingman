@@ -1,6 +1,41 @@
 {
   "components": {
     "schemas": {
+      "AcceptSuggestionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/AcceptSuggestionInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "amount": {
+            "description": "Estimated amount in minor units. Defaults to the suggested amount",
+            "format": "int64",
+            "maximum": 1000000000000000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "key": {
+            "description": "Key of a suggestion",
+            "minLength": 1,
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the item. Defaults to the suggested name",
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
       "Account": {
         "additionalProperties": false,
         "properties": {
@@ -781,6 +816,30 @@
         ],
         "type": "object"
       },
+      "ListOutputRecurringSuggestionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputRecurringSuggestionBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringSuggestion"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "ListOutputTransactionBody": {
         "additionalProperties": false,
         "properties": {
@@ -1100,6 +1159,37 @@
         ],
         "type": "object"
       },
+      "RecurringMatch": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RecurringMatch.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "item": {
+            "$ref": "#/components/schemas/RecurringItem",
+            "description": "Best matching active item; null when none matches"
+          },
+          "period_due_on": {
+            "description": "Due date the transaction would settle if linked",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "item",
+          "period_due_on"
+        ],
+        "type": "object"
+      },
       "RecurringPayment": {
         "additionalProperties": false,
         "properties": {
@@ -1184,6 +1274,133 @@
         ],
         "type": "object"
       },
+      "RecurringSuggestion": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "type": "string"
+          },
+          "account_name": {
+            "type": "string"
+          },
+          "amount": {
+            "description": "Estimated amount of each occurrence (median of the matches), in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "category_id": {
+            "description": "Most common category of the matching transactions",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "confidence": {
+            "description": "0 to 1: more occurrences, regular dates and steady amounts score higher",
+            "format": "double",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "frequency": {
+            "enum": [
+              "weekly",
+              "monthly",
+              "yearly"
+            ],
+            "type": "string"
+          },
+          "interval_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "interval_unit": {
+            "enum": [
+              "week",
+              "month",
+              "year"
+            ],
+            "type": "string"
+          },
+          "key": {
+            "description": "Opaque identifier to accept or dismiss the suggestion. Stable while the pattern is the same account, type and description",
+            "type": "string"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Description of the most recent matching transaction",
+            "examples": [
+              "Spotify"
+            ],
+            "type": "string"
+          },
+          "next_due_on": {
+            "description": "Next due date on or after today",
+            "format": "date",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "start_on": {
+            "description": "First due date the accepted item will have",
+            "format": "date",
+            "type": "string"
+          },
+          "transaction_ids": {
+            "description": "Matching transactions that accepting links to the new item, oldest first",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "expense",
+              "income"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "type",
+          "account_id",
+          "account_name",
+          "currency",
+          "minor_units",
+          "category_id",
+          "category_name",
+          "amount",
+          "frequency",
+          "interval_unit",
+          "interval_count",
+          "start_on",
+          "next_due_on",
+          "transaction_ids",
+          "confidence"
+        ],
+        "type": "object"
+      },
       "RecurringSummary": {
         "additionalProperties": false,
         "properties": {
@@ -1235,6 +1452,29 @@
         "required": [
           "expires_at",
           "user"
+        ],
+        "type": "object"
+      },
+      "SuggestionKeyInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/SuggestionKeyInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "key": {
+            "description": "Key of a suggestion",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
         ],
         "type": "object"
       },
@@ -2659,6 +2899,115 @@
         ]
       }
     },
+    "/api/v1/recurring/suggestions": {
+      "get": {
+        "description": "Detects recurring patterns among unlinked expenses and incomes, on demand. A pattern needs a description (digits and symbols are ignored) and, within the lookback: weekly 4+ occurrences in 2 months (+-1 day), monthly 3+ in 6 months (+-4 days), yearly 2+ in 25 months (+-7 days), with amounts within 15% of the median. Dismissed patterns are left out. Ordered by confidence.",
+        "operationId": "list-recurring-suggestions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputRecurringSuggestionBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Suggest recurring items",
+        "tags": [
+          "Recurring"
+        ]
+      }
+    },
+    "/api/v1/recurring/suggestions/accept": {
+      "post": {
+        "description": "Creates the recurring item and links the matching transactions to the due date closest to each one, atomically. 404 when the suggestion is no longer detected (or was dismissed); 409 when another active or paused item already has the name.",
+        "operationId": "accept-recurring-suggestion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptSuggestionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringItem"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Accept a suggestion",
+        "tags": [
+          "Recurring"
+        ]
+      }
+    },
+    "/api/v1/recurring/suggestions/dismiss": {
+      "post": {
+        "description": "Hides the suggestion for good. Idempotent.",
+        "operationId": "dismiss-recurring-suggestion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestionKeyInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Dismiss a suggestion",
+        "tags": [
+          "Recurring"
+        ]
+      }
+    },
     "/api/v1/recurring/summary": {
       "get": {
         "description": "Active recurring items normalized to an average month and grouped per currency (no conversion), split into expenses and income.",
@@ -3360,6 +3709,49 @@
           }
         },
         "summary": "Link a transaction to a recurring item",
+        "tags": [
+          "Recurring"
+        ]
+      }
+    },
+    "/api/v1/transactions/{id}/recurring-match": {
+      "get": {
+        "description": "The active item an unlinked expense or income most likely pays (same type and account, matching name), with the due date it would settle. The item is null when nothing matches.",
+        "operationId": "match-transaction-recurring",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringMatch"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Best recurring item for a transaction",
         "tags": [
           "Recurring"
         ]

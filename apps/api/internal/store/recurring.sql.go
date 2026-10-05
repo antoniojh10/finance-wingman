@@ -53,6 +53,29 @@ func (q *Queries) CreateRecurringItem(ctx context.Context, arg CreateRecurringIt
 	return id, err
 }
 
+const dismissSuggestion = `-- name: DismissSuggestion :exec
+INSERT INTO recurring_dismissed_suggestions (account_id, type, description, dismissed_by)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT DO NOTHING
+`
+
+type DismissSuggestionParams struct {
+	AccountID   uuid.UUID
+	Type        string
+	Description string
+	DismissedBy *uuid.UUID
+}
+
+func (q *Queries) DismissSuggestion(ctx context.Context, arg DismissSuggestionParams) error {
+	_, err := q.db.Exec(ctx, dismissSuggestion,
+		arg.AccountID,
+		arg.Type,
+		arg.Description,
+		arg.DismissedBy,
+	)
+	return err
+}
+
 const findOpenRecurringItemByName = `-- name: FindOpenRecurringItemByName :one
 SELECT id, name, status FROM recurring_items
 WHERE lower(name) = lower($1) AND status <> 'cancelled' AND id <> $2
@@ -141,6 +164,115 @@ func (q *Queries) GetRecurringItem(ctx context.Context, id uuid.UUID) (GetRecurr
 		&i.CategoryName,
 	)
 	return i, err
+}
+
+const listDismissedSuggestions = `-- name: ListDismissedSuggestions :many
+SELECT account_id, type, description FROM recurring_dismissed_suggestions
+`
+
+type ListDismissedSuggestionsRow struct {
+	AccountID   uuid.UUID
+	Type        string
+	Description string
+}
+
+func (q *Queries) ListDismissedSuggestions(ctx context.Context) ([]ListDismissedSuggestionsRow, error) {
+	rows, err := q.db.Query(ctx, listDismissedSuggestions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDismissedSuggestionsRow{}
+	for rows.Next() {
+		var i ListDismissedSuggestionsRow
+		if err := rows.Scan(&i.AccountID, &i.Type, &i.Description); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecurringCandidates = `-- name: ListRecurringCandidates :many
+SELECT
+    t.id,
+    t.type,
+    t.account_id,
+    t.amount,
+    t.description,
+    t.occurred_on,
+    COALESCE(CASE WHEN c.archived_at IS NULL THEN t.category_id END, '00000000-0000-0000-0000-000000000000'::uuid)::uuid AS category_id,
+    COALESCE(CASE WHEN c.archived_at IS NULL THEN c.name END, '')::text AS category_name,
+    a.name AS account_name,
+    a.currency,
+    cur.minor_units
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+JOIN currencies cur ON cur.code = a.currency
+LEFT JOIN categories c ON c.id = t.category_id
+WHERE t.type IN ('expense', 'income')
+  AND t.recurring_id IS NULL
+  AND btrim(t.description) <> ''
+  AND a.archived_at IS NULL
+  AND t.occurred_on >= $1::date
+  AND t.occurred_on <= $2::date
+ORDER BY t.account_id, t.occurred_on, t.id
+`
+
+type ListRecurringCandidatesParams struct {
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type ListRecurringCandidatesRow struct {
+	ID           uuid.UUID
+	Type         string
+	AccountID    uuid.UUID
+	Amount       int64
+	Description  string
+	OccurredOn   time.Time
+	CategoryID   uuid.UUID
+	CategoryName string
+	AccountName  string
+	Currency     string
+	MinorUnits   int16
+}
+
+// Unlinked expenses and incomes with a description on usable accounts: the
+// input of the detection heuristic. Archived categories are reported as none (nil uuid, empty name).
+func (q *Queries) ListRecurringCandidates(ctx context.Context, arg ListRecurringCandidatesParams) ([]ListRecurringCandidatesRow, error) {
+	rows, err := q.db.Query(ctx, listRecurringCandidates, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecurringCandidatesRow{}
+	for rows.Next() {
+		var i ListRecurringCandidatesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.AccountID,
+			&i.Amount,
+			&i.Description,
+			&i.OccurredOn,
+			&i.CategoryID,
+			&i.CategoryName,
+			&i.AccountName,
+			&i.Currency,
+			&i.MinorUnits,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listRecurringItems = `-- name: ListRecurringItems :many
