@@ -22,6 +22,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounts/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create several accounts
+         * @description Creates up to 100 accounts in a single transaction: if any item is invalid, nothing is created. Errors point at the failing item, e.g. items[3].name.
+         */
+        post: operations["create-accounts-batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/accounts/{id}": {
         parameters: {
             query?: never;
@@ -140,6 +160,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/categories/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create several categories
+         * @description Creates up to 100 categories in a single transaction: if any item is invalid, nothing is created. Errors point at the failing item, e.g. items[3].name.
+         */
+        post: operations["create-categories-batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories/{id}": {
         parameters: {
             query?: never;
@@ -226,6 +266,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transactions/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create several transactions
+         * @description Creates up to 100 transactions in a single transaction: if any item is invalid, nothing is created. Errors point at the failing item, e.g. items[3].name.
+         */
+        post: operations["create-transactions-batch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transactions/{id}": {
         parameters: {
             query?: never;
@@ -306,6 +366,36 @@ export interface components {
             type: "checking" | "savings" | "credit_card" | "cash" | "investment" | "other";
             /** Format: date-time */
             updated_at: string;
+        };
+        BatchInputCreateAccountInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/BatchInputCreateAccountInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Items to create (1 to 100). All are created or none are */
+            items: components["schemas"]["CreateAccountInput"][];
+        };
+        BatchInputCreateCategoryInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/BatchInputCreateCategoryInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Items to create (1 to 100). All are created or none are */
+            items: components["schemas"]["CreateCategoryInput"][];
+        };
+        BatchInputTransactionInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/BatchInputTransactionInputBody.json
+             */
+            readonly $schema?: string;
+            /** @description Items to create (1 to 100). All are created or none are */
+            items: components["schemas"]["TransactionInput"][];
         };
         Category: {
             /**
@@ -514,6 +604,15 @@ export interface components {
              */
             readonly $schema?: string;
             items: components["schemas"]["Currency"][];
+        };
+        ListOutputTransactionBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputTransactionBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Transaction"][];
         };
         LoginInputBody: {
             /**
@@ -806,6 +905,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Account"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-accounts-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchInputCreateAccountInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputAccountBody"];
                 };
             };
             /** @description Error */
@@ -1136,6 +1268,39 @@ export interface operations {
             };
         };
     };
+    "create-categories-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchInputCreateCategoryInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputCategoryBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "get-category": {
         parameters: {
             query?: never;
@@ -1356,6 +1521,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-transactions-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchInputTransactionInputBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputTransactionBody"];
                 };
             };
             /** @description Error */

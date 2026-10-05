@@ -19,9 +19,10 @@ import (
 const dateLayout = time.DateOnly
 
 type Service struct {
-	q   *store.Queries
-	loc *time.Location
-	now func() time.Time
+	pool *pgxpool.Pool
+	q    *store.Queries
+	loc  *time.Location
+	now  func() time.Time
 }
 
 // NewService builds a service. loc is the time zone used to resolve "today"
@@ -30,7 +31,7 @@ func NewService(pool *pgxpool.Pool, loc *time.Location) *Service {
 	if loc == nil {
 		loc = time.UTC
 	}
-	return &Service{q: store.New(pool), loc: loc, now: time.Now}
+	return &Service{pool: pool, q: store.New(pool), loc: loc, now: time.Now}
 }
 
 // Today returns the current date in the service time zone.

@@ -37,6 +37,13 @@ func newList[T any](items []T) *listOutput[T] {
 	return out
 }
 
+// batchInput is the request body of the batch create endpoints.
+type batchInput[T any] struct {
+	Body struct {
+		Items []T `json:"items" minItems:"1" maxItems:"100" doc:"Items to create (1 to 100). All are created or none are"`
+	}
+}
+
 func registerFinance(api huma.API, svc *finance.Service, logger *slog.Logger) {
 	h := &financeHandlers{svc: svc, logger: logger}
 	h.registerCurrencies(api)
@@ -170,6 +177,22 @@ func (h *financeHandlers) registerAccounts(api huma.API) {
 		}
 		return nil, nil
 	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-accounts-batch",
+		Method:        http.MethodPost,
+		Path:          apiPrefix + "/accounts/batch",
+		Summary:       "Create several accounts",
+		Description:   "Creates up to 100 accounts in a single transaction: if any item is invalid, nothing is created. Errors point at the failing item, e.g. items[3].name.",
+		Tags:          tags,
+		DefaultStatus: http.StatusCreated,
+	}, func(ctx context.Context, in *batchInput[finance.CreateAccountInput]) (*listOutput[finance.Account], error) {
+		items, err := h.svc.CreateAccounts(ctx, in.Body.Items)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return newList(items), nil
+	})
 }
 
 // --- Categories ---
@@ -274,6 +297,22 @@ func (h *financeHandlers) registerCategories(api huma.API) {
 			return nil, h.fail(err)
 		}
 		return nil, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-categories-batch",
+		Method:        http.MethodPost,
+		Path:          apiPrefix + "/categories/batch",
+		Summary:       "Create several categories",
+		Description:   "Creates up to 100 categories in a single transaction: if any item is invalid, nothing is created. Errors point at the failing item, e.g. items[3].name.",
+		Tags:          tags,
+		DefaultStatus: http.StatusCreated,
+	}, func(ctx context.Context, in *batchInput[finance.CreateCategoryInput]) (*listOutput[finance.Category], error) {
+		items, err := h.svc.CreateCategories(ctx, in.Body.Items)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return newList(items), nil
 	})
 }
 
@@ -403,6 +442,22 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 			return nil, h.fail(err)
 		}
 		return nil, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-transactions-batch",
+		Method:        http.MethodPost,
+		Path:          apiPrefix + "/transactions/batch",
+		Summary:       "Create several transactions",
+		Description:   "Creates up to 100 transactions in a single transaction: if any item is invalid, nothing is created. Errors point at the failing item, e.g. items[3].name.",
+		Tags:          tags,
+		DefaultStatus: http.StatusCreated,
+	}, func(ctx context.Context, in *batchInput[finance.TransactionInput]) (*listOutput[finance.Transaction], error) {
+		items, err := h.svc.CreateTransactions(ctx, in.Body.Items)
+		if err != nil {
+			return nil, h.fail(err)
+		}
+		return newList(items), nil
 	})
 }
 
