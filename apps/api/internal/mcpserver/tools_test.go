@@ -113,7 +113,7 @@ func TestToolsAreListed(t *testing.T) {
 	for _, tool := range res.Tools {
 		got[tool.Name] = tool
 	}
-	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction", "create_account", "create_category", "create_categories", "create_accounts", "add_transactions", "update_account"} {
+	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction", "create_account", "create_category", "create_categories", "create_accounts", "add_transactions", "update_account", "update_category"} {
 		if got[name] == nil {
 			t.Errorf("missing tool %s", name)
 		}
@@ -481,4 +481,55 @@ func TestUpdateAccountErrors(t *testing.T) {
 	h.mustFail("update_account", map[string]any{"account": "BBVA", "name": "  "}, "name: must not be empty")
 	h.mustFail("update_account", map[string]any{"account": "BBVA", "initial_balance": 10.123}, "too many decimals for MXN")
 	h.mustFail("update_account", map[string]any{"account": "BBVA"}, "nothing to update")
+}
+
+func TestUpdateCategory(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.category("Groceries", "expense")
+	h.category("Salary", "income")
+
+	var out categoryOut
+	text := h.mustCall("update_category", map[string]any{"category": "groceries", "name": "Food"}, &out)
+	if out.Name != "Food" || out.Kind != "expense" || !strings.Contains(text, "Updated expense category Food") {
+		t.Fatalf("unexpected output: %+v / %s", out, text)
+	}
+
+	// Archive: hidden from list_categories but still editable
+	h.mustCall("update_category", map[string]any{"category": "Food", "archived": true}, &out)
+	if !out.Archived {
+		t.Fatalf("archive: %+v", out)
+	}
+	var categories categoriesOut
+	h.mustCall("list_categories", nil, &categories)
+	if len(categories.Categories) != 1 || categories.Categories[0].Name != "Salary" {
+		t.Fatalf("archived category listed: %+v", categories)
+	}
+	out = categoryOut{}
+	h.mustCall("update_category", map[string]any{"category": "Food", "archived": false}, &out)
+	if out.Archived {
+		t.Fatalf("unarchive: %+v", out)
+	}
+	h.mustCall("list_categories", nil, &categories)
+	if len(categories.Categories) != 2 {
+		t.Fatalf("restored category not listed: %+v", categories)
+	}
+}
+
+func TestUpdateCategoryErrors(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.category("Groceries", "expense")
+	h.category("Food", "expense")
+
+	h.mustFail("update_category", map[string]any{"category": "Nope", "name": "X"}, "no category matches")
+	h.mustFail("update_category", map[string]any{"category": "Groceries", "name": "food"}, "already exists")
+	h.mustFail("update_category", map[string]any{"category": "Groceries", "name": "  "}, "must not be empty")
+	h.mustFail("update_category", map[string]any{"category": "Groceries", "color": "not-a-color"}, "hex color")
+	h.mustFail("update_category", map[string]any{"category": "Groceries"}, "nothing to update")
+
+	// The same name may exist for both kinds: ask for the id.
+	h.category("Other", "expense")
+	h.category("Other", "income")
+	h.mustFail("update_category", map[string]any{"category": "Other", "name": "Misc"}, "pass the id instead")
 }

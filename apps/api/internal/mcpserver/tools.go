@@ -58,6 +58,14 @@ type createCategoryArgs struct {
 	Color string `json:"color,omitempty" jsonschema:"Optional hex color like #22c55e"`
 }
 
+type updateCategoryArgs struct {
+	Category string  `json:"category" jsonschema:"Name or ID of the category to edit"`
+	Name     *string `json:"name,omitempty" jsonschema:"New category name. Must not clash with another active category of the same kind"`
+	Color    *string `json:"color,omitempty" jsonschema:"Hex color like #22c55e, or empty string to clear it"`
+	Icon     *string `json:"icon,omitempty" jsonschema:"Icon name, or empty string to clear it"`
+	Archived *bool   `json:"archived,omitempty" jsonschema:"true to archive the category (hidden from list_categories, but transactions stay categorized), false to restore it"`
+}
+
 type createCategoriesArgs struct {
 	Items []createCategoryArgs `json:"items" jsonschema:"Categories to create (1 to 100). All are created or none are"`
 }
@@ -117,9 +125,10 @@ type accountsOut struct {
 }
 
 type categoryOut struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Kind string `json:"kind"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Kind     string `json:"kind"`
+	Archived bool   `json:"archived,omitempty"`
 }
 
 type categoriesOut struct {
@@ -245,6 +254,15 @@ func (s *Server) registerTools() {
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args createCategoryArgs) (*mcp.CallToolResult, categoryOut, error) {
 		return s.createCategory(ctx, args)
+	})
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "update_category",
+		Title:       "Update category",
+		Description: "Edit an existing category in place: rename it, change its color or icon, or archive/unarchive it. Only the fields you pass change; the kind (expense or income) cannot be changed. Archived categories disappear from list_categories but their transactions stay categorized. Confirm with the user before archiving.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), IdempotentHint: true, OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args updateCategoryArgs) (*mcp.CallToolResult, categoryOut, error) {
+		return s.updateCategory(ctx, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -482,6 +500,27 @@ func (s *Server) createCategory(ctx context.Context, args createCategoryArgs) (*
 	}
 	out := categoryToOut(category)
 	return text(fmt.Sprintf("Created %s category %s (id %s).", out.Kind, out.Name, out.ID)), out, nil
+}
+
+func (s *Server) updateCategory(ctx context.Context, args updateCategoryArgs) (*mcp.CallToolResult, categoryOut, error) {
+	if args.Name == nil && args.Color == nil && args.Icon == nil && args.Archived == nil {
+		return nil, categoryOut{}, errors.New("nothing to update; pass at least one of name, color, icon or archived")
+	}
+	category, err := s.resolveAnyCategory(ctx, args.Category)
+	if err != nil {
+		return nil, categoryOut{}, err
+	}
+	in := finance.UpdateCategoryInput{Name: args.Name, Color: args.Color, Icon: args.Icon, Archived: args.Archived}
+	updated, err := s.finance.UpdateCategory(ctx, category.ID, in)
+	if err != nil {
+		return nil, categoryOut{}, friendly(err)
+	}
+	out := categoryToOut(updated)
+	state := ""
+	if updated.Archived {
+		state = " It is archived."
+	}
+	return text(fmt.Sprintf("Updated %s category %s (id %s).%s", out.Kind, out.Name, out.ID, state)), out, nil
 }
 
 func (s *Server) createCategories(ctx context.Context, args createCategoriesArgs) (*mcp.CallToolResult, categoriesOut, error) {
@@ -843,6 +882,59 @@ func (s *Server) resolveCategory(ctx context.Context, ref, kind string) (finance
 	return finance.Category{}, fmt.Errorf("no %s named %q; use one of: %s (or omit the category, or create it with create_category if the user wants a new one)", label, ref, strings.Join(names, ", "))
 }
 
+// resolveAnyCategory finds a category by ID or name among all categories,
+// archived ones included (so they can be unarchived). Active categories win
+// over archived ones with the same name.
+func (s *Server) resolveAnyCategory(ctx context.Context, ref string) (finance.Category, error) {
+	categories, err := s.finance.ListCategories(ctx, nil, true)
+	if err != nil {
+		return finance.Category{}, err
+	}
+	if len(categories) == 0 {
+		return finance.Category{}, errors.New("there are no categories; create one with create_category first")
+	}
+	ref = strings.TrimSpace(ref)
+	var exact, partial []finance.Category
+	for _, c := range categories {
+		switch {
+		case c.ID.String() == ref || strings.EqualFold(c.Name, ref):
+			exact = append(exact, c)
+		case ref != "" && strings.Contains(strings.ToLower(c.Name), strings.ToLower(ref)):
+			partial = append(partial, c)
+		}
+	}
+	var active []finance.Category
+	for _, c := range exact {
+		if !c.Archived {
+			active = append(active, c)
+		}
+	}
+	if len(active) == 1 {
+		return active[0], nil
+	}
+	if len(active) > 1 {
+		matches := make([]string, len(active))
+		for i, c := range active {
+			matches[i] = fmt.Sprintf("%s (%s, id %s)", c.Name, c.Kind, c.ID)
+		}
+		return finance.Category{}, fmt.Errorf("several categories are named %q: %s; pass the id instead", ref, strings.Join(matches, ", "))
+	}
+	if len(exact) > 0 {
+		return exact[0], nil
+	}
+	if len(partial) == 1 {
+		return partial[0], nil
+	}
+	names := make([]string, len(categories))
+	for i, c := range categories {
+		names[i] = c.Name
+		if c.Archived {
+			names[i] = names[i] + " (archived)"
+		}
+	}
+	return finance.Category{}, fmt.Errorf("no category matches %q; available categories: %s", ref, strings.Join(names, ", "))
+}
+
 func accountNames(accounts []finance.Account) string {
 	names := make([]string, len(accounts))
 	for i, a := range accounts {
@@ -941,7 +1033,7 @@ func accountToOut(a finance.Account) accountOut {
 }
 
 func categoryToOut(c finance.Category) categoryOut {
-	return categoryOut{ID: c.ID.String(), Name: c.Name, Kind: c.Kind}
+	return categoryOut{ID: c.ID.String(), Name: c.Name, Kind: c.Kind, Archived: c.Archived}
 }
 
 func transactionToOut(tx finance.Transaction) transactionOut {
