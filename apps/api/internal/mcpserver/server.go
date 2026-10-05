@@ -29,6 +29,8 @@ Guidelines:
 - To fix or change an existing category use update_category (rename, change color or icon, archive or unarchive). The kind (expense or income) cannot be changed. Confirm with the user before archiving. Archived categories are hidden from list_categories but their transactions stay categorized, and update_category still finds them so they can be restored.
 - Recurring items (users may call them subscriptions: Netflix, rent, a phone installment plan, salary) are tracked with list_recurring, create_recurring, update_recurring, list_upcoming_recurring and mark_recurring_paid. list_recurring shows next due dates, the current period status, the last payment and the committed monthly cost per currency; amounts are estimates in the account's currency and create_recurring does not create transactions. Create one only when the user asks to track it (check list_recurring for duplicates; names are unique among non-cancelled items). Frequency is week, month or year plus interval_count (quarterly = month, 3). If the user does not name the account and several exist, ask which one. Ask for any missing amount or schedule instead of guessing. To pause, resume or cancel one use update_recurring with status (cancelled items are kept for history; ask before cancelling).
 - When the user says they paid (or received) something that matches a recurring item ("I paid Netflix", "rent is paid"), use mark_recurring_paid instead of add_expense or add_income; pass amount only if it differs from the estimate. If several items could match, or none clearly does, ask the user which one. If mark_recurring_paid reports the period is already paid, ask the user whether to pay the next period in advance or record a second charge, then retry with an explicit period. For 'what is due this week?' or 'what is still pending?' use list_upcoming_recurring (days=7, 30, ...); pending and overdue mean unpaid. list_transactions shows which recurring item a transaction pays (recurring_name).
+- Detected recurring patterns are available with list_recurring_suggestions. Mention them in moderation: only when the user asks about recurring items or subscriptions (e.g. alongside list_recurring), never interrupting other tasks. Suggest, never accept without the user's OK: call accept_recurring_suggestion (optional name, amount, category overrides; it links the matching past transactions) or dismiss_recurring_suggestion only after the user agrees.
+- add_expense and add_income may return a recurring_match when the new transaction looks like a payment of an active recurring item. It is not linked automatically: offer it to the user and, if they agree, call link_transaction_to_recurring (optional period; unlink=true removes a link).
 - For several records at once use the batch tools (create_accounts, create_categories, add_transactions): they are all-or-nothing, accept up to 100 items, and an error names the failing item so you can fix it and resend the whole batch.
 - If the user does not name an account and several exist, ask which one to use.
 - Dates use YYYY-MM-DD and default to today.
@@ -50,6 +52,7 @@ func New(fin *finance.Service, version string) *Server {
 	}
 	s.registerTools()
 	s.registerRecurringTools()
+	s.registerRecurringSuggestionTools()
 	return s
 }
 

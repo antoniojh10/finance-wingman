@@ -151,6 +151,9 @@ type transactionOut struct {
 	RecurringID         string `json:"recurring_id,omitempty"`
 	RecurringName       string `json:"recurring_name,omitempty"`
 	RecurringDueOn      string `json:"recurring_due_on,omitempty"`
+	// RecurringMatch is set by add_expense and add_income when the new
+	// transaction looks like a payment of an active recurring item.
+	RecurringMatch *recurringMatchOut `json:"recurring_match,omitempty"`
 }
 
 type transactionsOut struct {
@@ -354,7 +357,12 @@ func (s *Server) record(ctx context.Context, typ string, args recordArgs) (*mcp.
 	}
 	out := transactionToOut(tx)
 	verb := map[string]string{finance.TypeExpense: "Recorded expense", finance.TypeIncome: "Recorded income"}[typ]
-	return text(fmt.Sprintf("%s of %s %s in %s%s on %s (id %s).", verb, out.Amount, out.Currency, out.Account, categorySuffix(out.Category), out.Date, out.ID)), out, nil
+	msg := fmt.Sprintf("%s of %s %s in %s%s on %s (id %s).", verb, out.Amount, out.Currency, out.Account, categorySuffix(out.Category), out.Date, out.ID)
+	if m := s.matchHint(ctx, tx.ID); m != nil {
+		out.RecurringMatch = m
+		msg += fmt.Sprintf(" This looks like a payment of the recurring item %s (due %s, estimated %s %s) but it is NOT linked. Ask the user whether to link it with link_transaction_to_recurring.", m.Recurring, m.Period, m.EstimatedAmount, out.Currency)
+	}
+	return text(msg), out, nil
 }
 
 func (s *Server) transfer(ctx context.Context, args transferArgs) (*mcp.CallToolResult, transactionOut, error) {

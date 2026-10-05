@@ -550,6 +550,11 @@ export interface components {
              * @description Estimated amount in minor units. Defaults to the suggested amount
              */
             amount?: number;
+            /**
+             * Format: uuid
+             * @description Category whose kind matches the type. Defaults to the suggested category
+             */
+            category_id?: string;
             /** @description Key of a suggestion */
             key: string;
             /** @description Name of the item. Defaults to the suggested name */

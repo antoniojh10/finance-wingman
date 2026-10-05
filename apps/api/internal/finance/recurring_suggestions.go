@@ -41,9 +41,10 @@ type SuggestionKeyInput struct {
 // AcceptSuggestionInput accepts a suggestion, optionally overriding its
 // name and amount.
 type AcceptSuggestionInput struct {
-	Key    string `json:"key" minLength:"1" doc:"Key of a suggestion"`
-	Name   string `json:"name,omitempty" maxLength:"100" doc:"Name of the item. Defaults to the suggested name"`
-	Amount *int64 `json:"amount,omitempty" minimum:"1" maximum:"1000000000000000" doc:"Estimated amount in minor units. Defaults to the suggested amount"`
+	Key        string     `json:"key" minLength:"1" doc:"Key of a suggestion"`
+	Name       string     `json:"name,omitempty" maxLength:"100" doc:"Name of the item. Defaults to the suggested name"`
+	Amount     *int64     `json:"amount,omitempty" minimum:"1" maximum:"1000000000000000" doc:"Estimated amount in minor units. Defaults to the suggested amount"`
+	CategoryID *uuid.UUID `json:"category_id,omitempty" format:"uuid" doc:"Category whose kind matches the type. Defaults to the suggested category"`
 }
 
 // RecurringMatch is the best active recurring item for a transaction.
@@ -237,11 +238,15 @@ func (s *Service) AcceptRecurringSuggestion(ctx context.Context, in AcceptSugges
 		if in.Amount != nil {
 			amount = *in.Amount
 		}
+		categoryID := sug.CategoryID
+		if in.CategoryID != nil {
+			categoryID = in.CategoryID
+		}
 		created, err := tx.CreateRecurringItem(ctx, CreateRecurringItemInput{
 			Name:          name,
 			Type:          sug.Type,
 			AccountID:     sug.AccountID,
-			CategoryID:    sug.CategoryID,
+			CategoryID:    categoryID,
 			Amount:        amount,
 			IntervalUnit:  sug.IntervalUnit,
 			IntervalCount: sug.IntervalCount,
