@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { cookieJar, mockApi } from "@/test/server-mocks";
 
-import { saveRecurring, setRecurringStatus } from "./recurring";
+import { registerRecurringPayment, saveRecurring, setRecurringStatus } from "./recurring";
 
 function form(values: Record<string, string>): FormData {
   const data = new FormData();
@@ -118,5 +118,54 @@ describe("setRecurringStatus", () => {
   it("reports failures", async () => {
     mockApi([{ method: "PATCH", path: "/api/v1/recurring/r1", status: 404, body: { status: 404 } }]);
     expect((await setRecurringStatus("r1", "cancelled")).ok).toBe(false);
+  });
+});
+
+describe("registerRecurringPayment", () => {
+  const item = { id: "r1", minor_units: 2 };
+  const payment = { id: "r1", period: "2026-10-01", amount: "210.5", date: "2026-10-05" };
+
+  it("posts the payment converting the amount to minor units", async () => {
+    const requests = mockApi([
+      { method: "GET", path: "/api/v1/recurring/r1", status: 200, body: item },
+      { method: "POST", path: "/api/v1/recurring/r1/payments", status: 201, body: {} },
+    ]);
+    expect((await registerRecurringPayment({ ok: false }, form(payment))).ok).toBe(true);
+    expect(requests[1].body).toEqual({ amount: 21050, date: "2026-10-05", period: "2026-10-01" });
+  });
+
+  it("omits the period when none is given", async () => {
+    const requests = mockApi([
+      { method: "GET", path: "/api/v1/recurring/r1", status: 200, body: item },
+      { method: "POST", path: "/api/v1/recurring/r1/payments", status: 201, body: {} },
+    ]);
+    await registerRecurringPayment({ ok: false }, form({ ...payment, period: "" }));
+    expect(requests[1].body).not.toHaveProperty("period");
+  });
+
+  it("reports invalid amount and date without posting", async () => {
+    const requests = mockApi([{ method: "GET", path: "/api/v1/recurring/r1", status: 200, body: item }]);
+    const result = await registerRecurringPayment({ ok: false }, form({ ...payment, amount: "0", date: "" }));
+    expect(result.ok).toBe(false);
+    expect(Object.keys(result.fieldErrors ?? {}).sort()).toEqual(["amount", "date"]);
+    expect(requests.map((r) => r.method)).toEqual(["GET"]);
+  });
+
+  it("shows the API message when the item is not active", async () => {
+    mockApi([
+      { method: "GET", path: "/api/v1/recurring/r1", status: 200, body: item },
+      { method: "POST", path: "/api/v1/recurring/r1/payments", status: 409, body: { status: 409, detail: "item is not active" } },
+    ]);
+    const result = await registerRecurringPayment({ ok: false }, form(payment));
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("item is not active");
+  });
+
+  it("maps a missing item to a friendly message", async () => {
+    mockApi([{ method: "GET", path: "/api/v1/recurring/r1", status: 404, body: { status: 404 } }]);
+    expect(await registerRecurringPayment({ ok: false }, form(payment))).toEqual({
+      ok: false,
+      message: "This item no longer exists.",
+    });
   });
 });

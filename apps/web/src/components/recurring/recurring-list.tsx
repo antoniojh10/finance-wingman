@@ -11,11 +11,14 @@ import { Money } from "@/components/money";
 import { RowActions } from "@/components/row-actions";
 import type { AccountOption, CategoryOption } from "@/components/transactions/types";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/dates";
 import type { RecurringStatus, RecurringType } from "@/lib/recurring";
 import { cn } from "@/lib/utils";
 
+import { PaymentStatusBadge } from "./payment-status-badge";
 import { RecurringDialog, type RecurringRow } from "./recurring-dialog";
+import { RegisterPaymentDialog } from "./register-payment-dialog";
 
 type Filter = "all" | RecurringType;
 const filters: Filter[] = ["all", "expense", "income"];
@@ -131,13 +134,36 @@ function RecurringItemRow({
         <p className="flex items-center gap-2 text-[15.5px] font-semibold">
           <span className="min-w-0 truncate">{item.name}</span>
           {item.status !== "active" && <Badge variant="secondary">{t(`status.${item.status}`)}</Badge>}
+          {item.status === "active" && item.current_period && <PaymentStatusBadge status={item.current_period.status} />}
         </p>
         <p className="truncate text-[12.5px] text-muted-foreground">{details.join(" · ")}</p>
         <p className="text-[12.5px] text-muted-foreground">
           {item.status === "active" && item.next_due_on
             ? t("nextDue", { date: formatDate(item.next_due_on, locale) })
             : t("noNextDue")}
+          {item.last_payment && ` · ${t("lastPaid", { date: formatDate(item.last_payment.date, locale) })}`}
         </p>
+        {item.status === "active" && item.current_period && (
+          // Stays mounted once paid so the dialog outlives the revalidation and can toast and close.
+          <RegisterPaymentDialog
+            defaultDate={defaultDate}
+            target={{
+              id: item.id,
+              name: item.name,
+              amount: item.amount,
+              currency: item.currency,
+              minor_units: item.minor_units,
+              period: item.current_period.due_on,
+            }}
+            trigger={
+              item.current_period.status === "paid" ? undefined : (
+                <Button variant="outline" size="sm" className="mt-1.5">
+                  {t("register")}
+                </Button>
+              )
+            }
+          />
+        )}
       </div>
       <Money
         amount={item.amount}

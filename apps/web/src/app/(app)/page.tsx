@@ -5,13 +5,14 @@ import { getTranslations } from "next-intl/server";
 import { AccountStrip } from "@/components/dashboard/account-strip";
 import { BalanceOverview } from "@/components/dashboard/balance-overview";
 import { MonthPicker } from "@/components/dashboard/month-picker";
+import { SubscriptionsCard } from "@/components/dashboard/subscriptions-card";
 import { PageHeader } from "@/components/page-header";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { monthOf, monthRange, parseMonth, today } from "@/lib/dates";
 import { authedApi, expectData } from "@/lib/session";
-import { toAccountOption, toCategoryOption, toTransactionRow } from "@/lib/view-models";
+import { toAccountOption, toCategoryOption, toRecurringNames, toTransactionRow } from "@/lib/view-models";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("dashboard");
@@ -25,11 +26,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { from, to } = monthRange(month);
 
   const api = await authedApi();
-  const [summaryRes, accountsRes, categoriesRes, recentRes] = await Promise.all([
+  const [summaryRes, accountsRes, categoriesRes, recentRes, upcomingRes, committedRes, recurringRes] = await Promise.all([
     api.GET("/api/v1/summary", { params: { query: { from, to } } }),
     api.GET("/api/v1/accounts"),
     api.GET("/api/v1/categories"),
     api.GET("/api/v1/transactions", { params: { query: { from, to, limit: 6 } } }),
+    api.GET("/api/v1/recurring/upcoming", { params: { query: { days: 7 } } }),
+    api.GET("/api/v1/recurring/summary"),
+    api.GET("/api/v1/recurring"),
   ]);
   const summary = expectData(summaryRes);
   const accounts = expectData(accountsRes).items;
@@ -65,6 +69,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       <BalanceOverview currencies={summary.currencies} />
 
+      <SubscriptionsCard
+        upcoming={expectData(upcomingRes).items}
+        committed={expectData(committedRes).currencies}
+        defaultDate={todayDate}
+      />
+
       <section className="grid gap-2.5" aria-labelledby="accounts-heading">
         <div className="flex items-center justify-between px-1">
           <h2 id="accounts-heading" className="text-[19px] font-bold tracking-tight">
@@ -94,6 +104,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             accounts={accountOptions}
             categories={categories}
             defaultDate={todayDate}
+            recurringNames={toRecurringNames(expectData(recurringRes).items)}
           />
         </CardContent>
       </Card>

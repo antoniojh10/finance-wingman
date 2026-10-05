@@ -33,5 +33,7 @@ export type TransactionRow = {
   category_name: string | null;
   description: string;
   occurred_on: string;
+  /** Recurring item (subscription) this transaction pays, if any. */
+  recurring_id?: string | null;
   created_by?: { name: string; email: string };
 };

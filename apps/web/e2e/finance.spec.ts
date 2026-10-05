@@ -151,6 +151,60 @@ test("creates, edits and pauses a subscription", async ({ page }, testInfo) => {
   await expect(row).toContainText("Cancelled");
 });
 
+test("registers a subscription payment from the dashboard", async ({ page }, testInfo) => {
+  const suffix = `${testInfo.project.name}-${Date.now()}`;
+  const accountName = `Pay ${suffix}`;
+  const name = `Gym ${suffix}`;
+
+  await signIn(page, e2eUser);
+
+  await navigate(page, /accounts/i);
+  await page.getByRole("button", { name: "New account" }).click();
+  await page.getByRole("dialog").getByLabel("Name").fill(accountName);
+  await page.getByRole("dialog").getByLabel("Currency").selectOption("MXN");
+  await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Account saved")).toBeVisible();
+
+  // The first due date defaults to today, so the subscription is pending.
+  await navigate(page, /subscriptions/i);
+  await page.getByRole("button", { name: "New subscription" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Name").fill(name);
+  await dialog.locator("label", { hasText: accountName }).click();
+  await dialog.getByLabel(/^Amount/).fill("300");
+  await dialog.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Subscription saved")).toBeVisible();
+  const listRow = page.getByTestId("recurring-row").filter({ hasText: name });
+  await expect(listRow).toContainText("Pending");
+
+  // Register from the dashboard card, adjusting the amount.
+  await navigate(page, /dashboard/i);
+  const card = page.getByTestId("subscriptions-card");
+  const upcoming = card.getByTestId("upcoming-row").filter({ hasText: name });
+  await expect(upcoming).toContainText("Pending");
+  await upcoming.getByRole("button", { name: "Register payment" }).click();
+  const confirm = page.getByRole("dialog");
+  await expect(confirm.getByLabel(/^Amount/)).toHaveValue("300.00");
+  await confirm.getByLabel(/^Amount/).fill("310");
+  await confirm.getByRole("button", { name: "Register payment" }).click();
+  await expect(page.getByText("Payment registered")).toBeVisible();
+  await expect(upcoming).toContainText("Paid");
+  await expect(upcoming.getByRole("button", { name: "Register payment" })).toHaveCount(0);
+
+  // The status changed on the subscriptions page and the transaction shows its subscription.
+  await navigate(page, /subscriptions/i);
+  await expect(listRow).toContainText("Paid");
+  await navigate(page, /transactions/i);
+  await expect(page.getByTestId("transaction-row").filter({ hasText: `Subscription: ${name}` })).toContainText("−MX$310.00");
+
+  // Clean up: cancel it so it stops counting.
+  await navigate(page, /subscriptions/i);
+  await listRow.getByRole("button", { name: "Actions" }).click();
+  await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
+  await expect(listRow).toContainText("Cancelled");
+});
+
 test("switches language and signs out", async ({ page }) => {
   await signIn(page, e2eUser);
   await navigate(page, /settings/i);

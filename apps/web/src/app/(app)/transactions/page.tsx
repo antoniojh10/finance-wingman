@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { today } from "@/lib/dates";
 import { pageHref, parseTransactionQuery } from "@/lib/query";
 import { authedApi, expectData } from "@/lib/session";
-import { toAccountOption, toCategoryOption, toTransactionRow } from "@/lib/view-models";
+import { toAccountOption, toCategoryOption, toRecurringNames, toTransactionRow } from "@/lib/view-models";
 
 const PAGE_SIZE = 25;
 
@@ -28,9 +28,10 @@ export default async function TransactionsPage({
   const todayDate = today(process.env.APP_TIMEZONE);
 
   const api = await authedApi();
-  const [accountsRes, categoriesRes, transactionsRes] = await Promise.all([
+  const [accountsRes, categoriesRes, recurringRes, transactionsRes] = await Promise.all([
     api.GET("/api/v1/accounts", { params: { query: { include_archived: true } } }),
     api.GET("/api/v1/categories", { params: { query: { include_archived: true } } }),
+    api.GET("/api/v1/recurring"),
     api.GET("/api/v1/transactions", {
       params: {
         query: {
@@ -72,6 +73,7 @@ export default async function TransactionsPage({
           accounts={accounts}
           categories={categories}
           defaultDate={todayDate}
+          recurringNames={toRecurringNames(expectData(recurringRes).items)}
           groupByDate
         />
         {page.total > 0 && (
