@@ -57,12 +57,12 @@ test("manages accounts, categories and transactions", async ({ page }, testInfo)
   await navigate(page, /dashboard/i);
   await openNewTransaction(page);
   const txForm = page.getByRole("main");
-  await txForm.getByLabel("Account").selectOption({ label: `${accountName} (MXN)` });
+  await txForm.locator("label", { hasText: accountName }).click();
   await txForm.getByLabel(/^Amount/).fill("abc");
   await txForm.getByRole("button", { name: "Save" }).click();
   await expect(txForm.getByText(/positive amount/i)).toBeVisible();
   await txForm.getByLabel(/^Amount/).fill("250.50");
-  await txForm.getByLabel("Category").selectOption({ label: categoryName });
+  await txForm.locator("label", { hasText: categoryName }).click();
   await txForm.getByLabel("Description").fill(description);
   await txForm.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Transaction saved")).toBeVisible();

@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -47,7 +47,7 @@ describe("TransactionForm", () => {
     const { onSaved, user } = renderForm();
 
     await user.type(screen.getByLabelText("Amount (MXN)"), "125.50");
-    await user.selectOptions(screen.getByLabelText("Category"), "Food");
+    await user.click(screen.getByRole("radio", { name: "Food" }));
     await user.type(screen.getByLabelText("Description"), "Lunch");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -64,26 +64,33 @@ describe("TransactionForm", () => {
 
   it("hides archived accounts and categories and filters categories by type", async () => {
     const { user } = renderForm();
-    expect(screen.queryByRole("option", { name: "Closed (MXN)" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "Old category" })).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Food" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: /Closed/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Old category" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Food" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "None" })).toBeChecked();
 
     await user.click(screen.getByRole("radio", { name: "Income" }));
-    expect(screen.queryByRole("option", { name: "Food" })).not.toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "Salary" })).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Food" })).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Salary" })).toBeInTheDocument();
   });
 
   it("asks for the received amount only for cross-currency transfers", async () => {
     const { user } = renderForm();
     await user.click(screen.getByRole("radio", { name: "Transfer" }));
 
-    expect(screen.getByLabelText("From account")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("To account")).toHaveValue("mxn2");
+    const from = screen.getByRole("radiogroup", { name: "From account" });
+    const to = screen.getByRole("radiogroup", { name: "To account" });
+    expect(screen.queryByRole("radiogroup", { name: /Category/ })).not.toBeInTheDocument();
+    expect(within(to).getByRole("radio", { name: "Savings MXN" })).toBeChecked();
+    expect(within(to).queryByRole("radio", { name: "Checking MXN" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Amount received/)).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("To account"), "usd");
+    await user.click(within(to).getByRole("radio", { name: "Dollars USD" }));
     expect(screen.getByLabelText("Amount received (USD)")).toBeInTheDocument();
+
+    // Picking the destination as the source moves the destination along.
+    await user.click(within(from).getByRole("radio", { name: "Dollars USD" }));
+    expect(within(to).getByRole("radio", { name: "Checking MXN" })).toBeChecked();
   });
 
   it("keeps the user's input and selection after a validation error", async () => {
@@ -94,7 +101,7 @@ describe("TransactionForm", () => {
     });
     const { onSaved, user } = renderForm();
 
-    await user.selectOptions(screen.getByLabelText("Account"), "usd");
+    await user.click(screen.getByRole("radio", { name: "Dollars USD" }));
     await user.type(screen.getByLabelText("Amount (USD)"), "abc");
     await user.type(screen.getByLabelText("Description"), "Coffee");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -103,7 +110,7 @@ describe("TransactionForm", () => {
     expect(onSaved).not.toHaveBeenCalled();
     // Regression: the form must not be reset, or the account would silently
     // fall back to the first option on the next submission.
-    expect(screen.getByLabelText("Account")).toHaveValue("usd");
+    expect(screen.getByRole("radio", { name: "Dollars USD" })).toBeChecked();
     expect(screen.getByLabelText("Amount (USD)")).toHaveValue("abc");
     expect(screen.getByLabelText("Description")).toHaveValue("Coffee");
 
@@ -136,9 +143,9 @@ describe("TransactionForm", () => {
         occurred_on: "2026-01-15",
       },
     });
-    expect(screen.getByLabelText("Account")).toHaveValue("old");
+    expect(screen.getByRole("radio", { name: "Closed MXN" })).toBeChecked();
     expect(screen.getByLabelText("Amount (MXN)")).toHaveValue("123.45");
-    expect(screen.getByLabelText("Category")).toHaveValue("gone");
+    expect(screen.getByRole("radio", { name: "Old category" })).toBeChecked();
     expect(screen.getByLabelText("Date")).toHaveValue("2026-01-15");
     expect(screen.getByDisplayValue("tx1")).toHaveAttribute("name", "id");
   });

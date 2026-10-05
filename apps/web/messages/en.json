@@ -106,7 +106,8 @@
     "showing": "Showing {from}–{to} of {total}",
     "needAccount": "Create an account before adding transactions.",
     "today": "Today",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "moreFilters": "More filters"
   },
   "accounts": {
     "title": "Accounts",

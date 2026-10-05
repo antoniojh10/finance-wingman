@@ -106,7 +106,8 @@
     "showing": "Mostrando {from}–{to} de {total}",
     "needAccount": "Crea una cuenta antes de agregar movimientos.",
     "today": "Hoy",
-    "yesterday": "Ayer"
+    "yesterday": "Ayer",
+    "moreFilters": "Más filtros"
   },
   "accounts": {
     "title": "Cuentas",

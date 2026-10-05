@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/page-header";
 import { TransactionFilters } from "@/components/transactions/transaction-filters";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { today } from "@/lib/dates";
 import { pageHref, parseTransactionQuery } from "@/lib/query";
 import { authedApi, expectData } from "@/lib/session";
@@ -58,26 +57,23 @@ export default async function TransactionsPage({
   return (
     <>
       <PageHeader title={t("transactions.title")} />
-      <div className="grid gap-4">
+      <div className="grid gap-5">
         {!hasActiveAccounts && (
-          <p className="rounded-lg bg-muted px-4 py-3 text-sm">
+          <p className="rounded-2xl bg-card px-5 py-4 text-sm ring-1 ring-foreground/5">
             {t("transactions.needAccount")}{" "}
-            <Link href="/accounts" className="font-medium underline underline-offset-4">
+            <Link href="/accounts" className="font-semibold text-primary underline underline-offset-4">
               {t("accounts.add")}
             </Link>
           </p>
         )}
         <TransactionFilters values={query} accounts={accounts} categories={categories} />
-        <Card>
-          <CardContent>
-            <TransactionList
-              transactions={page.items.map(toTransactionRow)}
-              accounts={accounts}
-              categories={categories}
-              defaultDate={todayDate}
-            />
-          </CardContent>
-        </Card>
+        <TransactionList
+          transactions={page.items.map(toTransactionRow)}
+          accounts={accounts}
+          categories={categories}
+          defaultDate={todayDate}
+          groupByDate
+        />
         {page.total > 0 && (
           <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
             <span>{t("transactions.showing", { from: first, to: last, total: page.total })}</span>

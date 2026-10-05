@@ -61,3 +61,8 @@ export function safeReturnPath(value: string | string[] | undefined, fallback = 
 export function newTransactionHref(returnTo: string): string {
   return returnTo === "/" ? "/transactions/new" : `/transactions/new?return=${encodeURIComponent(returnTo)}`;
 }
+
+/** Builds a filter URL with some values changed, always back on the first page. */
+export function filterHref(query: TransactionQuery, changes: Partial<Omit<TransactionQuery, "page">>): string {
+  return pageHref({ ...query, ...changes, page: 1 }, 1);
+}

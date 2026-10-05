@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newTransactionHref, pageHref, parseTransactionQuery, safeReturnPath } from "./query";
+import { filterHref, newTransactionHref, pageHref, parseTransactionQuery, safeReturnPath } from "./query";
 
 const id = "3f2b8c1e-5a4d-4c3b-9e8f-1a2b3c4d5e6f";
 
@@ -60,5 +60,13 @@ describe("newTransactionHref", () => {
   it("only adds a return path when leaving a page other than the dashboard", () => {
     expect(newTransactionHref("/")).toBe("/transactions/new");
     expect(newTransactionHref("/transactions?type=income")).toBe("/transactions/new?return=%2Ftransactions%3Ftype%3Dincome");
+  });
+});
+
+describe("filterHref", () => {
+  it("changes one filter, keeps the rest and resets the page", () => {
+    const query = parseTransactionQuery({ q: "tacos", type: "income", page: "4" });
+    expect(filterHref(query, { type: "expense" })).toBe("?type=expense&q=tacos");
+    expect(filterHref(query, { type: undefined })).toBe("?q=tacos");
   });
 });
