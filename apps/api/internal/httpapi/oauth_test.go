@@ -175,16 +175,18 @@ func TestOAuthMetadata(t *testing.T) {
 	t.Parallel()
 	api := newTestAPI(t).as("")
 
-	for _, path := range []string{"/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"} {
-		var meta struct {
-			Resource             string   `json:"resource"`
-			AuthorizationServers []string `json:"authorization_servers"`
-			ScopesSupported      []string `json:"scopes_supported"`
-		}
-		api.do(http.MethodGet, path, nil).expect(http.StatusOK).decode(&meta)
-		if meta.Resource != testIssuer+"/mcp" || meta.AuthorizationServers[0] != testIssuer || meta.ScopesSupported[0] != "finance" {
-			t.Fatalf("%s: unexpected metadata %+v", path, meta)
-		}
+	// The bare root is not advertised: a connector saved without /mcp must
+	// fail at discovery.
+	api.do(http.MethodGet, "/.well-known/oauth-protected-resource", nil).expect(http.StatusNotFound)
+
+	var meta struct {
+		Resource             string   `json:"resource"`
+		AuthorizationServers []string `json:"authorization_servers"`
+		ScopesSupported      []string `json:"scopes_supported"`
+	}
+	api.do(http.MethodGet, "/.well-known/oauth-protected-resource/mcp", nil).expect(http.StatusOK).decode(&meta)
+	if meta.Resource != testIssuer+"/mcp" || meta.AuthorizationServers[0] != testIssuer || meta.ScopesSupported[0] != "finance" {
+		t.Fatalf("unexpected metadata %+v", meta)
 	}
 
 	var as map[string]any

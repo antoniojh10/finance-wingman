@@ -138,3 +138,19 @@ func TestMCPHostCheck(t *testing.T) {
 		}
 	}
 }
+
+func TestRootPathPointsToMCPEndpoint(t *testing.T) {
+	t.Parallel()
+	api := newTestAPI(t).as("")
+
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		var body struct {
+			Error   string `json:"error"`
+			Message string `json:"message"`
+		}
+		api.do(method, "/", nil).expect(http.StatusNotFound).decode(&body)
+		if body.Error != "not_found" || !strings.Contains(body.Message, testIssuer+"/mcp") {
+			t.Fatalf("%s /: unexpected body %+v", method, body)
+		}
+	}
+}
