@@ -59,3 +59,8 @@ SELECT DISTINCT ON (recurring_id)
 FROM transactions
 WHERE recurring_id = ANY(sqlc.arg('item_ids')::uuid[])
 ORDER BY recurring_id, occurred_on DESC, created_at DESC, id;
+
+-- name: FindOpenRecurringItemByName :one
+SELECT id, name, status FROM recurring_items
+WHERE lower(name) = lower($1) AND status <> 'cancelled' AND id <> $2
+LIMIT 1;

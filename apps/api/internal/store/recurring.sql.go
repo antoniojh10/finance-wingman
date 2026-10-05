@@ -53,6 +53,30 @@ func (q *Queries) CreateRecurringItem(ctx context.Context, arg CreateRecurringIt
 	return id, err
 }
 
+const findOpenRecurringItemByName = `-- name: FindOpenRecurringItemByName :one
+SELECT id, name, status FROM recurring_items
+WHERE lower(name) = lower($1) AND status <> 'cancelled' AND id <> $2
+LIMIT 1
+`
+
+type FindOpenRecurringItemByNameParams struct {
+	Lower string
+	ID    uuid.UUID
+}
+
+type FindOpenRecurringItemByNameRow struct {
+	ID     uuid.UUID
+	Name   string
+	Status string
+}
+
+func (q *Queries) FindOpenRecurringItemByName(ctx context.Context, arg FindOpenRecurringItemByNameParams) (FindOpenRecurringItemByNameRow, error) {
+	row := q.db.QueryRow(ctx, findOpenRecurringItemByName, arg.Lower, arg.ID)
+	var i FindOpenRecurringItemByNameRow
+	err := row.Scan(&i.ID, &i.Name, &i.Status)
+	return i, err
+}
+
 const getRecurringItem = `-- name: GetRecurringItem :one
 SELECT
     r.id, r.name, r.type, r.account_id, r.category_id, r.amount, r.notes, r.interval_unit, r.interval_count, r.start_on, r.total_payments, r.status, r.created_by, r.created_at, r.updated_at,
