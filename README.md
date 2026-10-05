@@ -72,7 +72,8 @@ stateless) protected by OAuth 2.1:
 - During authorization the user receives a 6-digit code by email and types it on the consent page, which works inside mobile in-app browsers
 
 Tools: `add_expense`, `add_income`, `add_transfer`, `list_accounts`,
-`list_categories`, `get_summary`, `list_transactions`, `delete_transaction`.
+`list_categories`, `create_account`, `create_category`, `get_summary`,
+`list_transactions`, `delete_transaction`.
 Amounts are decimals in the account currency; summaries never mix currencies.
 
 To connect, add a custom connector with the URL `https://<your-api>/mcp`:

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
@@ -112,7 +113,7 @@ func TestToolsAreListed(t *testing.T) {
 	for _, tool := range res.Tools {
 		got[tool.Name] = tool
 	}
-	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction"} {
+	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction", "create_account", "create_category"} {
 		if got[name] == nil {
 			t.Errorf("missing tool %s", name)
 		}
@@ -251,6 +252,75 @@ func TestListAccountsAndCategories(t *testing.T) {
 		t.Fatalf("kind filter failed: %+v", categories)
 	}
 	h.mustFail("list_categories", map[string]any{"kind": "other"}, "expense or income")
+}
+
+func TestCreateAccount(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+
+	var out accountOut
+	text := h.mustCall("create_account", map[string]any{"name": "BBVA Checking", "type": "checking", "currency": "mxn", "initial_balance": 1500.5}, &out)
+	if out.Name != "BBVA Checking" || out.Currency != "MXN" || out.Balance != "1500.50" || out.ID == "" {
+		t.Fatalf("unexpected account: %+v", out)
+	}
+	if !strings.Contains(text, "Created checking account BBVA Checking in MXN with a balance of 1500.50 MXN") {
+		t.Fatalf("unexpected text: %s", text)
+	}
+
+	h.mustCall("create_account", map[string]any{"name": "Amex", "type": "credit_card", "currency": "USD", "initial_balance": -250}, &out)
+	if out.Balance != "-250.00" {
+		t.Fatalf("negative opening balance: %+v", out)
+	}
+	h.mustCall("create_account", map[string]any{"name": "Wallet", "type": "cash", "currency": "JPY"}, &out)
+	if out.Balance != "0" {
+		t.Fatalf("default opening balance: %+v", out)
+	}
+
+	// The new account can be used right away.
+	var tx transactionOut
+	h.mustCall("add_expense", map[string]any{"amount": 100, "account": "BBVA"}, &tx)
+	if tx.Account != "BBVA Checking" {
+		t.Fatalf("expense on new account: %+v", tx)
+	}
+
+	h.mustFail("create_account", map[string]any{"name": "bbva checking", "type": "savings", "currency": "MXN"}, "already exists")
+	h.mustFail("create_account", map[string]any{"name": "Piggy", "type": "piggy_bank", "currency": "MXN"}, "checking, savings, credit_card")
+	h.mustFail("create_account", map[string]any{"name": "Piggy", "type": "cash", "currency": "XXX"}, "unsupported currency")
+	h.mustFail("create_account", map[string]any{"name": "Piggy", "type": "cash", "currency": "XXX", "initial_balance": 10}, "ISO 4217")
+	h.mustFail("create_account", map[string]any{"name": "Piggy", "type": "cash", "currency": "JPY", "initial_balance": 10.5}, "too many decimals for JPY")
+	h.mustFail("create_account", map[string]any{"name": "  ", "type": "cash", "currency": "MXN"}, "name: must not be empty")
+}
+
+func TestCreateCategory(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("Cash", "MXN")
+
+	var out categoryOut
+	text := h.mustCall("create_category", map[string]any{"name": "Groceries", "kind": "Expense", "color": "#22c55e"}, &out)
+	if out.Name != "Groceries" || out.Kind != "expense" || out.ID == "" || !strings.Contains(text, "Created expense category Groceries") {
+		t.Fatalf("unexpected category: %+v / %s", out, text)
+	}
+	cat, err := h.svc.GetCategory(context.Background(), uuid.MustParse(out.ID))
+	if err != nil || cat.Color == nil || *cat.Color != "#22c55e" {
+		t.Fatalf("color not stored: %+v %v", cat, err)
+	}
+
+	// The new category can be used right away.
+	var tx transactionOut
+	h.mustCall("add_expense", map[string]any{"amount": 10, "category": "groceries"}, &tx)
+	if tx.Category != "Groceries" {
+		t.Fatalf("expense with new category: %+v", tx)
+	}
+
+	h.mustCall("create_category", map[string]any{"name": "Groceries", "kind": "income"}, &out)
+	if out.Kind != "income" {
+		t.Fatalf("same name in another kind should be allowed: %+v", out)
+	}
+	h.mustFail("create_category", map[string]any{"name": "groceries", "kind": "expense"}, "already exists")
+	h.mustFail("create_category", map[string]any{"name": "Gifts", "kind": "refund"}, "expense or income")
+	h.mustFail("create_category", map[string]any{"name": "Gifts", "kind": "expense", "color": "red"}, "hex color")
+	h.mustFail("create_category", map[string]any{"name": "", "kind": "expense"}, "name: must not be empty")
 }
 
 func TestGetSummary(t *testing.T) {

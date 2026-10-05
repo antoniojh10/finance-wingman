@@ -37,6 +37,19 @@ type listCategoriesArgs struct {
 	Kind string `json:"kind,omitempty" jsonschema:"Filter by kind: expense or income"`
 }
 
+type createAccountArgs struct {
+	Name           string   `json:"name" jsonschema:"Account name, e.g. BBVA Checking"`
+	Type           string   `json:"type" jsonschema:"One of checking, savings, credit_card, cash, investment, other"`
+	Currency       string   `json:"currency" jsonschema:"ISO 4217 currency code, e.g. MXN or USD. Cannot be changed later"`
+	InitialBalance *float64 `json:"initial_balance,omitempty" jsonschema:"Opening balance in the account currency, e.g. 1500.00. May be negative (e.g. credit card debt). Defaults to 0"`
+}
+
+type createCategoryArgs struct {
+	Name  string `json:"name" jsonschema:"Category name, e.g. Groceries"`
+	Kind  string `json:"kind" jsonschema:"expense or income"`
+	Color string `json:"color,omitempty" jsonschema:"Optional hex color like #22c55e"`
+}
+
 type summaryArgs struct {
 	Period string `json:"period,omitempty" jsonschema:"One of this_month (default), last_month, this_year, last_30_days. Ignored when from/to are given"`
 	From   string `json:"from,omitempty" jsonschema:"Start date YYYY-MM-DD (inclusive)"`
@@ -176,6 +189,24 @@ func (s *Server) registerTools() {
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "create_account",
+		Title:       "Create account",
+		Description: "Create a new account (bank account, card, cash, ...) with its currency and opening balance. Only create accounts the user asked for; check list_accounts first to avoid duplicates.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args createAccountArgs) (*mcp.CallToolResult, accountOut, error) {
+		return s.createAccount(ctx, args)
+	})
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "create_category",
+		Title:       "Create category",
+		Description: "Create a new expense or income category. Only create categories the user asked for; check list_categories first to avoid duplicates.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args createCategoryArgs) (*mcp.CallToolResult, categoryOut, error) {
+		return s.createCategory(ctx, args)
+	})
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
 		Name:        "get_summary",
 		Title:       "Get summary",
 		Description: "Income, expenses and net per currency for a period, broken down by category, plus current balances.",
@@ -287,11 +318,11 @@ func (s *Server) listAccounts(ctx context.Context) (*mcp.CallToolResult, account
 	out := accountsOut{Accounts: make([]accountOut, len(accounts))}
 	lines := make([]string, len(accounts))
 	for i, a := range accounts {
-		out.Accounts[i] = accountOut{ID: a.ID.String(), Name: a.Name, Type: a.Type, Currency: a.Currency, Balance: money.Format(a.Balance, a.MinorUnits)}
+		out.Accounts[i] = accountToOut(a)
 		lines[i] = fmt.Sprintf("- %s (%s, %s): %s %s", a.Name, a.Type, a.Currency, out.Accounts[i].Balance, a.Currency)
 	}
 	if len(lines) == 0 {
-		return text("There are no active accounts yet. Accounts are created in the Finance Wingman web app."), out, nil
+		return text("There are no active accounts yet. Use create_account to add one."), out, nil
 	}
 	return text("Accounts:\n" + strings.Join(lines, "\n")), out, nil
 }
@@ -308,7 +339,7 @@ func (s *Server) listCategories(ctx context.Context, args listCategoriesArgs) (*
 	out := categoriesOut{Categories: make([]categoryOut, len(categories))}
 	byKind := map[string][]string{}
 	for i, c := range categories {
-		out.Categories[i] = categoryOut{ID: c.ID.String(), Name: c.Name, Kind: c.Kind}
+		out.Categories[i] = categoryToOut(c)
 		byKind[c.Kind] = append(byKind[c.Kind], c.Name)
 	}
 	var b strings.Builder
@@ -322,6 +353,39 @@ func (s *Server) listCategories(ctx context.Context, args listCategoriesArgs) (*
 		b.WriteString("There are no categories yet.")
 	}
 	return text(strings.TrimSpace(b.String())), out, nil
+}
+
+func (s *Server) createAccount(ctx context.Context, args createAccountArgs) (*mcp.CallToolResult, accountOut, error) {
+	in := finance.CreateAccountInput{Name: args.Name, Type: args.Type, Currency: args.Currency}
+	if args.InitialBalance != nil {
+		currency, err := s.findCurrency(ctx, args.Currency)
+		if err != nil {
+			return nil, accountOut{}, err
+		}
+		in.InitialBalance, err = decimalToMinor(*args.InitialBalance, currency.MinorUnits, currency.Code, "initial_balance")
+		if err != nil {
+			return nil, accountOut{}, err
+		}
+	}
+	account, err := s.finance.CreateAccount(ctx, in)
+	if err != nil {
+		return nil, accountOut{}, friendly(err)
+	}
+	out := accountToOut(account)
+	return text(fmt.Sprintf("Created %s account %s in %s with a balance of %s %s (id %s).", out.Type, out.Name, out.Currency, out.Balance, out.Currency, out.ID)), out, nil
+}
+
+func (s *Server) createCategory(ctx context.Context, args createCategoryArgs) (*mcp.CallToolResult, categoryOut, error) {
+	in := finance.CreateCategoryInput{Name: args.Name, Kind: strings.ToLower(strings.TrimSpace(args.Kind))}
+	if args.Color != "" {
+		in.Color = &args.Color
+	}
+	category, err := s.finance.CreateCategory(ctx, in)
+	if err != nil {
+		return nil, categoryOut{}, friendly(err)
+	}
+	out := categoryToOut(category)
+	return text(fmt.Sprintf("Created %s category %s (id %s).", out.Kind, out.Name, out.ID)), out, nil
 }
 
 func (s *Server) summary(ctx context.Context, args summaryArgs) (*mcp.CallToolResult, summaryOut, error) {
@@ -439,7 +503,7 @@ func (s *Server) resolveAccount(ctx context.Context, ref, field string) (finance
 		return finance.Account{}, err
 	}
 	if len(accounts) == 0 {
-		return finance.Account{}, errors.New("there are no active accounts; create one in the Finance Wingman web app first")
+		return finance.Account{}, errors.New("there are no active accounts; ask the user for the account details and create one with create_account first")
 	}
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
@@ -489,9 +553,9 @@ func (s *Server) resolveCategory(ctx context.Context, ref, kind string) (finance
 		label = kind + " category"
 	}
 	if len(names) == 0 {
-		return finance.Category{}, fmt.Errorf("no %s named %q exists and there are none yet; omit the category or create it in the web app", label, ref)
+		return finance.Category{}, fmt.Errorf("no %s named %q exists and there are none yet; omit the category or, if the user wants it, create it with create_category", label, ref)
 	}
-	return finance.Category{}, fmt.Errorf("no %s named %q; use one of: %s (or omit the category)", label, ref, strings.Join(names, ", "))
+	return finance.Category{}, fmt.Errorf("no %s named %q; use one of: %s (or omit the category, or create it with create_category if the user wants a new one)", label, ref, strings.Join(names, ", "))
 }
 
 func accountNames(accounts []finance.Account) string {
@@ -502,10 +566,30 @@ func accountNames(accounts []finance.Account) string {
 	return strings.Join(names, ", ")
 }
 
+// findCurrency looks up a supported currency by its ISO 4217 code.
+func (s *Server) findCurrency(ctx context.Context, code string) (finance.Currency, error) {
+	currencies, err := s.finance.ListCurrencies(ctx)
+	if err != nil {
+		return finance.Currency{}, err
+	}
+	code = strings.ToUpper(strings.TrimSpace(code))
+	for _, c := range currencies {
+		if c.Code == code {
+			return c, nil
+		}
+	}
+	return finance.Currency{}, fmt.Errorf("unsupported currency %q; use an ISO 4217 code such as MXN, USD or EUR", code)
+}
+
 func toMinor(amount float64, minorUnits int, currency, field string) (int64, error) {
 	if amount <= 0 {
 		return 0, fmt.Errorf("%s must be greater than zero", field)
 	}
+	return decimalToMinor(amount, minorUnits, currency, field)
+}
+
+// decimalToMinor converts a signed decimal amount into minor units.
+func decimalToMinor(amount float64, minorUnits int, currency, field string) (int64, error) {
 	v, err := money.FromFloat(amount, minorUnits)
 	if errors.Is(err, money.ErrTooPrecise) {
 		return 0, fmt.Errorf("%s has too many decimals for %s (max %d)", field, currency, minorUnits)
@@ -541,6 +625,14 @@ func periodRange(today time.Time, period string) (string, string, error) {
 	default:
 		return "", "", fmt.Errorf("unknown period %q; use this_month, last_month, this_year or last_30_days", period)
 	}
+}
+
+func accountToOut(a finance.Account) accountOut {
+	return accountOut{ID: a.ID.String(), Name: a.Name, Type: a.Type, Currency: a.Currency, Balance: money.Format(a.Balance, a.MinorUnits)}
+}
+
+func categoryToOut(c finance.Category) categoryOut {
+	return categoryOut{ID: c.ID.String(), Name: c.Name, Kind: c.Kind}
 }
 
 func transactionToOut(tx finance.Transaction) transactionOut {
