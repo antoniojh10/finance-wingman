@@ -2,6 +2,8 @@ SHELL := /bin/bash
 API_DIR := apps/api
 
 -include .env
+# Worktrees override it in their own .env to run next to the main checkout.
+WEB_PORT ?= 3000
 export
 
 .PHONY: up down logs psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new
@@ -59,7 +61,7 @@ web-install:
 
 # The root .env (exported above) sets PORT for the API, so pin the web port.
 web-dev:
-	cd apps/web && pnpm dev --port 3000
+	cd apps/web && pnpm dev --port $(WEB_PORT)
 
 web-test:
 	cd apps/web && pnpm test
