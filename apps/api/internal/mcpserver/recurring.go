@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
@@ -72,6 +73,53 @@ type recurringOut struct {
 	TotalPayments int    `json:"total_payments,omitempty"`
 	LastDue       string `json:"last_due,omitempty"`
 	Notes         string `json:"notes,omitempty"`
+	// CurrentPeriod is the due date the item is in now and whether it is
+	// paid, pending or overdue (active items only).
+	CurrentPeriod *periodOut  `json:"current_period,omitempty"`
+	LastPayment   *paymentOut `json:"last_payment,omitempty"`
+}
+
+type periodOut struct {
+	DueOn  string `json:"due_on"`
+	Status string `json:"status"`
+}
+
+type paymentOut struct {
+	TransactionID string `json:"transaction_id"`
+	Date          string `json:"date"`
+	Amount        string `json:"amount"`
+	DueOn         string `json:"due_on"`
+}
+
+type upcomingRecurringArgs struct {
+	Days int `json:"days,omitempty" jsonschema:"Look this many days ahead, today included (1-366, default 30). Overdue unpaid items are always included"`
+}
+
+type upcomingOut struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	DueOn    string `json:"due_on"`
+	Status   string `json:"status"`
+	Amount   string `json:"amount"`
+	Currency string `json:"currency"`
+	Account  string `json:"account"`
+}
+
+type upcomingRecurringOut struct {
+	Items []upcomingOut `json:"items"`
+}
+
+type markRecurringPaidArgs struct {
+	Recurring string   `json:"recurring" jsonschema:"Name or ID of the recurring item that was paid (see list_recurring)"`
+	Amount    *float64 `json:"amount,omitempty" jsonschema:"Amount actually paid in the account currency. Defaults to the item's estimated amount, which is not changed"`
+	Date      string   `json:"date,omitempty" jsonschema:"Date of the payment, YYYY-MM-DD. Defaults to today"`
+	Period    string   `json:"period,omitempty" jsonschema:"Due date being paid, YYYY-MM-DD; must be one of the item's due dates (see list_upcoming_recurring). Omit it to pay the period closest to date. Pass it explicitly to pay in advance or to record a second payment for an already paid period"`
+}
+
+type markRecurringPaidOut struct {
+	Transaction transactionOut `json:"transaction"`
+	Recurring   string         `json:"recurring"`
+	Period      string         `json:"period"`
 }
 
 type committedOut struct {
@@ -96,6 +144,24 @@ func (s *Server) registerRecurringTools() {
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args listRecurringArgs) (*mcp.CallToolResult, listRecurringOut, error) {
 		return s.listRecurring(ctx, args)
+	})
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "list_upcoming_recurring",
+		Title:       "List upcoming recurring payments",
+		Description: "List what is due in the next days (default 30, today included) plus overdue unpaid items, ordered by due date, with status paid, pending or overdue. Use it for 'what is due this week?' or 'what is still pending this month?' (pending and overdue are unpaid).",
+		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args upcomingRecurringArgs) (*mcp.CallToolResult, upcomingRecurringOut, error) {
+		return s.listUpcomingRecurring(ctx, args)
+	})
+
+	mcp.AddTool(s.mcp, &mcp.Tool{
+		Name:        "mark_recurring_paid",
+		Title:       "Mark recurring item as paid",
+		Description: "Record that a recurring item (subscription, bill, installment, salary) was paid or received: creates the linked expense or income transaction using the item's account, category and name, and marks the period paid. Use it instead of add_expense or add_income when the user paid something that matches a recurring item. Optional amount, date and period overrides. If the period is already paid it fails and explains how to proceed; ask the user before retrying with an explicit period.",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
+	}, func(ctx context.Context, req *mcp.CallToolRequest, args markRecurringPaidArgs) (*mcp.CallToolResult, markRecurringPaidOut, error) {
+		return s.markRecurringPaid(actorContext(ctx, req), args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -161,6 +227,12 @@ func (s *Server) listRecurring(ctx context.Context, args listRecurringArgs) (*mc
 		if it.NextDue != "" {
 			line += ", next due " + it.NextDue
 		}
+		if it.CurrentPeriod != nil {
+			line += fmt.Sprintf("; current period %s is %s", it.CurrentPeriod.DueOn, it.CurrentPeriod.Status)
+		}
+		if it.LastPayment != nil {
+			line += fmt.Sprintf("; last payment %s %s on %s for period %s", it.LastPayment.Amount, it.Currency, it.LastPayment.Date, it.LastPayment.DueOn)
+		}
 		lines = append(lines, line)
 	}
 	for _, c := range summary.Currencies {
@@ -185,6 +257,74 @@ func (s *Server) listRecurring(ctx context.Context, args listRecurringArgs) (*mc
 		body += "\nCommitted monthly cost (active items, estimates): " + strings.Join(summaryLines, "; ")
 	}
 	return text(body), out, nil
+}
+
+func (s *Server) listUpcomingRecurring(ctx context.Context, args upcomingRecurringArgs) (*mcp.CallToolResult, upcomingRecurringOut, error) {
+	days := args.Days
+	if days == 0 {
+		days = 30
+	}
+	if days < 1 || days > 366 {
+		return nil, upcomingRecurringOut{}, errors.New("days must be between 1 and 366")
+	}
+	items, err := s.finance.UpcomingRecurring(ctx, days)
+	if err != nil {
+		return nil, upcomingRecurringOut{}, friendly(err)
+	}
+	out := upcomingRecurringOut{Items: make([]upcomingOut, len(items))}
+	lines := make([]string, len(items))
+	for i, u := range items {
+		it := u.Item
+		out.Items[i] = upcomingOut{
+			Name: it.Name, Type: it.Type, DueOn: u.DueOn, Status: u.Status,
+			Amount: money.Format(it.Amount, it.MinorUnits), Currency: it.Currency, Account: it.AccountName,
+		}
+		o := out.Items[i]
+		lines[i] = fmt.Sprintf("- %s %s: %s (%s) ~%s %s in %s", o.DueOn, o.Status, o.Name, o.Type, o.Amount, o.Currency, o.Account)
+	}
+	if len(lines) == 0 {
+		return text(fmt.Sprintf("Nothing is due in the next %d days.", days)), out, nil
+	}
+	return text(fmt.Sprintf("Due in the next %d days (and overdue):\n%s\nAmounts are estimates.", days, strings.Join(lines, "\n"))), out, nil
+}
+
+func (s *Server) markRecurringPaid(ctx context.Context, args markRecurringPaidArgs) (*mcp.CallToolResult, markRecurringPaidOut, error) {
+	item, err := s.resolveRecurring(ctx, args.Recurring)
+	if err != nil {
+		return nil, markRecurringPaidOut{}, err
+	}
+	in := finance.RecurringPaymentInput{Period: strings.TrimSpace(args.Period), Date: strings.TrimSpace(args.Date)}
+	if args.Amount != nil {
+		v, err := toMinor(*args.Amount, item.MinorUnits, item.Currency, "amount")
+		if err != nil {
+			return nil, markRecurringPaidOut{}, err
+		}
+		in.Amount = &v
+	}
+	// An explicit period is always honoured (advance or second payments);
+	// otherwise refuse to pay a period that is already paid.
+	var opts []finance.PaymentOption
+	if in.Period == "" {
+		opts = append(opts, finance.RejectIfPaid())
+	}
+	tx, err := s.finance.RegisterRecurringPayment(ctx, item.ID, in, opts...)
+	var paid *finance.PeriodPaidError
+	if errors.As(err, &paid) {
+		advance := "there are no further due dates to pay in advance"
+		if paid.NextDueOn != "" {
+			advance = "pass period=" + paid.NextDueOn + " to pay the next period in advance"
+		}
+		return nil, markRecurringPaidOut{}, fmt.Errorf("%s is already paid for %s. Ask the user what they want: %s, or pass period=%s explicitly to record a second charge for that same period", item.Name, paid.DueOn, advance, paid.DueOn)
+	}
+	if err != nil {
+		return nil, markRecurringPaidOut{}, friendly(err)
+	}
+	t := transactionToOut(tx)
+	t.RecurringName = item.Name
+	period := t.RecurringDueOn
+	return text(fmt.Sprintf("Marked %s as paid for %s: recorded %s of %s %s in %s on %s (id %s).",
+			item.Name, period, t.Type, t.Amount, t.Currency, t.Account, t.Date, t.ID)),
+		markRecurringPaidOut{Transaction: t, Recurring: item.Name, Period: period}, nil
 }
 
 func (s *Server) createRecurring(ctx context.Context, args createRecurringArgs) (*mcp.CallToolResult, recurringOut, error) {
@@ -340,6 +480,19 @@ func (s *Server) resolveRecurring(ctx context.Context, ref string) (finance.Recu
 	return finance.RecurringItem{}, fmt.Errorf("no recurring item matches %q; available items: %s", ref, recurringLabels(items, false))
 }
 
+// recurringNames maps every recurring item ID (cancelled included) to its name.
+func (s *Server) recurringNames(ctx context.Context) (map[uuid.UUID]string, error) {
+	items, err := s.finance.ListRecurringItems(ctx, finance.RecurringFilter{})
+	if err != nil {
+		return nil, friendly(err)
+	}
+	names := make(map[uuid.UUID]string, len(items))
+	for _, it := range items {
+		names[it.ID] = it.Name
+	}
+	return names, nil
+}
+
 func recurringLabels(items []finance.RecurringItem, withID bool) string {
 	labels := make([]string, len(items))
 	for i, it := range items {
@@ -377,6 +530,17 @@ func recurringToOut(it finance.RecurringItem) recurringOut {
 	}
 	if it.LastDueOn != nil {
 		out.LastDue = *it.LastDueOn
+	}
+	if it.CurrentPeriod != nil {
+		out.CurrentPeriod = &periodOut{DueOn: it.CurrentPeriod.DueOn, Status: it.CurrentPeriod.Status}
+	}
+	if it.LastPayment != nil {
+		out.LastPayment = &paymentOut{
+			TransactionID: it.LastPayment.TransactionID.String(),
+			Date:          it.LastPayment.Date,
+			Amount:        money.Format(it.LastPayment.Amount, it.MinorUnits),
+			DueOn:         it.LastPayment.DueOn,
+		}
 	}
 	return out
 }
