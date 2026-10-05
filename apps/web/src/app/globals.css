@@ -167,3 +167,13 @@
     @apply font-heading;
   }
 }
+/*
+ * Toasts sit at the bottom. Below md the fixed tab bar (and the add button
+ * that rises above it) lives there, so lift them clear of it; at the top
+ * they covered the header links.
+ */
+@media (max-width: 767px) {
+  [data-sonner-toaster][data-y-position="bottom"] {
+    bottom: calc(7rem + env(safe-area-inset-bottom)) !important;
+  }
+}

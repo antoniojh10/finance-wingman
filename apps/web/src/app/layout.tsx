@@ -35,7 +35,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <NextIntlClientProvider>
             <ThemeColorSync />
             {children}
-            <Toaster position="top-center" richColors />
+            <Toaster position="bottom-center" richColors />
           </NextIntlClientProvider>
         </ThemeProvider>
       </body>
