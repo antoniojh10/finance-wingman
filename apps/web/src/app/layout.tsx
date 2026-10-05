@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 import { ThemeProvider } from "next-themes";
 
+import { ThemeColorSync } from "@/components/theme-color-sync";
 import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
@@ -32,6 +33,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body className={`${display.variable} ${body.variable} ${code.variable} min-h-dvh bg-background font-sans text-foreground antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <NextIntlClientProvider>
+            <ThemeColorSync />
             {children}
             <Toaster position="top-center" richColors />
           </NextIntlClientProvider>

@@ -6,6 +6,7 @@ import { logout } from "@/app/actions/auth";
 import { Avatar } from "@/components/brand";
 import { CopyButton } from "@/components/copy-button";
 import { PageHeader } from "@/components/page-header";
+import { ThemePicker } from "@/components/theme-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiBaseUrl } from "@/lib/api/client";
@@ -78,6 +79,18 @@ export default async function SettingsPage() {
             </ol>
             <p className="text-[13px] leading-relaxed text-hero-muted">{t("settings.assistantsHint")}</p>
           </section>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                <h2>{t("settings.appearance")}</h2>
+              </CardTitle>
+              <CardDescription>{t("settings.appearanceDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ThemePicker />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

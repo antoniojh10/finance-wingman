@@ -189,6 +189,14 @@
     "chatgptTitle": "ChatGPT",
     "chatgptSteps": "En ChatGPT, activa el modo desarrollador en Ajustes → Apps y conectores → Avanzado, crea un conector con la URL e inicia sesión con tu correo.",
     "assistantsHint": "Una vez conectado en la web, el conector también está disponible en las apps móviles.",
+    "appearance": "Apariencia",
+    "appearanceDescription": "Elige cómo se ve Finance Wingman en este dispositivo.",
+    "theme": "Tema",
+    "themes": {
+      "system": "Sistema",
+      "light": "Claro",
+      "dark": "Oscuro"
+    },
     "session": "Sesión",
     "signOutDescription": "Cierra la sesión de Finance Wingman en este dispositivo."
   },
