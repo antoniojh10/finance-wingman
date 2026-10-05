@@ -6,7 +6,7 @@ API_DIR := apps/api
 WEB_PORT ?= 3000
 export
 
-.PHONY: up down logs psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new
+.PHONY: up down logs psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new tunnel tunnel-down
 
 ## Infrastructure
 up: ## Start Postgres and Mailpit
@@ -14,6 +14,14 @@ up: ## Start Postgres and Mailpit
 
 down: ## Stop local services
 	docker compose down
+
+## Tunnel (Tailscale Funnel): exposes the API so Claude.ai/ChatGPT can reach
+## the MCP server. Set PUBLIC_URL in .env to the printed https URL.
+tunnel: ## Expose the API port publicly over HTTPS
+	tailscale funnel --bg $(PORT)
+
+tunnel-down: ## Stop exposing the API
+	tailscale funnel reset
 
 logs:
 	docker compose logs -f
