@@ -141,6 +141,25 @@ func TestAcceptRecurringSuggestionOverrides(t *testing.T) {
 	if item.Name != "Netflix Premium" || item.Amount != 25000 {
 		t.Fatalf("overrides not applied: %+v", item)
 	}
+
+	// The category override is applied in the same transaction; a category
+	// of the wrong kind rolls the accept back.
+	api.seedMonthly(account, "Spotify", nil, 9900, 9900, 9900)
+	var spotify string
+	for _, sg := range api.suggestions() {
+		if sg.Name == "Spotify" {
+			spotify = sg.Key
+		}
+	}
+	salary := api.createCategory("Salary", "income")
+	api.do(http.MethodPost, "/api/v1/recurring/suggestions/accept", map[string]any{"key": spotify, "category_id": salary.ID}).
+		expect(http.StatusUnprocessableEntity)
+	music := api.createCategory("Music", "expense")
+	api.do(http.MethodPost, "/api/v1/recurring/suggestions/accept", map[string]any{"key": spotify, "category_id": music.ID}).
+		expect(http.StatusCreated).decode(&item)
+	if item.CategoryID == nil || *item.CategoryID != music.ID {
+		t.Fatalf("category override not applied: %+v", item)
+	}
 }
 
 func TestAcceptRecurringSuggestionErrors(t *testing.T) {
