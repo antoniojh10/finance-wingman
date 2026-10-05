@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,11 +23,12 @@ function renderForm(account?: EditableAccount) {
       account={account}
       currencies={currencies}
       defaultCurrency="MXN"
+      defaultDate="2026-10-05"
       onSaved={onSaved}
       onCancel={vi.fn()}
     />,
   );
-  return { onSaved, user: userEvent.setup(), rerender: (next: EditableAccount) => view.rerender(<AccountForm account={next} currencies={currencies} defaultCurrency="MXN" onSaved={onSaved} onCancel={vi.fn()} />) };
+  return { onSaved, user: userEvent.setup(), rerender: (next: EditableAccount) => view.rerender(<AccountForm account={next} currencies={currencies} defaultCurrency="MXN" defaultDate="2026-10-05" onSaved={onSaved} onCancel={vi.fn()} />) };
 }
 
 function submittedData(): Record<string, string> {
@@ -42,6 +43,7 @@ const account: EditableAccount = {
   currency: "MXN",
   minor_units: 2,
   initial_balance: 100000,
+  balance_as_of: "2026-09-01",
 };
 
 beforeEach(() => saveAccount.mockReset());
@@ -61,7 +63,21 @@ describe("AccountForm", () => {
       type: "checking",
       currency: "MXN",
       initial_balance: "500.00",
+      balance_as_of: "2026-10-05",
     });
+  });
+
+  it("lets the user pick another balance date for a new account", async () => {
+    saveAccount.mockResolvedValue({ ok: true, nonce: 1 });
+    const { onSaved, user } = renderForm();
+    expect(screen.getByLabelText("Balance as of")).toHaveValue("2026-10-05");
+
+    await user.type(screen.getByLabelText("Name"), "Checking");
+    fireEvent.change(screen.getByLabelText("Balance as of"), { target: { value: "2026-08-31" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(submittedData().balance_as_of).toBe("2026-08-31");
   });
 
   it("prefills an existing account", () => {
@@ -70,6 +86,7 @@ describe("AccountForm", () => {
     expect(screen.getByLabelText("Type")).toHaveValue("checking");
     expect(screen.getByLabelText("Currency")).toHaveValue("MXN");
     expect(screen.getByLabelText("Opening balance")).toHaveValue("1000.00");
+    expect(screen.getByLabelText("Balance as of")).toHaveValue("2026-09-01");
     expect(screen.getByDisplayValue("a1")).toHaveAttribute("name", "id");
   });
 
