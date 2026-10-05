@@ -19,6 +19,21 @@ describe("NativeSelect", () => {
     expect(screen.getAllByRole("option")).toHaveLength(2);
   });
 
+  // Native option lists can't render a translucent select background, so
+  // options need opaque theme colors to stay readable in dark mode.
+  it("gives options opaque theme colors", () => {
+    renderWithIntl(
+      <NativeSelect aria-label="Account">
+        <option value="1">Option 1</option>
+      </NativeSelect>,
+    );
+
+    expect(screen.getByRole("combobox", { name: "Account" })).toHaveClass(
+      "[&_option]:bg-popover",
+      "[&_option]:text-popover-foreground",
+    );
+  });
+
   it("merges a custom className", () => {
     renderWithIntl(
       <NativeSelect aria-label="Account" className="custom-class">
