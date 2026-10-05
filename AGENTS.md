@@ -6,6 +6,25 @@ These rules apply to every agent (and human) contributing to this repository.
 - All code must be written in English: identifiers, comments, commit messages, docs inside the code, test names, and API fields.
 - User-facing UI copy may be localized; keep it out of identifiers.
 
+## Commits
+Commit messages follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/):
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+- **Types:** `feat` (new feature), `fix` (bug fix), `refactor` (no behavior change), `perf`, `test`, `docs`, `style` (formatting only), `build` (dependencies, Docker, tooling), `ci`, `chore` (anything else that doesn't touch app behavior), `revert`.
+- **Scopes** (optional, use the area changed): `api`, `web`, `mcp`, `oauth`, `auth`, `db`, `i18n`, `infra`, `deps`. Omit the scope when a change spans several areas.
+- **Description:** imperative mood, lowercase, no trailing period, at most 72 characters for the whole header (e.g. `feat(mcp): add update_transaction tool`).
+- **Body:** explain *why* when it isn't obvious; wrap at 72 characters.
+- **Breaking changes:** add `!` after the type/scope (`feat(api)!: rename amount to amount_minor`) and a `BREAKING CHANGE: <details>` footer. Use this for incompatible REST/MCP contract or schema changes.
+- One logical change per commit; don't mix unrelated `feat` and `fix` work.
+- Keep tests in the same commit as the change they cover (use `test` only for test-only changes).
+
 ## Testing
 - Every backend endpoint (REST and MCP tools) must have tests covering success and main error paths.
 - The frontend must have tests for components, pages, and data-fetching logic.
