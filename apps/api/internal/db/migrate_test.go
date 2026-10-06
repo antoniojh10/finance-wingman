@@ -184,6 +184,17 @@ func TestAccountConstraints(t *testing.T) {
 	}
 }
 
+func TestAccountBalanceAsOfDefaultsToToday(t *testing.T) {
+	t.Parallel()
+	f := newSchemaFixture(t)
+
+	var isToday bool
+	mustScan(t, f.pool, &isToday, `SELECT balance_as_of = CURRENT_DATE FROM accounts WHERE id = $1`, f.mxn)
+	if !isToday {
+		t.Fatal("expected balance_as_of to default to the current date")
+	}
+}
+
 func TestCategoryConstraints(t *testing.T) {
 	t.Parallel()
 	f := newSchemaFixture(t)
