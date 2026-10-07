@@ -33,15 +33,24 @@ The API also accepts `PPROF_ADDR` (e.g. `localhost:6060`) to serve
 `net/http/pprof` on a separate listener. Never point it at the public port;
 on Railway or Seenode a second port is only reachable on the private network.
 
-## Local trace viewer
+## Local Grafana
 
 ```bash
-make jaeger      # Jaeger UI at http://localhost:16686, OTLP on :4318
+make grafana     # Grafana at http://localhost:3300, OTLP/HTTP on :4318
 ```
+
+`make grafana` runs [`grafana/otel-lgtm`](https://github.com/grafana/docker-otel-lgtm):
+an OpenTelemetry Collector plus Tempo (traces), Loki (logs), Mimir/Prometheus
+(metrics) and Grafana in one container, the same backends as Grafana Cloud.
+Local development sends here; Grafana Cloud only receives production data.
 
 Set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in `.env` and
 `apps/web/.env.local`, restart `make api-run` and `make web-dev`, and load a
-page.
+page. In Grafana (no login), open **Explore** or **Drilldown** and pick the
+Tempo, Loki or Prometheus data source. Data is kept in the `grafana-data`
+volume; `make down` stops the container (the volume survives). Worktrees
+share it: run `make grafana` from the main checkout. Override the ports with
+`GRAFANA_UI_PORT` and `OTLP_HTTP_PORT` in `.env`.
 
 ## Grafana Cloud (free tier)
 
