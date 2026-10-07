@@ -43,6 +43,3 @@ Requires Docker, curl, awk and GNU `date` (Linux or WSL).
 | Web ready after start | 1.3 s | 2.9 s |
 | Database size (500 transactions) | 8.7 MiB | 8.7 MiB |
 | Railway estimate | ~$1.50 usage → $5 plan minimum | same |
-
-Everything fits in the smallest tiers; on Railway the usage stays inside the
-$5 included in Hobby.
