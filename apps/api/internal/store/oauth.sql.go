@@ -56,7 +56,7 @@ func (q *Queries) CreateAuthorizationCode(ctx context.Context, arg CreateAuthori
 const createAuthorizationRequest = `-- name: CreateAuthorizationRequest :one
 INSERT INTO oauth_authorization_requests (client_id, redirect_uri, code_challenge, state, scope, resource, expires_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, client_id, redirect_uri, code_challenge, state, scope, resource, email, expires_at, created_at
+RETURNING id, client_id, redirect_uri, code_challenge, state, scope, resource, email, user_id, expires_at, created_at
 `
 
 type CreateAuthorizationRequestParams struct {
@@ -89,6 +89,7 @@ func (q *Queries) CreateAuthorizationRequest(ctx context.Context, arg CreateAuth
 		&i.Scope,
 		&i.Resource,
 		&i.Email,
+		&i.UserID,
 		&i.ExpiresAt,
 		&i.CreatedAt,
 	)
@@ -243,7 +244,7 @@ func (q *Queries) GetAuthorizationCode(ctx context.Context, codeHash []byte) (Oa
 }
 
 const getAuthorizationRequest = `-- name: GetAuthorizationRequest :one
-SELECT r.id, r.client_id, r.redirect_uri, r.code_challenge, r.state, r.scope, r.resource, r.email, r.expires_at, r.created_at, c.name AS client_name
+SELECT r.id, r.client_id, r.redirect_uri, r.code_challenge, r.state, r.scope, r.resource, r.email, r.user_id, r.expires_at, r.created_at, c.name AS client_name
 FROM oauth_authorization_requests r
 JOIN oauth_clients c ON c.id = r.client_id
 WHERE r.id = $1
@@ -258,6 +259,7 @@ type GetAuthorizationRequestRow struct {
 	Scope         string
 	Resource      string
 	Email         *string
+	UserID        *uuid.UUID
 	ExpiresAt     time.Time
 	CreatedAt     time.Time
 	ClientName    string
@@ -275,6 +277,7 @@ func (q *Queries) GetAuthorizationRequest(ctx context.Context, id uuid.UUID) (Ge
 		&i.Scope,
 		&i.Resource,
 		&i.Email,
+		&i.UserID,
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.ClientName,
@@ -377,6 +380,20 @@ type SetAuthorizationRequestEmailParams struct {
 
 func (q *Queries) SetAuthorizationRequestEmail(ctx context.Context, arg SetAuthorizationRequestEmailParams) error {
 	_, err := q.db.Exec(ctx, setAuthorizationRequestEmail, arg.ID, arg.Email)
+	return err
+}
+
+const setAuthorizationRequestUser = `-- name: SetAuthorizationRequestUser :exec
+UPDATE oauth_authorization_requests SET user_id = $2 WHERE id = $1
+`
+
+type SetAuthorizationRequestUserParams struct {
+	ID     uuid.UUID
+	UserID *uuid.UUID
+}
+
+func (q *Queries) SetAuthorizationRequestUser(ctx context.Context, arg SetAuthorizationRequestUserParams) error {
+	_, err := q.db.Exec(ctx, setAuthorizationRequestUser, arg.ID, arg.UserID)
 	return err
 }
 

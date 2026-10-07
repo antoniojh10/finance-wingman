@@ -328,6 +328,9 @@ CREATE TABLE oauth_authorization_requests (
     scope          text NOT NULL DEFAULT '',
     resource       text NOT NULL DEFAULT '',
     email          citext,
+    -- Set once the user has entered the emailed code, while they pick the
+    -- workspace the client will act on.
+    user_id        uuid REFERENCES users (id) ON DELETE CASCADE,
     expires_at     timestamptz NOT NULL,
     created_at     timestamptz NOT NULL DEFAULT now()
 );

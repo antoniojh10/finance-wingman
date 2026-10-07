@@ -76,6 +76,7 @@ type OauthAuthorizationRequest struct {
 	Scope         string
 	Resource      string
 	Email         *string
+	UserID        *uuid.UUID
 	ExpiresAt     time.Time
 	CreatedAt     time.Time
 }

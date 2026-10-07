@@ -156,21 +156,54 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 			s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 			return
 		}
-		var workspaceID *uuid.UUID
-		if id, err := s.q.GetDefaultWorkspaceID(r.Context(), user.ID); err == nil {
-			workspaceID = &id
-		} else if !errors.Is(err, pgx.ErrNoRows) {
-			s.logger.ErrorContext(r.Context(), "oauth: get default workspace", "error", err)
-			s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
-			return
-		}
-		code, err := s.issueAuthorizationCode(r, req, user.ID, workspaceID)
+		workspaces, err := s.q.ListUserWorkspaces(r.Context(), user.ID)
 		if err != nil {
-			s.logger.ErrorContext(r.Context(), "oauth: issue authorization code", "error", err)
+			s.logger.ErrorContext(r.Context(), "oauth: list workspaces", "error", err)
 			s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 			return
 		}
-		http.Redirect(w, r, s.successRedirect(req.RedirectUri, req.State, code), http.StatusFound)
+		switch len(workspaces) {
+		case 0:
+			s.renderError(w, r, locale, http.StatusForbidden, msgNoWorkspace)
+		case 1:
+			s.approve(w, r, locale, req, user.ID, workspaces[0].ID)
+		default:
+			// The client acts on a single workspace: let the user pick it.
+			if err := s.q.SetAuthorizationRequestUser(r.Context(), store.SetAuthorizationRequestUserParams{ID: req.ID, UserID: &user.ID}); err != nil {
+				s.logger.ErrorContext(r.Context(), "oauth: set request user", "error", err)
+				s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
+				return
+			}
+			selected := uuid.Nil
+			if id, err := s.q.GetDefaultWorkspaceID(r.Context(), user.ID); err == nil {
+				selected = id
+			}
+			page.Step, page.Workspaces = stepWorkspace, workspaceOptions(workspaces, selected)
+			s.renderPage(w, r, http.StatusOK, page)
+		}
+
+	case "choose_workspace":
+		if req.UserID == nil {
+			page.Step = stepEmail
+			s.renderPage(w, r, http.StatusBadRequest, page)
+			return
+		}
+		workspaceID, err := uuid.Parse(r.PostForm.Get("workspace_id"))
+		if err == nil {
+			_, err = s.q.GetMemberRole(r.Context(), store.GetMemberRoleParams{WorkspaceID: workspaceID, UserID: *req.UserID})
+		}
+		if err != nil {
+			workspaces, listErr := s.q.ListUserWorkspaces(r.Context(), *req.UserID)
+			if listErr != nil {
+				s.logger.ErrorContext(r.Context(), "oauth: list workspaces", "error", listErr)
+				s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
+				return
+			}
+			page.Step, page.Workspaces, page.Error = stepWorkspace, workspaceOptions(workspaces, uuid.Nil), msgChooseWorkspace
+			s.renderPage(w, r, http.StatusUnprocessableEntity, page)
+			return
+		}
+		s.approve(w, r, locale, req, *req.UserID, workspaceID)
 
 	case "change_email":
 		page.Step = stepEmail
@@ -185,6 +218,26 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 	default:
 		s.renderError(w, r, locale, http.StatusBadRequest, msgExpired)
 	}
+}
+
+// approve issues the authorization code for the chosen workspace and sends
+// the user back to the client.
+func (s *Server) approve(w http.ResponseWriter, r *http.Request, locale string, req store.GetAuthorizationRequestRow, userID, workspaceID uuid.UUID) {
+	code, err := s.issueAuthorizationCode(r, req, userID, &workspaceID)
+	if err != nil {
+		s.logger.ErrorContext(r.Context(), "oauth: issue authorization code", "error", err)
+		s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
+		return
+	}
+	http.Redirect(w, r, s.successRedirect(req.RedirectUri, req.State, code), http.StatusFound)
+}
+
+func workspaceOptions(rows []store.ListUserWorkspacesRow, selected uuid.UUID) []workspaceOption {
+	options := make([]workspaceOption, len(rows))
+	for i, row := range rows {
+		options[i] = workspaceOption{ID: row.ID.String(), Name: row.Name, Selected: row.ID == selected}
+	}
+	return options
 }
 
 func (s *Server) issueAuthorizationCode(r *http.Request, req store.GetAuthorizationRequestRow, userID uuid.UUID, workspaceID *uuid.UUID) (string, error) {

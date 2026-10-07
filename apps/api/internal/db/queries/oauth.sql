@@ -23,6 +23,9 @@ WHERE r.id = $1;
 -- name: SetAuthorizationRequestEmail :exec
 UPDATE oauth_authorization_requests SET email = $2 WHERE id = $1;
 
+-- name: SetAuthorizationRequestUser :exec
+UPDATE oauth_authorization_requests SET user_id = $2 WHERE id = $1;
+
 -- name: DeleteAuthorizationRequest :exec
 DELETE FROM oauth_authorization_requests WHERE id = $1;
 
