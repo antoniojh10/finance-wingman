@@ -134,7 +134,7 @@ func (s *Service) requestLogin(ctx context.Context, rawEmail, locale, oauthClien
 	}
 	user, err := s.q.GetUserByEmail(ctx, email)
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.logger.Info("login requested for unknown email")
+		s.logger.InfoContext(ctx, "login requested for unknown email")
 		return nil
 	}
 	if err != nil {
@@ -147,7 +147,7 @@ func (s *Service) requestLogin(ctx context.Context, rawEmail, locale, oauthClien
 		return err
 	}
 	if recent >= int64(s.cfg.MaxChallengesPerHour) {
-		s.logger.Warn("login rate limit reached", "user_id", user.ID)
+		s.logger.WarnContext(ctx, "login rate limit reached", "user_id", user.ID)
 		return nil
 	}
 
@@ -347,7 +347,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 	// Avoid a write on every request; hourly precision is enough.
 	if now.Sub(row.LastUsedAt) > time.Hour {
 		if err := s.q.TouchSession(ctx, row.ID); err != nil {
-			s.logger.Warn("touch session", "error", err)
+			s.logger.WarnContext(ctx, "touch session", "error", err)
 		}
 	}
 	return Session{

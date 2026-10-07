@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 
@@ -12,7 +13,7 @@ import (
 
 // toHTTPError converts domain errors into Huma errors with the right status.
 // Unexpected errors are logged and hidden behind a generic 500.
-func toHTTPError(logger *slog.Logger, err error) error {
+func toHTTPError(ctx context.Context, logger *slog.Logger, err error) error {
 	var domainErr *finance.Error
 	if errors.As(err, &domainErr) {
 		switch domainErr.Kind {
@@ -27,7 +28,7 @@ func toHTTPError(logger *slog.Logger, err error) error {
 			return huma.Error409Conflict(domainErr.Message)
 		}
 	}
-	logger.Error("unexpected error", "error", err)
+	logger.ErrorContext(ctx, "unexpected error", "error", err)
 	return huma.Error500InternalServerError("internal server error")
 }
 

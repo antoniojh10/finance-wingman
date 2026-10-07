@@ -44,7 +44,7 @@ func authMiddleware(api huma.API, svc *auth.Service, logger *slog.Logger) func(h
 			return
 		}
 		if err != nil {
-			logger.Error("authenticate", "error", err)
+			logger.ErrorContext(ctx.Context(), "authenticate", "error", err)
 			_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, "internal server error")
 			return
 		}
@@ -109,7 +109,7 @@ func registerAuth(api huma.API, svc *auth.Service, logger *slog.Logger) {
 			return nil, huma.Error422UnprocessableEntity("invalid email address")
 		}
 		if err != nil {
-			logger.Error("request login", "error", err)
+			logger.ErrorContext(ctx, "request login", "error", err)
 			return nil, huma.Error500InternalServerError("could not send the sign-in email")
 		}
 		out := &loginOutput{}
@@ -143,7 +143,7 @@ func registerAuth(api huma.API, svc *auth.Service, logger *slog.Logger) {
 			return nil, huma.Error401Unauthorized(err.Error())
 		}
 		if err != nil {
-			logger.Error("verify login", "error", err)
+			logger.ErrorContext(ctx, "verify login", "error", err)
 			return nil, huma.Error500InternalServerError("internal server error")
 		}
 		return &bodyOutput[auth.Session]{Body: session}, nil
@@ -170,7 +170,7 @@ func registerAuth(api huma.API, svc *auth.Service, logger *slog.Logger) {
 		session, _ := sessionFrom(ctx)
 		user, err := svc.UpdateProfile(ctx, session.User.ID, in.Body)
 		if err != nil {
-			logger.Error("update profile", "error", err)
+			logger.ErrorContext(ctx, "update profile", "error", err)
 			return nil, huma.Error500InternalServerError("internal server error")
 		}
 		return &bodyOutput[auth.User]{Body: user}, nil
@@ -186,7 +186,7 @@ func registerAuth(api huma.API, svc *auth.Service, logger *slog.Logger) {
 	}, func(ctx context.Context, _ *struct{}) (*struct{}, error) {
 		session, _ := sessionFrom(ctx)
 		if err := svc.Logout(ctx, session.ID); err != nil {
-			logger.Error("logout", "error", err)
+			logger.ErrorContext(ctx, "logout", "error", err)
 			return nil, huma.Error500InternalServerError("internal server error")
 		}
 		return nil, nil

@@ -178,7 +178,7 @@ form.inline{margin:0}
 </body>
 </html>`))
 
-func (s *Server) renderPage(w http.ResponseWriter, status int, data pageData) {
+func (s *Server) renderPage(w http.ResponseWriter, r *http.Request, status int, data pageData) {
 	h := w.Header()
 	h.Set("Content-Type", "text/html; charset=utf-8")
 	h.Set("Cache-Control", "no-store")
@@ -187,12 +187,12 @@ func (s *Server) renderPage(w http.ResponseWriter, status int, data pageData) {
 	h.Set("Referrer-Policy", "no-referrer")
 	w.WriteHeader(status)
 	if err := pageTemplate.Execute(w, data); err != nil {
-		s.logger.Error("oauth: render page", "error", err)
+		s.logger.ErrorContext(r.Context(), "oauth: render page", "error", err)
 	}
 }
 
-func (s *Server) renderError(w http.ResponseWriter, locale string, status int, message string) {
-	s.renderPage(w, status, pageData{Locale: locale, Step: stepError, Error: message})
+func (s *Server) renderError(w http.ResponseWriter, r *http.Request, locale string, status int, message string) {
+	s.renderPage(w, r, status, pageData{Locale: locale, Step: stepError, Error: message})
 }
 
 func sprintf(format string, args ...any) string {
