@@ -108,6 +108,30 @@ func TestTelemetrySkipsHealthAndLabelsUnmatched(t *testing.T) {
 	}
 }
 
+// Search terms can reveal spending, so the query string must stay out of
+// spans and request logs (both are exported to the telemetry backend).
+func TestTelemetryOmitsQueryString(t *testing.T) {
+	h := newInstrumentedHandler(t)
+	const secret = "pharmacy-secret"
+	get(t, h.handler, "/api/v1/transactions?q="+secret+"&from=2026-01-01")
+
+	ended := h.spans.Ended()
+	if len(ended) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(ended))
+	}
+	if strings.Contains(ended[0].Name(), secret) {
+		t.Fatalf("span name contains the query: %q", ended[0].Name())
+	}
+	for _, a := range ended[0].Attributes() {
+		if strings.Contains(a.Value.Emit(), secret) {
+			t.Fatalf("span attribute %s contains the query: %q", a.Key, a.Value.Emit())
+		}
+	}
+	if strings.Contains(h.logs.String(), secret) {
+		t.Fatalf("request log contains the query: %s", h.logs)
+	}
+}
+
 func TestTelemetryContinuesIncomingTrace(t *testing.T) {
 	h := newInstrumentedHandler(t)
 	const parentTraceID = "4bf92f3577b34da6a3ce929d0e0e4736"
