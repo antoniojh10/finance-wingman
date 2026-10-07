@@ -111,3 +111,86 @@ func RenderLogin(e LoginEmail) (Message, error) {
 	}
 	return Message{To: e.To, Subject: subject, HTML: html.String(), Text: text.String()}, nil
 }
+
+type invitationCopy struct {
+	Subject, Greeting, Intro, IntroUnknown, Button, Expiry, Ignore string
+}
+
+var invitationCopies = map[string]invitationCopy{
+	"en": {
+		Subject:      "You're invited to %s on Finance Wingman",
+		Greeting:     "Hi",
+		Intro:        "%s invited you to the workspace %s on Finance Wingman, where you'll share its accounts and transactions.",
+		IntroUnknown: "You were invited to the workspace %s on Finance Wingman, where you'll share its accounts and transactions.",
+		Button:       "Accept invitation",
+		Expiry:       "The invitation expires in %d days and can be used once.",
+		Ignore:       "If you weren't expecting this invitation, you can ignore this email.",
+	},
+	"es": {
+		Subject:      "Te invitaron a %s en Finance Wingman",
+		Greeting:     "Hola",
+		Intro:        "%s te invitó al espacio %s en Finance Wingman, donde compartirán sus cuentas y transacciones.",
+		IntroUnknown: "Te invitaron al espacio %s en Finance Wingman, donde compartirán sus cuentas y transacciones.",
+		Button:       "Aceptar invitación",
+		Expiry:       "La invitación expira en %d días y solo puede usarse una vez.",
+		Ignore:       "Si no esperabas esta invitación, puedes ignorar este correo.",
+	},
+}
+
+type InvitationEmail struct {
+	To            string
+	Locale        string
+	WorkspaceName string
+	InviterName   string // empty when unknown
+	Link          string
+	TTLDays       int
+}
+
+var invitationHTML = template.Must(template.New("invitation").Parse(`<!doctype html>
+<html><body style="margin:0;padding:24px;background:#f4f4f5;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#18181b">
+<table role="presentation" width="100%" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px">
+<tr><td>
+<p style="font-size:16px;margin:0 0 16px">{{.Copy.Greeting}},</p>
+<p style="font-size:16px;margin:0 0 24px">{{.Intro}}</p>
+<p style="margin:0 0 24px"><a href="{{.Link}}" style="display:inline-block;background:#18181b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">{{.Copy.Button}}</a></p>
+<p style="font-size:13px;margin:0 0 8px;color:#71717a">{{.Expiry}}</p>
+<p style="font-size:13px;margin:0;color:#71717a">{{.Copy.Ignore}}</p>
+</td></tr></table>
+</body></html>`))
+
+var invitationText = textTemplate.Must(textTemplate.New("invitation").Parse(`{{.Copy.Greeting}},
+
+{{.Intro}}
+
+{{.Copy.Button}}: {{.Link}}
+
+{{.Expiry}}
+{{.Copy.Ignore}}
+`))
+
+// RenderInvitation builds the localized workspace invitation email. Unknown
+// locales fall back to English.
+func RenderInvitation(e InvitationEmail) (Message, error) {
+	copy, ok := invitationCopies[e.Locale]
+	if !ok {
+		copy = invitationCopies["en"]
+	}
+	intro := fmt.Sprintf(copy.IntroUnknown, e.WorkspaceName)
+	if e.InviterName != "" {
+		intro = fmt.Sprintf(copy.Intro, e.InviterName, e.WorkspaceName)
+	}
+	data := map[string]any{
+		"Copy":   copy,
+		"Intro":  intro,
+		"Link":   e.Link,
+		"Expiry": fmt.Sprintf(copy.Expiry, e.TTLDays),
+	}
+	var html, text bytes.Buffer
+	if err := invitationHTML.Execute(&html, data); err != nil {
+		return Message{}, err
+	}
+	if err := invitationText.Execute(&text, data); err != nil {
+		return Message{}, err
+	}
+	return Message{To: e.To, Subject: fmt.Sprintf(copy.Subject, e.WorkspaceName), HTML: html.String(), Text: text.String()}, nil
+}

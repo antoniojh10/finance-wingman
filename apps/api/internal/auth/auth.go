@@ -324,10 +324,14 @@ func (s *Service) CreateSession(ctx context.Context, userID uuid.UUID, client st
 }
 
 // CreateWorkspaceSession issues a new bearer token acting on the given
-// workspace, which the user must belong to.
+// workspace, which the user must belong to. A zero ttl uses the configured
+// session lifetime.
 func (s *Service) CreateWorkspaceSession(ctx context.Context, userID uuid.UUID, workspaceID *uuid.UUID, client string, ttl time.Duration) (Session, error) {
 	if client == "" {
 		client = ClientWeb
+	}
+	if ttl == 0 {
+		ttl = s.cfg.SessionTTL
 	}
 	var workspace *SessionWorkspace
 	if workspaceID != nil {

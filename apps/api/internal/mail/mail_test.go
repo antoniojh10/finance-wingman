@@ -68,6 +68,48 @@ func TestRenderLoginEscapesHTML(t *testing.T) {
 	}
 }
 
+func TestRenderInvitation(t *testing.T) {
+	base := InvitationEmail{To: "bob@example.com", WorkspaceName: "Home", InviterName: "Ana", Link: "https://app.test/invite?token=abc", TTLDays: 7}
+
+	tests := map[string][2]string{
+		"en": {"You're invited to Home on Finance Wingman", "Ana invited you to the workspace Home"},
+		"es": {"Te invitaron a Home en Finance Wingman", "Ana te invitó al espacio Home"},
+		"fr": {"You're invited to Home on Finance Wingman", "Ana invited you to the workspace Home"},
+	}
+	for locale, want := range tests {
+		t.Run(locale, func(t *testing.T) {
+			e := base
+			e.Locale = locale
+			msg, err := RenderInvitation(e)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if msg.To != e.To || msg.Subject != want[0] {
+				t.Fatalf("unexpected headers: %+v", msg)
+			}
+			if !strings.Contains(msg.Text, want[1]) || !strings.Contains(msg.Text, e.Link) || !strings.Contains(msg.Text, "7") {
+				t.Fatalf("unexpected text body:\n%s", msg.Text)
+			}
+			if !strings.Contains(msg.HTML, `href="https://app.test/invite?token=abc"`) {
+				t.Fatal("HTML body is missing the link")
+			}
+		})
+	}
+}
+
+func TestRenderInvitationWithoutInviterEscapesHTML(t *testing.T) {
+	msg, err := RenderInvitation(InvitationEmail{Locale: "en", WorkspaceName: "<b>Home</b>", Link: "https://x.test", TTLDays: 7})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(msg.Text, "You were invited to the workspace <b>Home</b>") {
+		t.Fatalf("unexpected text body:\n%s", msg.Text)
+	}
+	if strings.Contains(msg.HTML, "<b>Home</b>") {
+		t.Fatal("workspace name must be HTML-escaped")
+	}
+}
+
 func TestResendSender(t *testing.T) {
 	var got struct {
 		From    string   `json:"from"`

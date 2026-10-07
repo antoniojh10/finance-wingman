@@ -26,15 +26,16 @@ import (
 // are authenticated as owner, acting on the owner's workspace, unless token
 // is changed.
 type testAPI struct {
-	t       *testing.T
-	handler http.Handler
-	svc     *finance.Service
-	auth    *auth.Service
-	oauth   *oauth.Server
-	mail    *testutil.MailRecorder
-	pool    *pgxpool.Pool
-	owner   auth.User
-	token   string
+	t          *testing.T
+	handler    http.Handler
+	svc        *finance.Service
+	auth       *auth.Service
+	oauth      *oauth.Server
+	workspaces *workspace.Service
+	mail       *testutil.MailRecorder
+	pool       *pgxpool.Pool
+	owner      auth.User
+	token      string
 	// workspace is the owner's workspace; ctx acts on it, for calling the
 	// services directly.
 	workspace workspace.Workspace
@@ -56,7 +57,8 @@ func newTestAPI(t *testing.T) *testAPI {
 	if err != nil {
 		t.Fatal(err)
 	}
-	home, err := workspace.NewService(pool).Create(ctx, owner.ID, "Home")
+	workspaces := workspace.NewService(pool, recorder, workspace.Config{WebBaseURL: "http://web.test"})
+	home, err := workspaces.Create(ctx, owner.ID, "Home")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,23 +68,25 @@ func newTestAPI(t *testing.T) *testAPI {
 	}
 
 	return &testAPI{
-		t:         t,
-		svc:       svc,
-		auth:      authSvc,
-		oauth:     oauthSrv,
-		mail:      recorder,
-		pool:      pool,
-		owner:     owner,
-		token:     session.Token,
-		workspace: home,
-		ctx:       db.WithWorkspace(ctx, home.ID),
+		t:          t,
+		svc:        svc,
+		auth:       authSvc,
+		oauth:      oauthSrv,
+		workspaces: workspaces,
+		mail:       recorder,
+		pool:       pool,
+		owner:      owner,
+		token:      session.Token,
+		workspace:  home,
+		ctx:        db.WithWorkspace(ctx, home.ID),
 		handler: NewHandler(Deps{
-			Logger:  logger,
-			DB:      pool,
-			Auth:    authSvc,
-			Finance: svc,
-			OAuth:   oauthSrv,
-			MCP:     mcpHandler,
+			Logger:     logger,
+			DB:         pool,
+			Auth:       authSvc,
+			Finance:    svc,
+			Workspaces: workspaces,
+			OAuth:      oauthSrv,
+			MCP:        mcpHandler,
 		}),
 	}
 }
@@ -211,7 +215,7 @@ func (a *testAPI) newUser(email, workspaceName string) *testAPI {
 	if err != nil {
 		a.t.Fatal(err)
 	}
-	w, err := workspace.NewService(a.pool).Create(ctx, user.ID, workspaceName)
+	w, err := a.workspaces.Create(ctx, user.ID, workspaceName)
 	if err != nil {
 		a.t.Fatal(err)
 	}

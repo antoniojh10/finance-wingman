@@ -30,7 +30,7 @@ func TestSessionsStartInTheLastUsedWorkspace(t *testing.T) {
 	t.Parallel()
 	svc, pool, ana := newWorkspaceFixture(t)
 	ctx := context.Background()
-	workspaces := workspace.NewService(pool)
+	workspaces := workspace.NewService(pool, &testutil.MailRecorder{}, workspace.Config{WebBaseURL: "http://web.test"})
 
 	session, err := svc.CreateSession(ctx, ana.ID, auth.ClientWeb, time.Hour)
 	if err != nil {
@@ -80,7 +80,7 @@ func TestSwitchWorkspaceRequiresMembership(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bobs, err := workspace.NewService(pool).Create(ctx, bob.ID, "Bob's")
+	bobs, err := workspace.NewService(pool, &testutil.MailRecorder{}, workspace.Config{WebBaseURL: "http://web.test"}).Create(ctx, bob.ID, "Bob's")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestSessionLosesWorkspaceWhenMembershipEnds(t *testing.T) {
 	t.Parallel()
 	svc, pool, ana := newWorkspaceFixture(t)
 	ctx := context.Background()
-	home, err := workspace.NewService(pool).Create(ctx, ana.ID, "Home")
+	home, err := workspace.NewService(pool, &testutil.MailRecorder{}, workspace.Config{WebBaseURL: "http://web.test"}).Create(ctx, ana.ID, "Home")
 	if err != nil {
 		t.Fatal(err)
 	}

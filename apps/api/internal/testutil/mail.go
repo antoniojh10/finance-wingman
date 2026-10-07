@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 
@@ -62,4 +63,20 @@ func (r *MailRecorder) LastLogin(t *testing.T) (token, code string) {
 		t.Fatalf("sign-in email without token or code:\n%s", text)
 	}
 	return tm[1], cm[1]
+}
+
+// LastInvitationToken returns the token from the most recent invitation
+// email.
+func (r *MailRecorder) LastInvitationToken(t *testing.T) string {
+	t.Helper()
+	msgs := r.Messages()
+	if len(msgs) == 0 {
+		t.Fatal("no email was sent")
+	}
+	text := msgs[len(msgs)-1].Text
+	m := tokenPattern.FindStringSubmatch(text)
+	if m == nil || !strings.Contains(text, "/invite?token=") {
+		t.Fatalf("not an invitation email:\n%s", text)
+	}
+	return m[1]
 }

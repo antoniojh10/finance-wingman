@@ -8,6 +8,7 @@ const (
 	KindInvalid ErrorKind = iota + 1
 	KindNotFound
 	KindConflict
+	KindForbidden
 )
 
 // Error is a domain error that transport layers translate into the
@@ -35,4 +36,8 @@ func NotFound(entity string) *Error {
 
 func Conflict(message string) *Error {
 	return &Error{Kind: KindConflict, Message: message}
+}
+
+func Forbidden(message string) *Error {
+	return &Error{Kind: KindForbidden, Message: message}
 }

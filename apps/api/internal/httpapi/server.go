@@ -20,6 +20,7 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/workspace"
 )
 
 const (
@@ -38,6 +39,9 @@ type Deps struct {
 	DB      Pinger
 	Auth    *auth.Service
 	Finance *finance.Service
+	// Workspaces is optional; when set, workspace, member and invitation
+	// endpoints are registered.
+	Workspaces *workspace.Service
 	// OAuth and MCP are optional; when set, the OAuth endpoints and the MCP
 	// transport (at /mcp) are mounted.
 	OAuth *oauth.Server
@@ -95,10 +99,13 @@ func build(deps Deps) (chi.Router, huma.API) {
 		api.UseMiddleware(authMiddleware(api, deps.Auth, deps.Logger))
 		registerAuth(api, deps.Auth, deps.Logger)
 	}
+	if deps.Workspaces != nil && deps.Auth != nil {
+		registerWorkspaces(api, deps.Workspaces, deps.Auth, deps.Logger)
+	}
 	if deps.Finance != nil {
-		workspace := huma.NewGroup(api)
-		workspace.UseMiddleware(requireWorkspace(api))
-		registerFinance(workspace, deps.Finance, deps.Logger)
+		scoped := huma.NewGroup(api)
+		scoped.UseMiddleware(requireWorkspace(api))
+		registerFinance(scoped, deps.Finance, deps.Logger)
 	}
 
 	return router, api

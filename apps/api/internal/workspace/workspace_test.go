@@ -35,7 +35,7 @@ func role(t *testing.T, pool *pgxpool.Pool, workspaceID, userID uuid.UUID) strin
 func TestCreateMakesTheUserOwner(t *testing.T) {
 	t.Parallel()
 	pool := testutil.NewDatabase(t, true)
-	svc := workspace.NewService(pool)
+	svc := workspace.NewService(pool, &testutil.MailRecorder{}, workspace.Config{WebBaseURL: "http://web.test"})
 	ana := addUser(t, pool, "ana@example.com")
 
 	w, err := svc.Create(context.Background(), ana, "  Home  ")
@@ -60,7 +60,7 @@ func TestCreateMakesTheUserOwner(t *testing.T) {
 func TestBootstrapCreatesTheFirstWorkspaceOnce(t *testing.T) {
 	t.Parallel()
 	pool := testutil.NewDatabase(t, true)
-	svc := workspace.NewService(pool)
+	svc := workspace.NewService(pool, &testutil.MailRecorder{}, workspace.Config{WebBaseURL: "http://web.test"})
 	ctx := context.Background()
 	ana, bob := addUser(t, pool, "ana@example.com"), addUser(t, pool, "bob@example.com")
 

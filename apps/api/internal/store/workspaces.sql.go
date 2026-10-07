@@ -7,9 +7,40 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
+
+const acceptInvitation = `-- name: AcceptInvitation :one
+UPDATE workspace_invitations SET accepted_at = now()
+WHERE token_hash = $1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > $2
+RETURNING id, workspace_id, email, role, token_hash, invited_by, expires_at, accepted_at, revoked_at, created_at
+`
+
+type AcceptInvitationParams struct {
+	TokenHash []byte
+	ExpiresAt time.Time
+}
+
+// Marks the invitation accepted only if it was still open.
+func (q *Queries) AcceptInvitation(ctx context.Context, arg AcceptInvitationParams) (WorkspaceInvitation, error) {
+	row := q.db.QueryRow(ctx, acceptInvitation, arg.TokenHash, arg.ExpiresAt)
+	var i WorkspaceInvitation
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Email,
+		&i.Role,
+		&i.TokenHash,
+		&i.InvitedBy,
+		&i.ExpiresAt,
+		&i.AcceptedAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
 
 const addWorkspaceMember = `-- name: AddWorkspaceMember :exec
 INSERT INTO workspace_members (workspace_id, user_id, role)
@@ -28,6 +59,37 @@ func (q *Queries) AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMember
 	return err
 }
 
+const clearSessionsWorkspace = `-- name: ClearSessionsWorkspace :exec
+UPDATE sessions SET workspace_id = NULL WHERE workspace_id = $1 AND user_id = $2
+`
+
+type ClearSessionsWorkspaceParams struct {
+	WorkspaceID *uuid.UUID
+	UserID      uuid.UUID
+}
+
+// Sessions acting on a workspace the user left stop acting on it.
+func (q *Queries) ClearSessionsWorkspace(ctx context.Context, arg ClearSessionsWorkspaceParams) error {
+	_, err := q.db.Exec(ctx, clearSessionsWorkspace, arg.WorkspaceID, arg.UserID)
+	return err
+}
+
+const countRecentInvitations = `-- name: CountRecentInvitations :one
+SELECT count(*) FROM workspace_invitations WHERE workspace_id = $1 AND created_at > $2
+`
+
+type CountRecentInvitationsParams struct {
+	WorkspaceID uuid.UUID
+	CreatedAt   time.Time
+}
+
+func (q *Queries) CountRecentInvitations(ctx context.Context, arg CountRecentInvitationsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRecentInvitations, arg.WorkspaceID, arg.CreatedAt)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countWorkspaces = `-- name: CountWorkspaces :one
 SELECT count(*) FROM workspaces
 `
@@ -37,6 +99,46 @@ func (q *Queries) CountWorkspaces(ctx context.Context) (int64, error) {
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const createInvitation = `-- name: CreateInvitation :one
+INSERT INTO workspace_invitations (workspace_id, email, role, token_hash, invited_by, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6)
+RETURNING id, workspace_id, email, role, token_hash, invited_by, expires_at, accepted_at, revoked_at, created_at
+`
+
+type CreateInvitationParams struct {
+	WorkspaceID uuid.UUID
+	Email       string
+	Role        string
+	TokenHash   []byte
+	InvitedBy   *uuid.UUID
+	ExpiresAt   time.Time
+}
+
+func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationParams) (WorkspaceInvitation, error) {
+	row := q.db.QueryRow(ctx, createInvitation,
+		arg.WorkspaceID,
+		arg.Email,
+		arg.Role,
+		arg.TokenHash,
+		arg.InvitedBy,
+		arg.ExpiresAt,
+	)
+	var i WorkspaceInvitation
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Email,
+		&i.Role,
+		&i.TokenHash,
+		&i.InvitedBy,
+		&i.ExpiresAt,
+		&i.AcceptedAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const createWorkspace = `-- name: CreateWorkspace :one
@@ -53,4 +155,358 @@ func (q *Queries) CreateWorkspace(ctx context.Context, name string) (Workspace, 
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const deleteExpiredInvitations = `-- name: DeleteExpiredInvitations :exec
+DELETE FROM workspace_invitations WHERE expires_at < $1 AND accepted_at IS NULL
+`
+
+func (q *Queries) DeleteExpiredInvitations(ctx context.Context, expiresAt time.Time) error {
+	_, err := q.db.Exec(ctx, deleteExpiredInvitations, expiresAt)
+	return err
+}
+
+const getInvitationByTokenHash = `-- name: GetInvitationByTokenHash :one
+SELECT i.id, i.workspace_id, i.email, i.role, i.token_hash, i.invited_by, i.expires_at, i.accepted_at, i.revoked_at, i.created_at, w.name AS workspace_name, u.name AS invited_by_name, u.email AS invited_by_email
+FROM workspace_invitations i
+JOIN workspaces w ON w.id = i.workspace_id
+LEFT JOIN users u ON u.id = i.invited_by
+WHERE i.token_hash = $1
+`
+
+type GetInvitationByTokenHashRow struct {
+	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
+	Email          string
+	Role           string
+	TokenHash      []byte
+	InvitedBy      *uuid.UUID
+	ExpiresAt      time.Time
+	AcceptedAt     *time.Time
+	RevokedAt      *time.Time
+	CreatedAt      time.Time
+	WorkspaceName  string
+	InvitedByName  *string
+	InvitedByEmail *string
+}
+
+func (q *Queries) GetInvitationByTokenHash(ctx context.Context, tokenHash []byte) (GetInvitationByTokenHashRow, error) {
+	row := q.db.QueryRow(ctx, getInvitationByTokenHash, tokenHash)
+	var i GetInvitationByTokenHashRow
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Email,
+		&i.Role,
+		&i.TokenHash,
+		&i.InvitedBy,
+		&i.ExpiresAt,
+		&i.AcceptedAt,
+		&i.RevokedAt,
+		&i.CreatedAt,
+		&i.WorkspaceName,
+		&i.InvitedByName,
+		&i.InvitedByEmail,
+	)
+	return i, err
+}
+
+const getMemberRole = `-- name: GetMemberRole :one
+SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2
+`
+
+type GetMemberRoleParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (string, error) {
+	row := q.db.QueryRow(ctx, getMemberRole, arg.WorkspaceID, arg.UserID)
+	var role string
+	err := row.Scan(&role)
+	return role, err
+}
+
+const getWorkspace = `-- name: GetWorkspace :one
+SELECT id, name, created_at, updated_at FROM workspaces WHERE id = $1
+`
+
+func (q *Queries) GetWorkspace(ctx context.Context, id uuid.UUID) (Workspace, error) {
+	row := q.db.QueryRow(ctx, getWorkspace, id)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const isMemberByEmail = `-- name: IsMemberByEmail :one
+SELECT EXISTS (
+    SELECT 1 FROM workspace_members m JOIN users u ON u.id = m.user_id
+    WHERE m.workspace_id = $1 AND u.email = $2
+)
+`
+
+type IsMemberByEmailParams struct {
+	WorkspaceID uuid.UUID
+	Email       string
+}
+
+func (q *Queries) IsMemberByEmail(ctx context.Context, arg IsMemberByEmailParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isMemberByEmail, arg.WorkspaceID, arg.Email)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
+const listOpenInvitations = `-- name: ListOpenInvitations :many
+SELECT i.id, i.email, i.role, i.expires_at, i.created_at, u.name AS invited_by_name, u.email AS invited_by_email
+FROM workspace_invitations i
+LEFT JOIN users u ON u.id = i.invited_by
+WHERE i.workspace_id = $1 AND i.accepted_at IS NULL AND i.revoked_at IS NULL
+ORDER BY i.created_at DESC
+`
+
+type ListOpenInvitationsRow struct {
+	ID             uuid.UUID
+	Email          string
+	Role           string
+	ExpiresAt      time.Time
+	CreatedAt      time.Time
+	InvitedByName  *string
+	InvitedByEmail *string
+}
+
+func (q *Queries) ListOpenInvitations(ctx context.Context, workspaceID uuid.UUID) ([]ListOpenInvitationsRow, error) {
+	rows, err := q.db.Query(ctx, listOpenInvitations, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOpenInvitationsRow{}
+	for rows.Next() {
+		var i ListOpenInvitationsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Role,
+			&i.ExpiresAt,
+			&i.CreatedAt,
+			&i.InvitedByName,
+			&i.InvitedByEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserWorkspaces = `-- name: ListUserWorkspaces :many
+SELECT w.id, w.name, w.created_at, m.role
+FROM workspace_members m
+JOIN workspaces w ON w.id = m.workspace_id
+WHERE m.user_id = $1
+ORDER BY lower(w.name), w.created_at
+`
+
+type ListUserWorkspacesRow struct {
+	ID        uuid.UUID
+	Name      string
+	CreatedAt time.Time
+	Role      string
+}
+
+func (q *Queries) ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]ListUserWorkspacesRow, error) {
+	rows, err := q.db.Query(ctx, listUserWorkspaces, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUserWorkspacesRow{}
+	for rows.Next() {
+		var i ListUserWorkspacesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CreatedAt,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWorkspaceMembers = `-- name: ListWorkspaceMembers :many
+SELECT u.id, u.email, u.name, m.role, m.created_at
+FROM workspace_members m
+JOIN users u ON u.id = m.user_id
+WHERE m.workspace_id = $1
+ORDER BY m.created_at, u.email
+`
+
+type ListWorkspaceMembersRow struct {
+	ID        uuid.UUID
+	Email     string
+	Name      string
+	Role      string
+	CreatedAt time.Time
+}
+
+func (q *Queries) ListWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]ListWorkspaceMembersRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceMembers, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWorkspaceMembersRow{}
+	for rows.Next() {
+		var i ListWorkspaceMembersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.Role,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockWorkspaceMembers = `-- name: LockWorkspaceMembers :many
+SELECT user_id, role FROM workspace_members WHERE workspace_id = $1 FOR UPDATE
+`
+
+type LockWorkspaceMembersRow struct {
+	UserID uuid.UUID
+	Role   string
+}
+
+// Locks the workspace's memberships so concurrent role changes can't leave
+// it without an owner.
+func (q *Queries) LockWorkspaceMembers(ctx context.Context, workspaceID uuid.UUID) ([]LockWorkspaceMembersRow, error) {
+	rows, err := q.db.Query(ctx, lockWorkspaceMembers, workspaceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LockWorkspaceMembersRow{}
+	for rows.Next() {
+		var i LockWorkspaceMembersRow
+		if err := rows.Scan(&i.UserID, &i.Role); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeWorkspaceMember = `-- name: RemoveWorkspaceMember :execrows
+DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2
+`
+
+type RemoveWorkspaceMemberParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+func (q *Queries) RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspaceMemberParams) (int64, error) {
+	result, err := q.db.Exec(ctx, removeWorkspaceMember, arg.WorkspaceID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const renameWorkspace = `-- name: RenameWorkspace :one
+UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at, updated_at
+`
+
+type RenameWorkspaceParams struct {
+	ID   uuid.UUID
+	Name string
+}
+
+func (q *Queries) RenameWorkspace(ctx context.Context, arg RenameWorkspaceParams) (Workspace, error) {
+	row := q.db.QueryRow(ctx, renameWorkspace, arg.ID, arg.Name)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const revokeInvitation = `-- name: RevokeInvitation :execrows
+UPDATE workspace_invitations SET revoked_at = now()
+WHERE id = $1 AND workspace_id = $2 AND accepted_at IS NULL AND revoked_at IS NULL
+`
+
+type RevokeInvitationParams struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+}
+
+func (q *Queries) RevokeInvitation(ctx context.Context, arg RevokeInvitationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeInvitation, arg.ID, arg.WorkspaceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revokeOpenInvitationsForEmail = `-- name: RevokeOpenInvitationsForEmail :exec
+UPDATE workspace_invitations SET revoked_at = now()
+WHERE workspace_id = $1 AND email = $2 AND accepted_at IS NULL AND revoked_at IS NULL
+`
+
+type RevokeOpenInvitationsForEmailParams struct {
+	WorkspaceID uuid.UUID
+	Email       string
+}
+
+// Revokes the open invitation for the address, so a new one replaces it.
+func (q *Queries) RevokeOpenInvitationsForEmail(ctx context.Context, arg RevokeOpenInvitationsForEmailParams) error {
+	_, err := q.db.Exec(ctx, revokeOpenInvitationsForEmail, arg.WorkspaceID, arg.Email)
+	return err
+}
+
+const updateMemberRole = `-- name: UpdateMemberRole :execrows
+UPDATE workspace_members SET role = $3 WHERE workspace_id = $1 AND user_id = $2
+`
+
+type UpdateMemberRoleParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	Role        string
+}
+
+func (q *Queries) UpdateMemberRole(ctx context.Context, arg UpdateMemberRoleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateMemberRole, arg.WorkspaceID, arg.UserID, arg.Role)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

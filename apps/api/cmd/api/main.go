@@ -111,11 +111,12 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	authSvc := auth.NewService(pool, newMailSender(cfg.Email, mailLogger), auth.Config{WebBaseURL: cfg.WebBaseURL, MaxChallengesPerHour: cfg.LoginEmailsPerHour}, logger)
+	sender := newMailSender(cfg.Email, mailLogger)
+	authSvc := auth.NewService(pool, sender, auth.Config{WebBaseURL: cfg.WebBaseURL, MaxChallengesPerHour: cfg.LoginEmailsPerHour}, logger)
 
 	switch command {
 	case "serve":
-		workspaceSvc := workspace.NewService(pool)
+		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL})
 		var initialIDs []uuid.UUID
 		for _, u := range cfg.InitialUsers {
 			user, err := authSvc.AddUser(ctx, u.Email, u.Name)
@@ -134,18 +135,19 @@ func run(args []string, logger *slog.Logger) error {
 		financeSvc := finance.NewService(pool, cfg.Location)
 		oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: cfg.PublicURL}, logger)
 		mcpHandler := mcpserver.New(financeSvc, httpapi.Version).Handler(authSvc, cfg.PublicURL, oauthSrv.ResourceMetadataURL(), logger)
-		go purgeExpiredPeriodically(ctx, logger, authSvc.PurgeExpired, oauthSrv.PurgeExpired)
+		go purgeExpiredPeriodically(ctx, logger, authSvc.PurgeExpired, oauthSrv.PurgeExpired, workspaceSvc.PurgeExpired)
 		if cfg.PprofAddr != "" {
 			go servePprof(ctx, cfg.PprofAddr, logger)
 		}
 		logger.Info("telemetry", "otlp_export", telemetry.Enabled(os.Getenv))
 		handler := httpapi.NewHandler(httpapi.Deps{
-			Logger:  logger,
-			DB:      pool,
-			Auth:    authSvc,
-			Finance: financeSvc,
-			OAuth:   oauthSrv,
-			MCP:     mcpHandler,
+			Logger:     logger,
+			DB:         pool,
+			Auth:       authSvc,
+			Finance:    financeSvc,
+			Workspaces: workspaceSvc,
+			OAuth:      oauthSrv,
+			MCP:        mcpHandler,
 		})
 		return serve(ctx, cfg, logger, handler)
 	case "users":
@@ -159,9 +161,10 @@ func run(args []string, logger *slog.Logger) error {
 // needed to register routes, so zero values are enough.
 func writeOpenAPI(w io.Writer) error {
 	spec, err := httpapi.OpenAPI(httpapi.Deps{
-		Logger:  slog.New(slog.DiscardHandler),
-		Auth:    &auth.Service{},
-		Finance: &finance.Service{},
+		Logger:     slog.New(slog.DiscardHandler),
+		Auth:       &auth.Service{},
+		Finance:    &finance.Service{},
+		Workspaces: &workspace.Service{},
 	})
 	if err != nil {
 		return err
