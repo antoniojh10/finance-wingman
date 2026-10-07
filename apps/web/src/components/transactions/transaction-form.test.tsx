@@ -102,7 +102,7 @@ describe("TransactionForm", () => {
     const { onSaved, user } = renderForm();
 
     await user.click(screen.getByRole("radio", { name: "Dollars USD" }));
-    await user.type(screen.getByLabelText("Amount (USD)"), "abc");
+    await user.type(screen.getByLabelText("Amount (USD)"), "1234.567");
     await user.type(screen.getByLabelText("Description"), "Coffee");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -111,7 +111,7 @@ describe("TransactionForm", () => {
     // Regression: the form must not be reset, or the account would silently
     // fall back to the first option on the next submission.
     expect(screen.getByRole("radio", { name: "Dollars USD" })).toBeChecked();
-    expect(screen.getByLabelText("Amount (USD)")).toHaveValue("abc");
+    expect(screen.getByLabelText("Amount (USD)")).toHaveValue("1 234.567");
     expect(screen.getByLabelText("Description")).toHaveValue("Coffee");
 
     saveTransaction.mockResolvedValue({ ok: true, nonce: 2 });

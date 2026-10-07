@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { saveAccount } from "@/app/actions/accounts";
+import { AmountInput } from "@/components/amount-input";
 import { Field } from "@/components/field";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
@@ -167,11 +168,10 @@ export function AccountForm({
         hint={t("accounts.initialBalanceHint")}
         error={errors.initial_balance}
       >
-        <Input
+        <AmountInput
           id="initial_balance"
           name="initial_balance"
-          inputMode="decimal"
-          autoComplete="off"
+          signed
           placeholder="0.00"
           defaultValue={account ? toDecimalString(account.initial_balance, account.minor_units) : ""}
           aria-invalid={Boolean(errors.initial_balance)}

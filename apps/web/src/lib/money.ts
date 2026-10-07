@@ -45,3 +45,28 @@ export function formatMoney(amount: number, currency: string, minorUnits: number
     maximumFractionDigits: minorUnits,
   }).format(amount / 10 ** minorUnits);
 }
+
+/**
+ * Formats a decimal amount as the user types it, grouping the whole part in
+ * thousands with spaces, e.g. "1000.5" -> "1 000.5". Drops characters that
+ * cannot be part of an amount and keeps the decimal separator as typed. When
+ * both "." and "," appear (e.g. a pasted "1,000.50"), the last one is the
+ * decimal separator; a separator repeated on its own is a thousands one.
+ */
+export function formatAmountInput(input: string, signed = false): string {
+  const negative = signed && input.trimStart().startsWith("-");
+  const value = input.replace(/[^\d.,]/g, "");
+  const separators = value.match(/[.,]/g) ?? [];
+  const lastDot = value.lastIndexOf(".");
+  const lastComma = value.lastIndexOf(",");
+  let decimalIndex = -1;
+  if (lastDot >= 0 && lastComma >= 0) {
+    decimalIndex = Math.max(lastDot, lastComma);
+  } else if (separators.length === 1) {
+    decimalIndex = Math.max(lastDot, lastComma);
+  }
+  const whole = (decimalIndex >= 0 ? value.slice(0, decimalIndex) : value).replace(/\D/g, "");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const fraction = decimalIndex >= 0 ? value[decimalIndex] + value.slice(decimalIndex + 1).replace(/\D/g, "") : "";
+  return (negative ? "-" : "") + grouped + fraction;
+}

@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { saveTransaction } from "@/app/actions/transactions";
+import { AmountInput, amountInputHandlers } from "@/components/amount-input";
 import { ChipRadioGroup } from "@/components/chip-radio";
 import { ColorTile } from "@/components/color-tile";
 import { Field } from "@/components/field";
@@ -12,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFormAction } from "@/hooks/use-form-action";
-import { toDecimalString } from "@/lib/money";
+import { formatAmountInput, toDecimalString } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
 import { TransactionSubscriptionLink } from "./transaction-subscription-link";
@@ -168,7 +169,8 @@ export function TransactionForm({
             inputMode="decimal"
             autoComplete="off"
             placeholder="0.00"
-            defaultValue={transaction ? toDecimalString(transaction.amount, transaction.minor_units) : ""}
+            defaultValue={transaction ? formatAmountInput(toDecimalString(transaction.amount, transaction.minor_units)) : ""}
+            {...amountInputHandlers()}
             aria-invalid={Boolean(errors.amount)}
             aria-describedby={errors.amount ? "amount-error" : undefined}
             autoFocus={!transaction}
@@ -209,11 +211,9 @@ export function TransactionForm({
               label={t("transactions.destinationAmount", { currency: destination.currency })}
               error={errors.destination_amount}
             >
-              <Input
+              <AmountInput
                 id="destination_amount"
                 name="destination_amount"
-                inputMode="decimal"
-                autoComplete="off"
                 placeholder="0.00"
                 defaultValue={
                   transaction?.destination_amount != null && transaction.destination_minor_units != null

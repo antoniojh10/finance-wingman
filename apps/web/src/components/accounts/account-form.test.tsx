@@ -85,7 +85,7 @@ describe("AccountForm", () => {
     expect(screen.getByLabelText("Name")).toHaveValue("Checking");
     expect(screen.getByLabelText("Type")).toHaveValue("checking");
     expect(screen.getByLabelText("Currency")).toHaveValue("MXN");
-    expect(screen.getByLabelText("Opening balance")).toHaveValue("1000.00");
+    expect(screen.getByLabelText("Opening balance")).toHaveValue("1 000.00");
     expect(screen.getByLabelText("Balance as of")).toHaveValue("2026-09-01");
     expect(screen.getByDisplayValue("a1")).toHaveAttribute("name", "id");
   });
@@ -95,7 +95,7 @@ describe("AccountForm", () => {
     const { rerender } = renderForm(account);
     rerender({ ...account, name: "Savings", initial_balance: 200000 });
     expect(screen.getByLabelText("Name")).toHaveValue("Checking");
-    expect(screen.getByLabelText("Opening balance")).toHaveValue("1000.00");
+    expect(screen.getByLabelText("Opening balance")).toHaveValue("1 000.00");
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
