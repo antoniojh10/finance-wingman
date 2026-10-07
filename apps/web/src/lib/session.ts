@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import { ApiError, createApiClient, unwrap, type ApiClient, type User } from "@/lib/api/client";
+import { ApiError, createApiClient, unwrap, type ApiClient, type Membership, type Session, type User } from "@/lib/api/client";
 
 export const SESSION_COOKIE = "fw_session";
 
@@ -47,10 +47,19 @@ export function expectData<T>(result: { data?: T; error?: unknown; response: Res
   return unwrap(result);
 }
 
-/** The signed-in user, fetched once per request. */
-export const getCurrentUser = cache(async (): Promise<User> => {
+/** The current session (user and active workspace), fetched once per request. */
+export const getCurrentSession = cache(async (): Promise<Session> => {
   const api = await authedApi();
-  return expectData(await api.GET("/api/v1/auth/me"));
+  return expectData(await api.GET("/api/v1/auth/session"));
+});
+
+/** The signed-in user, fetched once per request. */
+export const getCurrentUser = cache(async (): Promise<User> => (await getCurrentSession()).user);
+
+/** The workspaces the signed-in user belongs to, fetched once per request. */
+export const getWorkspaces = cache(async (): Promise<Membership[]> => {
+  const api = await authedApi();
+  return expectData(await api.GET("/api/v1/workspaces")).items;
 });
 
 export { ApiError };
