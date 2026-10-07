@@ -37,9 +37,9 @@ type Summary struct {
 	Currencies []CurrencySummary `json:"currencies"`
 }
 
-// Summary computes totals for [from, to]. Empty bounds default to the
-// current calendar month.
-func (s *Service) Summary(ctx context.Context, from, to string) (Summary, error) {
+// Summary computes totals for [from, to], limited to the accounts matching
+// owner. Empty bounds default to the current calendar month.
+func (s *Service) Summary(ctx context.Context, from, to string, owner OwnerFilter) (Summary, error) {
 	today := s.Today()
 	start := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 1, -1)
@@ -58,11 +58,13 @@ func (s *Service) Summary(ctx context.Context, from, to string) (Summary, error)
 		return Summary{}, Invalid("to", "must not be before from")
 	}
 
-	accounts, err := s.q.ListAccounts(ctx, false)
+	accounts, err := s.ListOwnedAccounts(ctx, false, owner)
 	if err != nil {
 		return Summary{}, err
 	}
-	rows, err := s.q.SummaryByCategory(ctx, store.SummaryByCategoryParams{FromDate: start, ToDate: end})
+	rows, err := s.q.SummaryByCategory(ctx, store.SummaryByCategoryParams{
+		FromDate: start, ToDate: end, OwnerID: owner.UserID, SharedOnly: owner.Shared,
+	})
 	if err != nil {
 		return Summary{}, err
 	}

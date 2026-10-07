@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 
 import { failure, success } from "@/lib/action-errors";
 import { ApiError, unwrap } from "@/lib/api/client";
-import { parseSignedAmount, text, type FormState } from "@/lib/forms";
+import { optionalText, parseSignedAmount, text, type FormState } from "@/lib/forms";
 import { authedApi } from "@/lib/session";
 
 type AccountType = "checking" | "savings" | "credit_card" | "cash" | "investment" | "other";
@@ -16,6 +16,9 @@ export async function saveAccount(_: FormState, formData: FormData): Promise<For
   const id = text(formData, "id");
   const name = text(formData, "name");
   const type = text(formData, "type") as AccountType;
+  // Only sent by workspaces with several members; the API defaults new
+  // accounts to their creator.
+  const owner = optionalText(formData, "owner");
 
   try {
     // The initial balance is entered as a decimal in the account currency.
@@ -51,7 +54,7 @@ export async function saveAccount(_: FormState, formData: FormData): Promise<For
       unwrap(
         await api.PATCH("/api/v1/accounts/{id}", {
           params: { path: { id } },
-          body: { name, type, initial_balance: initialBalance ?? 0, balance_as_of: balanceAsOf },
+          body: { name, type, initial_balance: initialBalance ?? 0, balance_as_of: balanceAsOf, owner },
         }),
       );
     } else {
@@ -63,6 +66,7 @@ export async function saveAccount(_: FormState, formData: FormData): Promise<For
             currency: text(formData, "currency"),
             initial_balance: initialBalance ?? 0,
             balance_as_of: balanceAsOf,
+            owner,
           },
         }),
       );

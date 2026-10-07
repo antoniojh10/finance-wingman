@@ -6,6 +6,7 @@ import { Field } from "@/components/field";
 import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SHARED, type OwnerOption } from "@/lib/owners";
 import { filterHref, type TransactionQuery } from "@/lib/query";
 import { cn } from "@/lib/utils";
 
@@ -22,13 +23,16 @@ export function TransactionFilters({
   values,
   accounts,
   categories,
+  owners,
 }: {
   values: TransactionQuery;
   accounts: AccountOption[];
   categories: CategoryOption[];
+  /** Workspace members, to filter by the accounts' owner; only with several members. */
+  owners?: { owners: OwnerOption[]; userId: string };
 }) {
   const t = useTranslations();
-  const advanced = [values.account_id, values.category_id, values.from, values.to].filter(Boolean).length;
+  const advanced = [values.account_id, values.category_id, values.from, values.to, values.owner].filter(Boolean).length;
 
   return (
     <div className="grid gap-3">
@@ -75,6 +79,19 @@ export function TransactionFilters({
                 ))}
               </NativeSelect>
             </Field>
+            {owners && (
+              <Field id="filter-owner" label={t("owners.owner")}>
+                <NativeSelect id="filter-owner" name="owner" defaultValue={values.owner ?? ""}>
+                  <option value="">{t("owners.everyone")}</option>
+                  {owners.owners.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.id === owners.userId ? t("owners.you", { name: o.name }) : o.name}
+                    </option>
+                  ))}
+                  <option value={SHARED}>{t("owners.shared")}</option>
+                </NativeSelect>
+              </Field>
+            )}
             <Field id="filter-category" label={t("transactions.category")}>
               <NativeSelect id="filter-category" name="category_id" defaultValue={values.category_id ?? ""}>
                 <option value="">{t("common.all")}</option>

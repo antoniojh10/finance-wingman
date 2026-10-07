@@ -80,7 +80,8 @@ func (h *financeHandlers) registerCurrencies(api huma.API) {
 // --- Accounts ---
 
 type listAccountsInput struct {
-	IncludeArchived bool `query:"include_archived" doc:"Include archived accounts"`
+	IncludeArchived bool   `query:"include_archived" doc:"Include archived accounts"`
+	Owner           string `query:"owner" doc:"\"me\", \"shared\" or a member's user id; omit for every owner"`
 }
 
 type createAccountInput struct {
@@ -102,7 +103,11 @@ func (h *financeHandlers) registerAccounts(api huma.API) {
 		Summary:     "List accounts with their current balance",
 		Tags:        tags,
 	}, func(ctx context.Context, in *listAccountsInput) (*listOutput[finance.Account], error) {
-		items, err := h.svc.ListAccounts(ctx, in.IncludeArchived)
+		owner, err := finance.ParseOwnerFilter(ctx, "query.owner", in.Owner)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		items, err := h.svc.ListOwnedAccounts(ctx, in.IncludeArchived, owner)
 		if err != nil {
 			return nil, h.fail(ctx, err)
 		}
@@ -327,6 +332,7 @@ type listTransactionsInput struct {
 	From       string `query:"from" format:"date" doc:"Inclusive start date"`
 	To         string `query:"to" format:"date" doc:"Inclusive end date"`
 	Search     string `query:"q" maxLength:"100" doc:"Search in the description"`
+	Owner      string `query:"owner" doc:"Transactions on accounts of this owner (either side of a transfer): \"me\", \"shared\" or a member's user id"`
 	Limit      int    `query:"limit" minimum:"1" maximum:"200" default:"50"`
 	Offset     int    `query:"offset" minimum:"0"`
 }
@@ -359,6 +365,10 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 		if err != nil {
 			return nil, err
 		}
+		owner, err := finance.ParseOwnerFilter(ctx, "query.owner", in.Owner)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
 		page, err := h.svc.ListTransactions(ctx, finance.TransactionFilter{
 			AccountID:  accountID,
 			CategoryID: categoryID,
@@ -366,6 +376,7 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 			From:       optionalString(in.From),
 			To:         optionalString(in.To),
 			Search:     optionalString(in.Search),
+			Owner:      owner,
 			Limit:      in.Limit,
 			Offset:     in.Offset,
 		})
@@ -466,8 +477,9 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 // --- Summary ---
 
 type summaryInput struct {
-	From string `query:"from" format:"date" doc:"Inclusive start date; defaults to the first day of the current month"`
-	To   string `query:"to" format:"date" doc:"Inclusive end date; defaults to the last day of the current month"`
+	From  string `query:"from" format:"date" doc:"Inclusive start date; defaults to the first day of the current month"`
+	To    string `query:"to" format:"date" doc:"Inclusive end date; defaults to the last day of the current month"`
+	Owner string `query:"owner" doc:"Limit to accounts of this owner: \"me\", \"shared\" or a member's user id; omit for the whole workspace"`
 }
 
 func (h *financeHandlers) registerSummary(api huma.API) {
@@ -479,7 +491,11 @@ func (h *financeHandlers) registerSummary(api huma.API) {
 		Description: "Totals per currency for a period, broken down by category, plus current balances. Transfers are excluded from income and expenses.",
 		Tags:        []string{"Summary"},
 	}, func(ctx context.Context, in *summaryInput) (*bodyOutput[finance.Summary], error) {
-		summary, err := h.svc.Summary(ctx, in.From, in.To)
+		owner, err := finance.ParseOwnerFilter(ctx, "query.owner", in.Owner)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		summary, err := h.svc.Summary(ctx, in.From, in.To, owner)
 		if err != nil {
 			return nil, h.fail(ctx, err)
 		}

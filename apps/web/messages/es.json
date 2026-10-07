@@ -156,7 +156,7 @@
     "deleteDescription": "Solo se pueden eliminar cuentas sin movimientos. Archívala para ocultarla y conservar su historial.",
     "deleted": "Cuenta eliminada",
     "deleteConflict": "Esta cuenta tiene movimientos. Archívala en su lugar.",
-    "nameTaken": "Ya existe una cuenta activa con este nombre.",
+    "nameTaken": "Ya existe una cuenta activa con este nombre para este titular.",
     "types": {
       "checking": "Débito",
       "savings": "Ahorro",
@@ -394,5 +394,15 @@
     "accepting": "Uniéndote…",
     "invalid": "Esta invitación no es válida, expiró o ya se usó. Pide una nueva.",
     "backToLogin": "Ir a iniciar sesión"
+  },
+  "owners": {
+    "everyone": "Todos",
+    "mine": "Mías",
+    "shared": "Compartidas",
+    "filterLabel": "Cuentas de quién",
+    "owner": "Titular",
+    "ownerHint": "A quién pertenece la cuenta. Todos los miembros pueden verla y usarla.",
+    "sharedOption": "Compartida (cuenta conjunta)",
+    "you": "{name} (tú)"
   }
 }

@@ -24,6 +24,7 @@ type Account struct {
 	InitialBalance int64     `json:"initial_balance" doc:"Balance on balance_as_of, in minor units"`
 	BalanceAsOf    string    `json:"balance_as_of" format:"date" doc:"Date the initial balance refers to. Only transactions after this day change the balance"`
 	Balance        int64     `json:"balance" doc:"Current balance in minor units: initial balance plus transactions dated after balance_as_of"`
+	Owner          *UserRef  `json:"owner,omitempty" doc:"Workspace member the account belongs to. Omitted when the account is shared"`
 	Archived       bool      `json:"archived"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
@@ -35,6 +36,7 @@ type CreateAccountInput struct {
 	Currency       string `json:"currency" minLength:"3" maxLength:"3" example:"MXN" doc:"ISO 4217 currency code"`
 	InitialBalance int64  `json:"initial_balance,omitempty" doc:"Balance on balance_as_of in minor units (may be negative, e.g. credit cards)"`
 	BalanceAsOf    string `json:"balance_as_of,omitempty" format:"date" doc:"Date the initial balance refers to (YYYY-MM-DD). Defaults to today. Transactions on or before it are already included in the initial balance"`
+	Owner          string `json:"owner,omitempty" example:"me" doc:"\"me\", \"shared\" or the user id of a workspace member. Defaults to the user creating the account"`
 }
 
 type UpdateAccountInput struct {
@@ -42,11 +44,12 @@ type UpdateAccountInput struct {
 	Type           *string `json:"type,omitempty" enum:"checking,savings,credit_card,cash,investment,other"`
 	InitialBalance *int64  `json:"initial_balance,omitempty" doc:"Balance on balance_as_of, in minor units"`
 	BalanceAsOf    *string `json:"balance_as_of,omitempty" format:"date" doc:"New anchor date (YYYY-MM-DD). Editing initial_balance alone keeps the current anchor"`
+	Owner          *string `json:"owner,omitempty" example:"shared" doc:"\"me\", \"shared\" or the user id of a workspace member"`
 	Archived       *bool   `json:"archived,omitempty"`
 }
 
 func accountFromRow(r store.GetAccountRow) Account {
-	return Account{
+	a := Account{
 		ID:             r.ID,
 		Name:           r.Name,
 		Type:           r.Type,
@@ -59,10 +62,21 @@ func accountFromRow(r store.GetAccountRow) Account {
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
 	}
+	a.Owner = userRef(r.OwnerUserID, r.OwnerName, r.OwnerEmail)
+	return a
 }
 
 func (s *Service) ListAccounts(ctx context.Context, includeArchived bool) ([]Account, error) {
-	rows, err := s.q.ListAccounts(ctx, includeArchived)
+	return s.ListOwnedAccounts(ctx, includeArchived, OwnerFilter{})
+}
+
+// ListOwnedAccounts lists the accounts matching an owner filter.
+func (s *Service) ListOwnedAccounts(ctx context.Context, includeArchived bool, owner OwnerFilter) ([]Account, error) {
+	rows, err := s.q.ListAccounts(ctx, store.ListAccountsParams{
+		IncludeArchived: includeArchived,
+		OwnerID:         owner.UserID,
+		SharedOnly:      owner.Shared,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -117,6 +131,13 @@ func (s *Service) CreateAccount(ctx context.Context, in CreateAccountInput) (Acc
 		return Account{}, err
 	}
 
+	owner := defaultOwner(ctx)
+	if in.Owner != "" {
+		if owner, err = parseOwner(ctx, "owner", in.Owner); err != nil {
+			return Account{}, err
+		}
+	}
+
 	balanceAsOf := s.Today()
 	if in.BalanceAsOf != "" {
 		if balanceAsOf, err = parseDate("balance_as_of", in.BalanceAsOf); err != nil {
@@ -130,11 +151,9 @@ func (s *Service) CreateAccount(ctx context.Context, in CreateAccountInput) (Acc
 		Currency:       currency,
 		InitialBalance: in.InitialBalance,
 		BalanceAsOf:    balanceAsOf,
+		OwnerUserID:    owner,
 	})
-	if pgErrorCode(err) == pgUniqueViolation {
-		return Account{}, Conflict("an active account with this name already exists")
-	}
-	if err != nil {
+	if err := accountWriteError(err); err != nil {
 		return Account{}, err
 	}
 	return s.GetAccount(ctx, id)
@@ -161,6 +180,13 @@ func (s *Service) UpdateAccount(ctx context.Context, id uuid.UUID, in UpdateAcco
 		}
 		balanceAsOf = &d
 	}
+	var owner *uuid.UUID
+	if in.Owner != nil {
+		var err error
+		if owner, err = parseOwner(ctx, "owner", *in.Owner); err != nil {
+			return Account{}, err
+		}
+	}
 	if _, err := s.GetAccount(ctx, id); err != nil {
 		return Account{}, err
 	}
@@ -171,15 +197,28 @@ func (s *Service) UpdateAccount(ctx context.Context, id uuid.UUID, in UpdateAcco
 		Type:           in.Type,
 		InitialBalance: in.InitialBalance,
 		BalanceAsOf:    balanceAsOf,
+		SetOwner:       in.Owner != nil,
+		OwnerUserID:    owner,
 		Archived:       in.Archived,
 	})
-	if pgErrorCode(err) == pgUniqueViolation {
-		return Account{}, Conflict("an active account with this name already exists")
-	}
-	if err != nil {
+	if err := accountWriteError(err); err != nil {
 		return Account{}, err
 	}
 	return s.GetAccount(ctx, id)
+}
+
+// accountWriteError translates constraint violations of an account insert
+// or update into domain errors.
+func accountWriteError(err error) error {
+	switch pgErrorCode(err) {
+	case "":
+		return err
+	case pgUniqueViolation:
+		return Conflict("an active account with this name already exists for this owner")
+	case pgForeignKeyViolation:
+		return Invalid("owner", "must be a member of the workspace")
+	}
+	return err
 }
 
 // DeleteAccount permanently removes an account. Accounts with transactions

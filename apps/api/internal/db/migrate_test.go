@@ -254,3 +254,54 @@ func TestUserEmailIsCaseInsensitive(t *testing.T) {
 		t.Fatalf("expected %s for duplicate email, got %q", uniqueViolation, got)
 	}
 }
+
+func TestAccountOwners(t *testing.T) {
+	t.Parallel()
+	pool := testutil.NewDatabase(t, true)
+	home := testutil.NewWorkspace(t, pool, "Home")
+	other := testutil.NewWorkspace(t, pool, "Other")
+	ctx := db.WithWorkspace(context.Background(), home)
+	ana := testutil.NewMember(t, pool, home, "ana@example.com", "Ana")
+	luis := testutil.NewMember(t, pool, home, "luis@example.com", "Luis")
+	outsider := testutil.NewMember(t, pool, other, "eve@example.com", "Eve")
+
+	insert := `INSERT INTO accounts (name, type, currency, owner_user_id) VALUES ($1, 'checking', 'EUR', $2) RETURNING id`
+	var anaBNP, luisBNP, shared string
+	mustScan(t, ctx, pool, &anaBNP, insert, "BNP", ana)
+	mustScan(t, ctx, pool, &luisBNP, insert, "bnp", luis)
+	mustScan(t, ctx, pool, &shared, insert, "BNP", nil)
+
+	for _, tc := range []struct {
+		name  string
+		owner any
+		code  string
+	}{
+		{"same name for the same owner", ana, uniqueViolation},
+		{"same name for shared accounts", nil, uniqueViolation},
+		{"owner outside the workspace", outsider, foreignKeyViolation},
+	} {
+		_, err := pool.Exec(ctx, insert, "BNP", tc.owner)
+		if got := pgCode(err); got != tc.code {
+			t.Fatalf("%s: expected SQLSTATE %s, got %q (err: %v)", tc.name, tc.code, got, err)
+		}
+	}
+
+	// A member leaving the workspace turns their accounts into shared ones,
+	// even outside a workspace context (memberships are not isolated). The
+	// shared BNP is archived first so the names don't clash.
+	if _, err := pool.Exec(ctx, `UPDATE accounts SET archived_at = now() WHERE id = $1`, shared); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(context.Background(), `DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2`, home, luis); err != nil {
+		t.Fatal(err)
+	}
+	var owner *string
+	mustScan(t, ctx, pool, &owner, `SELECT owner_user_id::text FROM accounts WHERE id = $1`, luisBNP)
+	if owner != nil {
+		t.Fatalf("expected the account to become shared, owner is %s", *owner)
+	}
+	mustScan(t, ctx, pool, &owner, `SELECT owner_user_id::text FROM accounts WHERE id = $1`, anaBNP)
+	if owner == nil || *owner != ana.String() {
+		t.Fatalf("other members keep their accounts, got %v", owner)
+	}
+}

@@ -27,13 +27,17 @@ JOIN accounts a ON a.id = t.account_id
 LEFT JOIN categories c ON c.id = t.category_id
 WHERE t.type IN ('income', 'expense')
   AND t.occurred_on BETWEEN $1 AND $2
+  AND ($3::uuid IS NULL OR a.owner_user_id = $3)
+  AND (NOT $4::boolean OR a.owner_user_id IS NULL)
 GROUP BY a.currency, t.type, t.category_id, c.name, c.color
 ORDER BY a.currency, t.type, total DESC
 `
 
 type SummaryByCategoryParams struct {
-	FromDate time.Time
-	ToDate   time.Time
+	FromDate   time.Time
+	ToDate     time.Time
+	OwnerID    *uuid.UUID
+	SharedOnly bool
 }
 
 type SummaryByCategoryRow struct {
@@ -50,7 +54,12 @@ type SummaryByCategoryRow struct {
 // Transfers are excluded: they move money between accounts but are neither
 // income nor expense.
 func (q *Queries) SummaryByCategory(ctx context.Context, arg SummaryByCategoryParams) ([]SummaryByCategoryRow, error) {
-	rows, err := q.db.Query(ctx, summaryByCategory, arg.FromDate, arg.ToDate)
+	rows, err := q.db.Query(ctx, summaryByCategory,
+		arg.FromDate,
+		arg.ToDate,
+		arg.OwnerID,
+		arg.SharedOnly,
+	)
 	if err != nil {
 		return nil, err
 	}

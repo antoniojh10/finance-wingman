@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 
 import { ApiError, createApiClient, unwrap, type ApiClient, type Membership, type Session, type User } from "@/lib/api/client";
+import { toOwnerOption, type OwnerOption } from "@/lib/owners";
 
 export const SESSION_COOKIE = "fw_session";
 
@@ -61,5 +62,21 @@ export const getWorkspaces = cache(async (): Promise<Membership[]> => {
   const api = await authedApi();
   return expectData(await api.GET("/api/v1/workspaces")).items;
 });
+
+/**
+ * Members of the active workspace, who can own accounts, fetched once per
+ * request. Owner controls are only shown when there are several.
+ */
+export const getAccountOwners = cache(async (): Promise<OwnerOption[]> => {
+  const { workspace } = await getCurrentSession();
+  if (!workspace) {
+    return [];
+  }
+  const api = await authedApi();
+  return expectData(await api.GET("/api/v1/workspaces/{id}/members", { params: { path: { id: workspace.id } } })).items.map(toOwnerOption);
+});
+
+/** Whether accounts are labelled with their owner: only with several members. */
+export const showAccountOwners = cache(async (): Promise<boolean> => (await getAccountOwners()).length > 1);
 
 export { ApiError };

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input } from "@/components/ui/input";
 import { useFormAction } from "@/hooks/use-form-action";
 import { toDecimalString } from "@/lib/money";
+import { SHARED, type OwnerOption } from "@/lib/owners";
 
 export const accountTypes = ["checking", "savings", "credit_card", "cash", "investment", "other"] as const;
 
@@ -24,7 +25,12 @@ export type EditableAccount = {
   initial_balance: number;
   /** Date (YYYY-MM-DD) the initial balance refers to. */
   balance_as_of: string;
+  /** Member the account belongs to; absent when it is shared. */
+  owner?: { id: string; name: string; email: string };
 };
+
+/** Workspace members who can own accounts; only set with several members. */
+export type Ownership = { owners: OwnerOption[]; userId: string };
 
 export type CurrencyOption = { code: string; name: string };
 
@@ -33,6 +39,7 @@ export function AccountDialog({
   currencies,
   defaultCurrency,
   defaultDate,
+  ownership,
   trigger,
   open: controlledOpen,
   onOpenChange,
@@ -40,6 +47,7 @@ export function AccountDialog({
   account?: EditableAccount;
   currencies: CurrencyOption[];
   defaultCurrency: string;
+  ownership?: Ownership;
   /** Today, used as the default balance date of new accounts. */
   defaultDate: string;
   /** Omit when the dialog is opened through `open` (e.g. from a menu). */
@@ -65,6 +73,7 @@ export function AccountDialog({
             currencies={currencies}
             defaultCurrency={defaultCurrency}
             defaultDate={defaultDate}
+            ownership={ownership}
             onSaved={() => {
               toast.success(t("accounts.saved"));
               setOpen(false);
@@ -82,6 +91,7 @@ export function AccountForm({
   currencies,
   defaultCurrency,
   defaultDate,
+  ownership,
   onSaved,
   onCancel,
 }: {
@@ -89,6 +99,7 @@ export function AccountForm({
   currencies: CurrencyOption[];
   defaultCurrency: string;
   defaultDate: string;
+  ownership?: Ownership;
   onSaved: () => void;
   onCancel: () => void;
 }) {
@@ -124,6 +135,18 @@ export function AccountForm({
           ))}
         </NativeSelect>
       </Field>
+      {ownership && (
+        <Field id="owner" label={t("owners.owner")} hint={t("owners.ownerHint")} error={errors.owner}>
+          <NativeSelect id="owner" name="owner" defaultValue={account ? (account.owner?.id ?? SHARED) : ownership.userId}>
+            {ownership.owners.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.id === ownership.userId ? t("owners.you", { name: o.name }) : o.name}
+              </option>
+            ))}
+            <option value={SHARED}>{t("owners.sharedOption")}</option>
+          </NativeSelect>
+        </Field>
+      )}
       <Field
         id="currency"
         label={t("accounts.currency")}

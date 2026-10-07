@@ -9,7 +9,7 @@ import { RecurringSummary } from "@/components/recurring/recurring-summary";
 import { SuggestionsList } from "@/components/recurring/suggestions-list";
 import { Button } from "@/components/ui/button";
 import { today } from "@/lib/dates";
-import { authedApi, expectData } from "@/lib/session";
+import { authedApi, expectData, showAccountOwners } from "@/lib/session";
 import { toAccountOption, toCategoryOption } from "@/lib/view-models";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,14 +20,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function SubscriptionsPage() {
   const t = await getTranslations("subscriptions");
   const api = await authedApi();
-  const [itemsRes, summaryRes, suggestionsRes, accountsRes, categoriesRes] = await Promise.all([
+  const [itemsRes, summaryRes, suggestionsRes, accountsRes, categoriesRes, showOwners] = await Promise.all([
     api.GET("/api/v1/recurring"),
     api.GET("/api/v1/recurring/summary"),
     api.GET("/api/v1/recurring/suggestions"),
     api.GET("/api/v1/accounts", { params: { query: { include_archived: true } } }),
     api.GET("/api/v1/categories", { params: { query: { include_archived: true } } }),
+    showAccountOwners(),
   ]);
-  const accounts = expectData(accountsRes).items.map(toAccountOption);
+  const accounts = expectData(accountsRes).items.map((a) => toAccountOption(a, showOwners));
   const categories = expectData(categoriesRes).items.map(toCategoryOption);
   const defaultDate = today(process.env.APP_TIMEZONE);
 

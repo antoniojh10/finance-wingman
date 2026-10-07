@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/store"
 )
@@ -52,11 +53,16 @@ func (s *Service) SetRole(ctx context.Context, actorID, workspaceID, userID uuid
 
 // RemoveMember takes a user out of a workspace. Owners can remove anyone;
 // any member can remove themselves (leave). The last owner can't leave.
+// Their accounts stay in the workspace as shared accounts.
 func (s *Service) RemoveMember(ctx context.Context, actorID, workspaceID, userID uuid.UUID) error {
+	ctx = db.WithWorkspace(ctx, workspaceID)
 	return s.changeMembers(ctx, actorID, workspaceID, userID, memberChange{
 		dropsOwner: true,
 		self:       true,
 		apply: func(q *store.Queries) error {
+			if err := q.RenameClashingMemberAccounts(ctx, &userID); err != nil {
+				return err
+			}
 			if _, err := q.RemoveWorkspaceMember(ctx, store.RemoveWorkspaceMemberParams{WorkspaceID: workspaceID, UserID: userID}); err != nil {
 				return err
 			}

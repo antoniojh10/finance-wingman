@@ -81,6 +81,8 @@ Tools: `add_expense`, `add_income`, `add_transfer`, `list_accounts`,
 `list_categories`, `create_account`, `create_category`, `get_summary`,
 `list_transactions`, `delete_transaction`.
 Amounts are decimals in the account currency; summaries never mix currencies.
+Accounts belong to a workspace member or are shared: a bare account name
+means the caller's own, and another member's is written as `BNP (Ana)`.
 
 To connect, add a custom connector with the URL `https://<your-api>/mcp`:
 
