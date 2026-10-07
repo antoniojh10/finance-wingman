@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { e2eUser } from "../playwright.config";
-import { invitationLinkFrom, latestEmail, navigate, openWorkspaceMenu, signIn } from "./helpers";
+import { invitationLinkFrom, latestEmail, navigate, openWorkspaceMenu } from "./helpers";
 
 async function createAccount(page: Page, name: string, owner?: string) {
   await navigate(page, /accounts/i);
@@ -22,7 +21,7 @@ test("members each have their own account with the same name", async ({ page, br
   const bank = `BNP ${suffix}`;
 
   // The owner invites someone, who joins the workspace.
-  await signIn(page, e2eUser);
+  await page.goto("/");
   await openWorkspaceMenu(page);
   await page.getByRole("menuitem", { name: "Manage workspace" }).click();
   const since = new Date(Date.now() - 1000);
@@ -31,7 +30,8 @@ test("members each have their own account with the same name", async ({ page, br
   await expect(page.getByText("Invitation sent")).toBeVisible();
   const link = invitationLinkFrom(await latestEmail(invitee, since));
 
-  const context = await browser.newContext({ ...testInfo.project.use });
+  // Without the owner's saved session.
+  const context = await browser.newContext({ ...testInfo.project.use, storageState: undefined });
   const guest = await context.newPage();
   await guest.goto(link.replace(/^https?:\/\/[^/]+/, ""));
   await guest.getByRole("button", { name: "Accept invitation" }).click();
