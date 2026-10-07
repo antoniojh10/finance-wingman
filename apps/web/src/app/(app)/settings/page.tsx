@@ -33,7 +33,7 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader title={t("settings.title")} />
-      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
         <Card>
           <CardHeader className="flex items-center gap-3.5">
             <Avatar name={user.name || user.email} className="size-14 text-2xl" />
@@ -46,7 +46,7 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-5">
+        <div className="grid min-w-0 grid-cols-1 gap-5">
           <section className="relative grid gap-4 overflow-hidden rounded-3xl bg-hero px-5 py-5.5 text-hero-foreground">
             <span aria-hidden className="absolute -top-7.5 -right-7.5 size-25 rounded-full bg-lime" />
             <span aria-hidden className="absolute -top-11 right-12.5 size-17.5 rounded-full bg-primary dark:bg-[#5b3df5]" />
@@ -54,7 +54,7 @@ export default async function SettingsPage() {
               <h2 className="text-[21px] font-bold">{t("settings.assistants")}</h2>
               <p className="text-sm leading-relaxed text-hero-muted">{t("settings.assistantsDescription")}</p>
             </div>
-            <div className="grid gap-1.5">
+            <div className="grid min-w-0 gap-1.5">
               <p className="text-[13px] font-bold text-hero-muted">{t("settings.mcpUrl")}</p>
               <div className="flex items-center gap-2 rounded-2xl bg-white/8 py-1.5 pr-1.5 pl-3.5">
                 <code className="min-w-0 flex-1 truncate font-mono text-[13px]" data-testid="mcp-url">
