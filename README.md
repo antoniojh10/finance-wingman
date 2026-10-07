@@ -91,4 +91,7 @@ tunnel (e.g. `cloudflared tunnel --url http://localhost:8080`) and set
 See [docs/deploy-seenode.md](docs/deploy-seenode.md) for deploying the API,
 web app and PostgreSQL on Seenode (native runtimes or Docker images).
 
+See [docs/observability.md](docs/observability.md) to send traces and
+metrics to an OpenTelemetry backend.
+
 See [AGENTS.md](AGENTS.md) for contribution rules.

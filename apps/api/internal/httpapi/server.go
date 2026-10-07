@@ -13,6 +13,8 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
@@ -39,6 +41,10 @@ type Deps struct {
 	// transport (at /mcp) are mounted.
 	OAuth *oauth.Server
 	MCP   http.Handler
+	// TracerProvider and MeterProvider are optional; nil uses the global
+	// OpenTelemetry providers.
+	TracerProvider trace.TracerProvider
+	MeterProvider  metric.MeterProvider
 }
 
 // NewHandler builds the root HTTP handler with every route registered.
@@ -60,6 +66,7 @@ func init() {
 
 func build(deps Deps) (chi.Router, huma.API) {
 	router := chi.NewRouter()
+	router.Use(instrument(deps.TracerProvider, deps.MeterProvider))
 	router.Use(middleware.RequestID)
 	router.Use(middleware.RealIP)
 	router.Use(requestLogger(deps.Logger))
@@ -118,13 +125,18 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				// Connectors configured with the bare URL retry constantly.
 				level = slog.LevelDebug
 			}
-			logger.Log(r.Context(), level, "request",
+			attrs := []any{
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", ww.Status(),
 				"duration_ms", time.Since(start).Milliseconds(),
 				"request_id", middleware.GetReqID(r.Context()),
-			)
+			}
+			if sc := trace.SpanContextFromContext(r.Context()); sc.IsValid() {
+				// Links the log line to its trace in the telemetry backend.
+				attrs = append(attrs, "trace_id", sc.TraceID().String())
+			}
+			logger.Log(r.Context(), level, "request", attrs...)
 		})
 	}
 }

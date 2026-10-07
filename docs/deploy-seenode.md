@@ -44,6 +44,8 @@ Environment variables:
 | `EMAIL_FROM_NAME` | `Finance Wingman` | Optional |
 | `RESEND_API_KEY` | `re_…` | Required with `EMAIL_PROVIDER=resend` |
 | `LOGIN_EMAILS_PER_HOUR` | `5` | Optional; sign-in emails allowed per user per hour |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `https://otlp-gateway-….grafana.net/otlp` | Optional; enables traces and metrics ([observability](observability.md)) |
+| `OTEL_EXPORTER_OTLP_HEADERS` | `Authorization=Basic …` | Optional; credentials for the OTLP endpoint |
 
 ## 3. Web service (`apps/web`)
 
@@ -61,6 +63,8 @@ Environment variables:
 | `API_PUBLIC_URL` | `https://api.example.com` | Shown in Settings as the MCP connector URL |
 | `APP_TIMEZONE` | `America/Mexico_City` | Same value as the API |
 | `DEFAULT_CURRENCY` | `MXN` | Preselected when creating the first account |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | same as the API | Optional; enables traces ([observability](observability.md)) |
+| `OTEL_EXPORTER_OTLP_HEADERS` | same as the API | Optional |
 
 `NODE_ENV=production` is set by `next build`/the standalone server, which
 makes the session cookie `Secure`.

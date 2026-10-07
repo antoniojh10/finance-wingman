@@ -23,6 +23,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.PublicURL != "http://localhost:8080" {
 		t.Fatalf("unexpected public URL: %s", cfg.PublicURL)
 	}
+	if cfg.PprofAddr != "" {
+		t.Fatalf("pprof should be disabled by default: %q", cfg.PprofAddr)
+	}
 	if cfg.WebBaseURL != "http://localhost:3000" || cfg.Email.Provider != "log" || cfg.Email.SMTPPort != 1025 || len(cfg.InitialUsers) != 0 {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
@@ -43,6 +46,7 @@ func TestLoadOverrides(t *testing.T) {
 		"SMTP_PORT":        "2525",
 		"EMAIL_FROM":       "hi@example.com",
 		"EMAIL_FROM_NAME":  "Wingman",
+		"PPROF_ADDR":       "localhost:6060",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -52,6 +56,9 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if cfg.PublicURL != "https://api.example.com" || cfg.WebBaseURL != "https://app.example.com" || cfg.Email.Provider != "resend" || cfg.Email.SMTPPort != 2525 || cfg.Email.From != `"Wingman" <hi@example.com>` {
 		t.Fatalf("overrides not applied: %+v", cfg)
+	}
+	if cfg.PprofAddr != "localhost:6060" {
+		t.Fatalf("unexpected pprof address: %q", cfg.PprofAddr)
 	}
 	want := []InitialUser{{Email: "ana@example.com", Name: "Ana"}, {Email: "bob@example.com"}}
 	if len(cfg.InitialUsers) != 2 || cfg.InitialUsers[0] != want[0] || cfg.InitialUsers[1] != want[1] {
@@ -72,6 +79,8 @@ func TestLoadInvalid(t *testing.T) {
 		"invalid login limit":  {"DATABASE_URL": "x", "LOGIN_EMAILS_PER_HOUR": "0"},
 		"public url with path": {"DATABASE_URL": "x", "PUBLIC_URL": "https://api.example.com/v1"},
 		"public url no scheme": {"DATABASE_URL": "x", "PUBLIC_URL": "api.example.com"},
+		"pprof without port":   {"DATABASE_URL": "x", "PPROF_ADDR": "localhost"},
+		"pprof on public port": {"DATABASE_URL": "x", "PPROF_ADDR": ":8080"},
 		"production log email": {"DATABASE_URL": "x", "APP_ENV": "production", "PUBLIC_URL": "https://a.example", "WEB_BASE_URL": "https://w.example"},
 		"production http url":  {"DATABASE_URL": "x", "APP_ENV": "production", "EMAIL_PROVIDER": "smtp", "WEB_BASE_URL": "https://w.example"},
 		"production http web":  {"DATABASE_URL": "x", "APP_ENV": "production", "EMAIL_PROVIDER": "smtp", "PUBLIC_URL": "https://a.example"},
