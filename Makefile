@@ -6,7 +6,7 @@ API_DIR := apps/api
 WEB_PORT ?= 3000
 export
 
-.PHONY: up down jaeger logs psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new tunnel tunnel-down
+.PHONY: up down jaeger logs measure psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new tunnel tunnel-down
 
 ## Infrastructure
 up: ## Start Postgres and Mailpit
@@ -28,6 +28,9 @@ tunnel-down: ## Stop exposing the API
 
 logs:
 	docker compose logs -f
+
+measure: ## Measure RAM/CPU of the production images and estimate hosting cost
+	infra/measure/measure.sh
 
 psql:
 	docker compose exec postgres psql -U finance -d finance

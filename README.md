@@ -53,6 +53,7 @@ cd apps/api && go run ./cmd/api users add you@example.com "Your Name"
 | `make migrate-up` / `migrate-down` / `migrate-status` | Manage migrations |
 | `make migrate-new name=add_x` | Create a new SQL migration |
 | `make psql` | Open a psql shell |
+| `make measure` | Measure RAM/CPU of the production images and estimate hosting cost ([docs](docs/measure.md)) |
 | `go run ./cmd/api users list\|add\|remove` | Manage who has access (from `apps/api`) |
 
 ## Authentication
