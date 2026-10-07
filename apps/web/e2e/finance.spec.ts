@@ -4,7 +4,7 @@ import { navigate, openCategories, openNewTransaction } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
-test("manages accounts, categories and transactions", async ({ page }, testInfo) => {
+test("manages accounts, categories and transactions", { tag: "@mobile" }, async ({ page }, testInfo) => {
   const suffix = `${testInfo.project.name}-${Date.now()}`;
   const accountName = `Checking ${suffix}`;
   const categoryName = `Food ${suffix}`;

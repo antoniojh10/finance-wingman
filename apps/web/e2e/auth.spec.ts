@@ -28,7 +28,7 @@ test("signs in with the magic link", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 });
 
-test("switches language and signs out", async ({ page }) => {
+test("switches language and signs out", { tag: "@mobile" }, async ({ page }) => {
   await signIn(page, e2eUser);
   await navigate(page, /settings/i);
   await expect(page.getByTestId("mcp-url")).toHaveText("http://localhost:8081/mcp");

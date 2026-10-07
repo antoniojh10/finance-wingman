@@ -52,6 +52,7 @@ Commit messages follow [Conventional Commits 1.0.0](https://www.conventionalcomm
 - The browser never calls the Go API directly. Pages fetch in Server Components; mutations are Server Actions in `src/app/actions` returning `FormState`.
 - Use `useFormAction` (onSubmit + transition) for forms with Server Actions; passing actions to `<form action>` resets the form after submission.
 - Keep async Server Components thin; put UI in synchronous components so it can be unit tested. Cover full flows with Playwright (`e2e/`).
+- E2E tests start signed in (session saved by `e2e/auth.setup.ts`); signed-out flows go in `e2e/auth.spec.ts`. Only tests tagged `@mobile` run on the mobile project: tag flows that use the mobile navigation.
 - All UI copy lives in `messages/en.json` and `messages/es.json` (keys must match; a test enforces it).
 - After changing API endpoints or schemas run `make api-openapi`; never edit `src/lib/api/schema.d.ts` by hand.
 - UI primitives are shadcn/ui on Base UI: use `render` (not `asChild`) and `nativeButton={false}` when a Button renders a link.

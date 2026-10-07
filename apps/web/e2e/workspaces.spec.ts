@@ -23,7 +23,7 @@ async function expectAccount(page: Page, name: string, visible: boolean) {
   }
 }
 
-test("invites someone to a workspace and keeps workspaces apart", async ({ page, browser }, testInfo) => {
+test("invites someone to a workspace and keeps workspaces apart", { tag: "@mobile" }, async ({ page, browser }, testInfo) => {
   const suffix = `${testInfo.project.name}-${Date.now()}`;
   const invitee = `invitee-${suffix}@example.com`;
   const sharedAccount = `Shared ${suffix}`;

@@ -30,7 +30,10 @@ export default defineConfig({
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
     { name: "desktop", use: { ...devices["Desktop Chrome"], storageState: authFile }, dependencies: ["setup"] },
-    { name: "mobile", use: { ...devices["Pixel 7"], storageState: authFile }, dependencies: ["setup"] },
+    // Only the flows tagged @mobile, which cover the mobile navigation (tab
+    // bar, header menus, settings via the avatar); the rest only repeat
+    // the desktop run.
+    { name: "mobile", use: { ...devices["Pixel 7"], storageState: authFile }, dependencies: ["setup"], grep: /@mobile/ },
   ],
   webServer: [
     {
