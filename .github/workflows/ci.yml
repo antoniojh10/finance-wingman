@@ -105,6 +105,7 @@ jobs:
   # that did run have passed (a skipped api or web job does not block it).
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: [changes, api, web]
     if: >-
       !cancelled() && !contains(needs.*.result, 'failure') &&
@@ -144,8 +145,12 @@ jobs:
           cache-dependency-path: apps/web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: apps/web
-      - run: pnpm exec playwright install --with-deps chromium
+      # The runner image already has Chrome's system libraries; --with-deps
+      # only added fonts through an apt mirror that can stall for minutes.
+      # Tests run headless, which only needs the headless shell.
+      - run: pnpm exec playwright install --only-shell chromium
         working-directory: apps/web
+        timeout-minutes: 5
       - name: End-to-end tests
         run: pnpm e2e
         working-directory: apps/web

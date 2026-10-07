@@ -1,7 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { e2eUser } from "../playwright.config";
-import { expectWorkspace, invitationLinkFrom, latestEmail, navigate, openWorkspaceMenu, signIn } from "./helpers";
+import { expectWorkspace, invitationLinkFrom, latestEmail, navigate, openWorkspaceMenu } from "./helpers";
 
 async function createAccount(page: Page, name: string) {
   await navigate(page, /accounts/i);
@@ -24,14 +23,14 @@ async function expectAccount(page: Page, name: string, visible: boolean) {
   }
 }
 
-test("invites someone to a workspace and keeps workspaces apart", async ({ page, browser }, testInfo) => {
+test("invites someone to a workspace and keeps workspaces apart", { tag: "@mobile" }, async ({ page, browser }, testInfo) => {
   const suffix = `${testInfo.project.name}-${Date.now()}`;
   const invitee = `invitee-${suffix}@example.com`;
   const sharedAccount = `Shared ${suffix}`;
   const personalAccount = `Personal ${suffix}`;
 
   // The owner shares an account and invites someone.
-  await signIn(page, e2eUser);
+  await page.goto("/");
   await createAccount(page, sharedAccount);
   await openWorkspaceMenu(page);
   await page.getByRole("menuitem", { name: "Manage workspace" }).click();
@@ -46,7 +45,8 @@ test("invites someone to a workspace and keeps workspaces apart", async ({ page,
   const link = invitationLinkFrom(await latestEmail(invitee, since));
 
   // The invitee accepts in their own browser and lands in the workspace.
-  const context = await browser.newContext({ ...testInfo.project.use });
+  // Without the owner's saved session.
+  const context = await browser.newContext({ ...testInfo.project.use, storageState: undefined });
   const guest = await context.newPage();
   await guest.goto(link.replace(/^https?:\/\/[^/]+/, ""));
   await expect(guest.getByRole("heading", { name: "Join a workspace" })).toBeVisible();
