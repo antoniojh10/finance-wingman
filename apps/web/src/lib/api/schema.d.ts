@@ -1206,6 +1206,14 @@ export interface components {
             /** @description Bearer token; only returned when the session is created */
             token?: string;
             user: components["schemas"]["User"];
+            /** @description The workspace the session acts on; omitted until the user joins or picks one */
+            workspace?: components["schemas"]["SessionWorkspace"];
+        };
+        SessionWorkspace: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            role: "owner" | "member";
         };
         SuggestionKeyInput: {
             /**

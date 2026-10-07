@@ -156,7 +156,15 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 			s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 			return
 		}
-		code, err := s.issueAuthorizationCode(r, req, user.ID)
+		var workspaceID *uuid.UUID
+		if id, err := s.q.GetDefaultWorkspaceID(r.Context(), user.ID); err == nil {
+			workspaceID = &id
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			s.logger.ErrorContext(r.Context(), "oauth: get default workspace", "error", err)
+			s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
+			return
+		}
+		code, err := s.issueAuthorizationCode(r, req, user.ID, workspaceID)
 		if err != nil {
 			s.logger.ErrorContext(r.Context(), "oauth: issue authorization code", "error", err)
 			s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
@@ -179,7 +187,7 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) issueAuthorizationCode(r *http.Request, req store.GetAuthorizationRequestRow, userID uuid.UUID) (string, error) {
+func (s *Server) issueAuthorizationCode(r *http.Request, req store.GetAuthorizationRequestRow, userID uuid.UUID, workspaceID *uuid.UUID) (string, error) {
 	code, err := auth.RandomToken()
 	if err != nil {
 		return "", err
@@ -191,6 +199,7 @@ func (s *Server) issueAuthorizationCode(r *http.Request, req store.GetAuthorizat
 		RedirectUri:   req.RedirectUri,
 		CodeChallenge: req.CodeChallenge,
 		Scope:         req.Scope,
+		WorkspaceID:   workspaceID,
 		ExpiresAt:     s.now().Add(s.cfg.AuthorizationCodeTTL),
 	}); err != nil {
 		return "", err

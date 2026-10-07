@@ -27,7 +27,9 @@ var (
 
 // NewDatabase creates an isolated database for a single test and drops it
 // when the test finishes. With migrate=true the database is cloned from a
-// cached, fully migrated template; otherwise it is empty.
+// cached, fully migrated template and the pool acts as db.AppRole (like the
+// API, so row-level security applies); otherwise it is empty and the pool
+// acts as the admin user.
 //
 // The admin connection comes from TEST_DATABASE_URL (defaults to the
 // docker-compose database). Run `make up` before running integration tests.
@@ -58,7 +60,13 @@ func NewDatabase(t *testing.T, migrate bool) *pgxpool.Pool {
 		t.Fatalf("create database %s: %v", name, err)
 	}
 
-	pool, err := db.Connect(ctx, withDatabase(adminURL, name))
+	// A migrated database is used like the API uses it: as db.AppRole, under
+	// row-level security. An empty one has no such role yet.
+	connect := db.ConnectOwner
+	if migrate {
+		connect = db.Connect
+	}
+	pool, err := connect(ctx, withDatabase(adminURL, name))
 	if err != nil {
 		t.Fatalf("connect to %s: %v", name, err)
 	}
@@ -134,7 +142,7 @@ func ensureTemplate(adminURL string) (string, error) {
 	if _, err := admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{building}.Sanitize()+" TEMPLATE template0"); err != nil {
 		return "", err
 	}
-	pool, err := db.Connect(ctx, withDatabase(adminURL, building))
+	pool, err := db.ConnectOwner(ctx, withDatabase(adminURL, building))
 	if err != nil {
 		return "", err
 	}

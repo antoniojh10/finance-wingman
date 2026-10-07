@@ -11,10 +11,11 @@ import (
 )
 
 type Account struct {
-	ID       uuid.UUID
-	Name     string
-	Type     string
-	Currency string
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Name        string
+	Type        string
+	Currency    string
 	// Balance on balance_as_of, in minor units.
 	InitialBalance int64
 	ArchivedAt     *time.Time
@@ -24,14 +25,15 @@ type Account struct {
 }
 
 type Category struct {
-	ID         uuid.UUID
-	Name       string
-	Kind       string
-	Color      *string
-	Icon       *string
-	ArchivedAt *time.Time
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Name        string
+	Kind        string
+	Color       *string
+	Icon        *string
+	ArchivedAt  *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type Currency struct {
@@ -59,6 +61,7 @@ type OauthAuthorizationCode struct {
 	RedirectUri   string
 	CodeChallenge string
 	Scope         string
+	WorkspaceID   *uuid.UUID
 	ExpiresAt     time.Time
 	UsedAt        *time.Time
 	CreatedAt     time.Time
@@ -87,17 +90,19 @@ type OauthClient struct {
 }
 
 type OauthRefreshToken struct {
-	TokenHash []byte
-	FamilyID  uuid.UUID
-	ClientID  string
-	UserID    uuid.UUID
-	Scope     string
-	ExpiresAt time.Time
-	RevokedAt *time.Time
-	CreatedAt time.Time
+	TokenHash   []byte
+	FamilyID    uuid.UUID
+	ClientID    string
+	UserID      uuid.UUID
+	Scope       string
+	WorkspaceID *uuid.UUID
+	ExpiresAt   time.Time
+	RevokedAt   *time.Time
+	CreatedAt   time.Time
 }
 
 type RecurringDismissedSuggestion struct {
+	WorkspaceID uuid.UUID
 	AccountID   uuid.UUID
 	Type        string
 	Description string
@@ -107,6 +112,7 @@ type RecurringDismissedSuggestion struct {
 
 type RecurringItem struct {
 	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
 	Name          string
 	Type          string
 	AccountID     uuid.UUID
@@ -133,10 +139,12 @@ type Session struct {
 	CreatedAt     time.Time
 	OauthClientID *string
 	OauthFamilyID *uuid.UUID
+	WorkspaceID   *uuid.UUID
 }
 
 type Transaction struct {
 	ID                   uuid.UUID
+	WorkspaceID          uuid.UUID
 	Type                 string
 	AccountID            uuid.UUID
 	Amount               int64
@@ -159,4 +167,31 @@ type User struct {
 	Locale    string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type Workspace struct {
+	ID        uuid.UUID
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type WorkspaceInvitation struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Email       string
+	Role        string
+	TokenHash   []byte
+	InvitedBy   *uuid.UUID
+	ExpiresAt   time.Time
+	AcceptedAt  *time.Time
+	RevokedAt   *time.Time
+	CreatedAt   time.Time
+}
+
+type WorkspaceMember struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+	Role        string
+	CreatedAt   time.Time
 }

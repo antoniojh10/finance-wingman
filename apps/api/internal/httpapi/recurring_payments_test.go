@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"context"
 	"net/http"
 	"testing"
 	"time"
@@ -306,7 +305,7 @@ func TestDeletingRecurringItemKeepsTransactions(t *testing.T) {
 	var tx finance.Transaction
 	api.do(http.MethodPost, "/api/v1/recurring/"+item.ID.String()+"/payments", map[string]any{}).expect(http.StatusCreated).decode(&tx)
 
-	if _, err := api.pool.Exec(context.Background(), "DELETE FROM recurring_items WHERE id = $1", item.ID); err != nil {
+	if _, err := api.pool.Exec(api.ctx, "DELETE FROM recurring_items WHERE id = $1", item.ID); err != nil {
 		t.Fatal(err)
 	}
 	var got finance.Transaction

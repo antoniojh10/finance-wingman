@@ -45,6 +45,22 @@ func TestMCPRequiresBearerToken(t *testing.T) {
 	}
 }
 
+// connectMCP connects an MCP client over HTTP with the given bearer token.
+func connectMCP(t *testing.T, api *testAPI, token string) *mcp.ClientSession {
+	t.Helper()
+	server := httptest.NewServer(api.handler)
+	t.Cleanup(server.Close)
+	session, err := mcp.NewClient(&mcp.Implementation{Name: "claude-test"}, nil).Connect(context.Background(), &mcp.StreamableClientTransport{
+		Endpoint:   server.URL + "/mcp",
+		HTTPClient: &http.Client{Transport: bearerTransport{token: token, base: http.DefaultTransport}},
+	}, nil)
+	if err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	t.Cleanup(func() { session.Close() })
+	return session
+}
+
 // TestMCPEndToEnd connects a real MCP client over HTTP with an OAuth access
 // token, records an expense, and checks it is attributed to the user.
 func TestMCPEndToEnd(t *testing.T) {
@@ -76,7 +92,7 @@ func TestMCPEndToEnd(t *testing.T) {
 		t.Fatalf("add_expense: %v %+v", err, res)
 	}
 
-	page, err := api.svc.ListTransactions(ctx, finance.TransactionFilter{AccountID: &account.ID})
+	page, err := api.svc.ListTransactions(api.ctx, finance.TransactionFilter{AccountID: &account.ID})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,7 +1,6 @@
 package httpapi
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -114,7 +113,7 @@ func TestCreateTransactionValidation(t *testing.T) {
 func TestCreateTransactionRecordsActor(t *testing.T) {
 	t.Parallel()
 	f := newTxFixture(t)
-	ctx := context.Background()
+	ctx := f.api.ctx
 
 	var userID uuid.UUID
 	if err := f.api.pool.QueryRow(ctx, `INSERT INTO users (email, name) VALUES ('ana@example.com', 'Ana') RETURNING id`).Scan(&userID); err != nil {

@@ -26,8 +26,12 @@ type Config struct {
 	PublicURL string
 	// WebBaseURL is the public URL of the Next.js app, used in magic links.
 	WebBaseURL string
-	// InitialUsers are granted access on startup ("email:Name,email2").
+	// InitialUsers are granted access on startup ("email:Name,email2"). Other
+	// users join through workspace invitations.
 	InitialUsers []InitialUser
+	// InitialWorkspaceName names the workspace created on startup, owned by
+	// InitialUsers, when the database has none (INITIAL_WORKSPACE_NAME).
+	InitialWorkspaceName string
 	// LoginEmailsPerHour caps sign-in emails per user (LOGIN_EMAILS_PER_HOUR).
 	LoginEmailsPerHour int
 	// PprofAddr, when set, serves net/http/pprof on a separate listener
@@ -61,16 +65,17 @@ func Load() (Config, error) {
 
 func load(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		Env:                valueOr(getenv("APP_ENV"), "development"),
-		Port:               8080,
-		DatabaseURL:        getenv("DATABASE_URL"),
-		MigrateOnStart:     true,
-		Location:           time.UTC,
-		PublicURL:          strings.TrimRight(valueOr(getenv("PUBLIC_URL"), "http://localhost:8080"), "/"),
-		WebBaseURL:         valueOr(getenv("WEB_BASE_URL"), "http://localhost:3000"),
-		InitialUsers:       parseInitialUsers(getenv("INITIAL_USERS")),
-		LoginEmailsPerHour: 5,
-		PprofAddr:          getenv("PPROF_ADDR"),
+		Env:                  valueOr(getenv("APP_ENV"), "development"),
+		Port:                 8080,
+		DatabaseURL:          getenv("DATABASE_URL"),
+		MigrateOnStart:       true,
+		Location:             time.UTC,
+		PublicURL:            strings.TrimRight(valueOr(getenv("PUBLIC_URL"), "http://localhost:8080"), "/"),
+		WebBaseURL:           valueOr(getenv("WEB_BASE_URL"), "http://localhost:3000"),
+		InitialUsers:         parseInitialUsers(getenv("INITIAL_USERS")),
+		InitialWorkspaceName: valueOr(strings.TrimSpace(getenv("INITIAL_WORKSPACE_NAME")), "Finance Wingman"),
+		LoginEmailsPerHour:   5,
+		PprofAddr:            getenv("PPROF_ADDR"),
 		Email: EmailConfig{
 			Provider:     valueOr(getenv("EMAIL_PROVIDER"), "log"),
 			From:         formatFrom(valueOr(getenv("EMAIL_FROM_NAME"), "Finance Wingman"), valueOr(getenv("EMAIL_FROM"), "no-reply@localhost")),

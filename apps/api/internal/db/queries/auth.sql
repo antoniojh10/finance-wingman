@@ -56,15 +56,43 @@ UPDATE login_challenges SET consumed_at = now()
 WHERE user_id = $1 AND consumed_at IS NULL;
 
 -- name: CreateSession :one
-INSERT INTO sessions (user_id, token_hash, client, expires_at)
-VALUES ($1, $2, $3, $4)
+INSERT INTO sessions (user_id, token_hash, client, expires_at, workspace_id)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
+-- The session's workspace is only reported while the user is still a
+-- member of it.
 -- name: GetSessionByTokenHash :one
-SELECT s.*, u.email, u.name, u.locale
+SELECT s.*, u.email, u.name, u.locale,
+    w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role
 FROM sessions s
 JOIN users u ON u.id = s.user_id
+LEFT JOIN workspace_members m ON m.workspace_id = s.workspace_id AND m.user_id = s.user_id
+LEFT JOIN workspaces w ON w.id = m.workspace_id
 WHERE s.token_hash = $1;
+
+-- The workspace a new session starts in: the one the user used last, or
+-- the first one they joined.
+-- name: GetDefaultWorkspaceID :one
+SELECT m.workspace_id
+FROM workspace_members m
+WHERE m.user_id = $1
+ORDER BY (
+    SELECT max(s.last_used_at) FROM sessions s
+    WHERE s.user_id = m.user_id AND s.workspace_id = m.workspace_id
+) DESC NULLS LAST, m.created_at
+LIMIT 1;
+
+-- name: GetMembership :one
+SELECT w.id, w.name, m.role
+FROM workspace_members m
+JOIN workspaces w ON w.id = m.workspace_id
+WHERE m.workspace_id = $1 AND m.user_id = $2;
+
+-- Switching counts as using the session, so the next sign-in resumes the
+-- workspace the user switched to.
+-- name: SetSessionWorkspace :exec
+UPDATE sessions SET workspace_id = $2, last_used_at = now() WHERE id = $1;
 
 -- name: TouchSession :exec
 UPDATE sessions SET last_used_at = now() WHERE id = $1;

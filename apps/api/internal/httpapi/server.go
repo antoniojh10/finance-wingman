@@ -96,7 +96,9 @@ func build(deps Deps) (chi.Router, huma.API) {
 		registerAuth(api, deps.Auth, deps.Logger)
 	}
 	if deps.Finance != nil {
-		registerFinance(api, deps.Finance, deps.Logger)
+		workspace := huma.NewGroup(api)
+		workspace.UseMiddleware(requireWorkspace(api))
+		registerFinance(workspace, deps.Finance, deps.Logger)
 	}
 
 	return router, api

@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/google/uuid"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/config"
@@ -35,6 +35,7 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/telemetry"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/workspace"
 )
 
 func main() {
@@ -78,6 +79,32 @@ func run(args []string, logger *slog.Logger) error {
 		}
 	}()
 
+	command := "serve"
+	if len(args) > 0 {
+		command = args[0]
+	}
+
+	// Migrations run as the connection user; the API itself runs as
+	// db.AppRole, which the migrations create.
+	if command == "migrate" {
+		if len(args) < 2 {
+			return errors.New("usage: api migrate <up|down|status>")
+		}
+		return migrate(ctx, cfg.DatabaseURL, args[1])
+	}
+	if command == "serve" && cfg.MigrateOnStart {
+		owner, err := db.ConnectOwner(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return err
+		}
+		applied, err := db.MigrateUp(ctx, owner)
+		owner.Close()
+		if err != nil {
+			return err
+		}
+		logger.Info("migrations applied", "count", applied)
+	}
+
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return err
@@ -86,24 +113,23 @@ func run(args []string, logger *slog.Logger) error {
 
 	authSvc := auth.NewService(pool, newMailSender(cfg.Email, mailLogger), auth.Config{WebBaseURL: cfg.WebBaseURL, MaxChallengesPerHour: cfg.LoginEmailsPerHour}, logger)
 
-	command := "serve"
-	if len(args) > 0 {
-		command = args[0]
-	}
-
 	switch command {
 	case "serve":
-		if cfg.MigrateOnStart {
-			applied, err := db.MigrateUp(ctx, pool)
-			if err != nil {
-				return err
-			}
-			logger.Info("migrations applied", "count", applied)
-		}
+		workspaceSvc := workspace.NewService(pool)
+		var initialIDs []uuid.UUID
 		for _, u := range cfg.InitialUsers {
-			if _, err := authSvc.AddUser(ctx, u.Email, u.Name); err != nil {
+			user, err := authSvc.AddUser(ctx, u.Email, u.Name)
+			if err != nil {
 				return fmt.Errorf("add initial user %q: %w", u.Email, err)
 			}
+			initialIDs = append(initialIDs, user.ID)
+		}
+		created, err := workspaceSvc.Bootstrap(ctx, cfg.InitialWorkspaceName, initialIDs)
+		if err != nil {
+			return fmt.Errorf("create initial workspace: %w", err)
+		}
+		if created {
+			logger.Info("initial workspace created", "name", cfg.InitialWorkspaceName, "owners", len(initialIDs))
 		}
 		financeSvc := finance.NewService(pool, cfg.Location)
 		oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: cfg.PublicURL}, logger)
@@ -122,11 +148,6 @@ func run(args []string, logger *slog.Logger) error {
 			MCP:     mcpHandler,
 		})
 		return serve(ctx, cfg, logger, handler)
-	case "migrate":
-		if len(args) < 2 {
-			return errors.New("usage: api migrate <up|down|status>")
-		}
-		return migrate(ctx, pool, args[1])
 	case "users":
 		return users(ctx, authSvc, args[1:])
 	default:
@@ -222,7 +243,12 @@ func purgeExpiredPeriodically(ctx context.Context, logger *slog.Logger, purgers 
 	}
 }
 
-func migrate(ctx context.Context, pool *pgxpool.Pool, command string) error {
+func migrate(ctx context.Context, databaseURL, command string) error {
+	pool, err := db.ConnectOwner(ctx, databaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
 	m, err := db.NewMigrator(pool)
 	if err != nil {
 		return err

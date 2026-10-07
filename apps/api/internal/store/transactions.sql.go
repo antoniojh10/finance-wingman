@@ -65,7 +65,7 @@ func (q *Queries) DeleteTransaction(ctx context.Context, id uuid.UUID) (int64, e
 
 const getTransaction = `-- name: GetTransaction :one
 SELECT
-    t.id, t.type, t.account_id, t.amount, t.destination_account_id, t.destination_amount, t.category_id, t.description, t.occurred_on, t.created_by, t.created_at, t.updated_at, t.recurring_id, t.recurring_due_on,
+    t.id, t.workspace_id, t.type, t.account_id, t.amount, t.destination_account_id, t.destination_amount, t.category_id, t.description, t.occurred_on, t.created_by, t.created_at, t.updated_at, t.recurring_id, t.recurring_due_on,
     a.name AS account_name,
     a.currency AS currency,
     cur.minor_units AS minor_units,
@@ -87,6 +87,7 @@ WHERE t.id = $1
 
 type GetTransactionRow struct {
 	ID                     uuid.UUID
+	WorkspaceID            uuid.UUID
 	Type                   string
 	AccountID              uuid.UUID
 	Amount                 int64
@@ -116,6 +117,7 @@ func (q *Queries) GetTransaction(ctx context.Context, id uuid.UUID) (GetTransact
 	var i GetTransactionRow
 	err := row.Scan(
 		&i.ID,
+		&i.WorkspaceID,
 		&i.Type,
 		&i.AccountID,
 		&i.Amount,
@@ -143,7 +145,7 @@ func (q *Queries) GetTransaction(ctx context.Context, id uuid.UUID) (GetTransact
 }
 
 const getTransactionRecord = `-- name: GetTransactionRecord :one
-SELECT id, type, account_id, amount, destination_account_id, destination_amount, category_id, description, occurred_on, created_by, created_at, updated_at, recurring_id, recurring_due_on FROM transactions WHERE id = $1
+SELECT id, workspace_id, type, account_id, amount, destination_account_id, destination_amount, category_id, description, occurred_on, created_by, created_at, updated_at, recurring_id, recurring_due_on FROM transactions WHERE id = $1
 `
 
 func (q *Queries) GetTransactionRecord(ctx context.Context, id uuid.UUID) (Transaction, error) {
@@ -151,6 +153,7 @@ func (q *Queries) GetTransactionRecord(ctx context.Context, id uuid.UUID) (Trans
 	var i Transaction
 	err := row.Scan(
 		&i.ID,
+		&i.WorkspaceID,
 		&i.Type,
 		&i.AccountID,
 		&i.Amount,
@@ -185,7 +188,7 @@ func (q *Queries) LinkTransactionToRecurring(ctx context.Context, arg LinkTransa
 
 const listTransactions = `-- name: ListTransactions :many
 SELECT
-    t.id, t.type, t.account_id, t.amount, t.destination_account_id, t.destination_amount, t.category_id, t.description, t.occurred_on, t.created_by, t.created_at, t.updated_at, t.recurring_id, t.recurring_due_on,
+    t.id, t.workspace_id, t.type, t.account_id, t.amount, t.destination_account_id, t.destination_amount, t.category_id, t.description, t.occurred_on, t.created_by, t.created_at, t.updated_at, t.recurring_id, t.recurring_due_on,
     a.name AS account_name,
     a.currency AS currency,
     cur.minor_units AS minor_units,
@@ -228,6 +231,7 @@ type ListTransactionsParams struct {
 
 type ListTransactionsRow struct {
 	ID                     uuid.UUID
+	WorkspaceID            uuid.UUID
 	Type                   string
 	AccountID              uuid.UUID
 	Amount                 int64
@@ -273,6 +277,7 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 		var i ListTransactionsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.WorkspaceID,
 			&i.Type,
 			&i.AccountID,
 			&i.Amount,

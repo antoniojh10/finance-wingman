@@ -1,7 +1,6 @@
 package mcpserver
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +20,7 @@ func (h *harness) seedMonthly(account finance.Account, description string, categ
 		if category != nil {
 			in.CategoryID = &category.ID
 		}
-		tx, err := h.svc.CreateTransaction(context.Background(), in)
+		tx, err := h.svc.CreateTransaction(h.ctx, in)
 		if err != nil {
 			h.t.Fatal(err)
 		}

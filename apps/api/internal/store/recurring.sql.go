@@ -102,7 +102,7 @@ func (q *Queries) FindOpenRecurringItemByName(ctx context.Context, arg FindOpenR
 
 const getRecurringItem = `-- name: GetRecurringItem :one
 SELECT
-    r.id, r.name, r.type, r.account_id, r.category_id, r.amount, r.notes, r.interval_unit, r.interval_count, r.start_on, r.total_payments, r.status, r.created_by, r.created_at, r.updated_at,
+    r.id, r.workspace_id, r.name, r.type, r.account_id, r.category_id, r.amount, r.notes, r.interval_unit, r.interval_count, r.start_on, r.total_payments, r.status, r.created_by, r.created_at, r.updated_at,
     a.name AS account_name,
     a.currency,
     a.archived_at AS account_archived_at,
@@ -117,6 +117,7 @@ WHERE r.id = $1
 
 type GetRecurringItemRow struct {
 	ID                uuid.UUID
+	WorkspaceID       uuid.UUID
 	Name              string
 	Type              string
 	AccountID         uuid.UUID
@@ -143,6 +144,7 @@ func (q *Queries) GetRecurringItem(ctx context.Context, id uuid.UUID) (GetRecurr
 	var i GetRecurringItemRow
 	err := row.Scan(
 		&i.ID,
+		&i.WorkspaceID,
 		&i.Name,
 		&i.Type,
 		&i.AccountID,
@@ -277,7 +279,7 @@ func (q *Queries) ListRecurringCandidates(ctx context.Context, arg ListRecurring
 
 const listRecurringItems = `-- name: ListRecurringItems :many
 SELECT
-    r.id, r.name, r.type, r.account_id, r.category_id, r.amount, r.notes, r.interval_unit, r.interval_count, r.start_on, r.total_payments, r.status, r.created_by, r.created_at, r.updated_at,
+    r.id, r.workspace_id, r.name, r.type, r.account_id, r.category_id, r.amount, r.notes, r.interval_unit, r.interval_count, r.start_on, r.total_payments, r.status, r.created_by, r.created_at, r.updated_at,
     a.name AS account_name,
     a.currency,
     a.archived_at AS account_archived_at,
@@ -299,6 +301,7 @@ type ListRecurringItemsParams struct {
 
 type ListRecurringItemsRow struct {
 	ID                uuid.UUID
+	WorkspaceID       uuid.UUID
 	Name              string
 	Type              string
 	AccountID         uuid.UUID
@@ -331,6 +334,7 @@ func (q *Queries) ListRecurringItems(ctx context.Context, arg ListRecurringItems
 		var i ListRecurringItemsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.WorkspaceID,
 			&i.Name,
 			&i.Type,
 			&i.AccountID,

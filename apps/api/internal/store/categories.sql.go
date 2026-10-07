@@ -14,7 +14,7 @@ import (
 const createCategory = `-- name: CreateCategory :one
 INSERT INTO categories (name, kind, color, icon)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, kind, color, icon, archived_at, created_at, updated_at
+RETURNING id, workspace_id, name, kind, color, icon, archived_at, created_at, updated_at
 `
 
 type CreateCategoryParams struct {
@@ -34,6 +34,7 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 	var i Category
 	err := row.Scan(
 		&i.ID,
+		&i.WorkspaceID,
 		&i.Name,
 		&i.Kind,
 		&i.Color,
@@ -58,7 +59,7 @@ func (q *Queries) DeleteCategory(ctx context.Context, id uuid.UUID) (int64, erro
 }
 
 const getCategory = `-- name: GetCategory :one
-SELECT id, name, kind, color, icon, archived_at, created_at, updated_at FROM categories WHERE id = $1
+SELECT id, workspace_id, name, kind, color, icon, archived_at, created_at, updated_at FROM categories WHERE id = $1
 `
 
 func (q *Queries) GetCategory(ctx context.Context, id uuid.UUID) (Category, error) {
@@ -66,6 +67,7 @@ func (q *Queries) GetCategory(ctx context.Context, id uuid.UUID) (Category, erro
 	var i Category
 	err := row.Scan(
 		&i.ID,
+		&i.WorkspaceID,
 		&i.Name,
 		&i.Kind,
 		&i.Color,
@@ -78,7 +80,7 @@ func (q *Queries) GetCategory(ctx context.Context, id uuid.UUID) (Category, erro
 }
 
 const listCategories = `-- name: ListCategories :many
-SELECT id, name, kind, color, icon, archived_at, created_at, updated_at FROM categories
+SELECT id, workspace_id, name, kind, color, icon, archived_at, created_at, updated_at FROM categories
 WHERE ($1::text IS NULL OR kind = $1)
   AND ($2::boolean OR archived_at IS NULL)
 ORDER BY kind, archived_at IS NOT NULL, lower(name)
@@ -100,6 +102,7 @@ func (q *Queries) ListCategories(ctx context.Context, arg ListCategoriesParams) 
 		var i Category
 		if err := rows.Scan(
 			&i.ID,
+			&i.WorkspaceID,
 			&i.Name,
 			&i.Kind,
 			&i.Color,
@@ -129,7 +132,7 @@ UPDATE categories SET
         ELSE NULL
     END
 WHERE id = $7
-RETURNING id, name, kind, color, icon, archived_at, created_at, updated_at
+RETURNING id, workspace_id, name, kind, color, icon, archived_at, created_at, updated_at
 `
 
 type UpdateCategoryParams struct {
@@ -155,6 +158,7 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 	var i Category
 	err := row.Scan(
 		&i.ID,
+		&i.WorkspaceID,
 		&i.Name,
 		&i.Kind,
 		&i.Color,

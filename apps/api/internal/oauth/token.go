@@ -110,7 +110,7 @@ func (s *Server) exchangeCode(w http.ResponseWriter, r *http.Request, client sto
 		return
 	}
 
-	resp, err := s.issueTokens(r.Context(), client.ID, record.UserID, uuid.New())
+	resp, err := s.issueTokens(r.Context(), client.ID, record.UserID, record.WorkspaceID, uuid.New())
 	if err != nil {
 		s.serverError(w, r, "issue tokens", err)
 		return
@@ -151,7 +151,7 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, client store.Oa
 		return
 	}
 
-	resp, err := s.issueTokens(r.Context(), client.ID, record.UserID, record.FamilyID)
+	resp, err := s.issueTokens(r.Context(), client.ID, record.UserID, record.WorkspaceID, record.FamilyID)
 	if err != nil {
 		s.serverError(w, r, "issue tokens", err)
 		return
@@ -159,7 +159,9 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, client store.Oa
 	writeJSON(w, http.StatusOK, resp)
 }
 
-func (s *Server) issueTokens(ctx context.Context, clientID string, userID, family uuid.UUID) (tokenResponse, error) {
+// issueTokens creates an access token (a session acting on workspaceID) and
+// a refresh token that keeps the same workspace when rotated.
+func (s *Server) issueTokens(ctx context.Context, clientID string, userID uuid.UUID, workspaceID *uuid.UUID, family uuid.UUID) (tokenResponse, error) {
 	access, err := auth.RandomToken()
 	if err != nil {
 		return tokenResponse{}, err
@@ -176,16 +178,18 @@ func (s *Server) issueTokens(ctx context.Context, clientID string, userID, famil
 		ExpiresAt:     now.Add(s.cfg.AccessTokenTTL),
 		OauthClientID: &clientID,
 		OauthFamilyID: &family,
+		WorkspaceID:   workspaceID,
 	}); err != nil {
 		return tokenResponse{}, err
 	}
 	if err := s.q.CreateRefreshToken(ctx, store.CreateRefreshTokenParams{
-		TokenHash: auth.HashToken(refresh),
-		FamilyID:  family,
-		ClientID:  clientID,
-		UserID:    userID,
-		Scope:     Scope,
-		ExpiresAt: now.Add(s.cfg.RefreshTokenTTL),
+		TokenHash:   auth.HashToken(refresh),
+		FamilyID:    family,
+		ClientID:    clientID,
+		UserID:      userID,
+		Scope:       Scope,
+		WorkspaceID: workspaceID,
+		ExpiresAt:   now.Add(s.cfg.RefreshTokenTTL),
 	}); err != nil {
 		return tokenResponse{}, err
 	}

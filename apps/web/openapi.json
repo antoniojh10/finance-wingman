@@ -1463,11 +1463,39 @@
           },
           "user": {
             "$ref": "#/components/schemas/User"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/SessionWorkspace",
+            "description": "The workspace the session acts on; omitted until the user joins or picks one"
           }
         },
         "required": [
           "expires_at",
           "user"
+        ],
+        "type": "object"
+      },
+      "SessionWorkspace": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "member"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role"
         ],
         "type": "object"
       },

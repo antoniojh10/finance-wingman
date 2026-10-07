@@ -27,8 +27,8 @@ UPDATE oauth_authorization_requests SET email = $2 WHERE id = $1;
 DELETE FROM oauth_authorization_requests WHERE id = $1;
 
 -- name: CreateAuthorizationCode :exec
-INSERT INTO oauth_authorization_codes (code_hash, client_id, user_id, redirect_uri, code_challenge, scope, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7);
+INSERT INTO oauth_authorization_codes (code_hash, client_id, user_id, redirect_uri, code_challenge, scope, workspace_id, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
 
 -- Marks the code as used and returns it, only if it was unused.
 -- name: UseAuthorizationCode :one
@@ -40,8 +40,8 @@ RETURNING *;
 SELECT * FROM oauth_authorization_codes WHERE code_hash = $1;
 
 -- name: CreateRefreshToken :exec
-INSERT INTO oauth_refresh_tokens (token_hash, family_id, client_id, user_id, scope, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6);
+INSERT INTO oauth_refresh_tokens (token_hash, family_id, client_id, user_id, scope, workspace_id, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7);
 
 -- Revokes the token and returns it, only if it was still active.
 -- name: RotateRefreshToken :one
@@ -60,8 +60,8 @@ WHERE family_id = $1 AND revoked_at IS NULL;
 DELETE FROM sessions WHERE oauth_family_id = $1;
 
 -- name: CreateOAuthSession :one
-INSERT INTO sessions (user_id, token_hash, client, expires_at, oauth_client_id, oauth_family_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO sessions (user_id, token_hash, client, expires_at, oauth_client_id, oauth_family_id, workspace_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id;
 
 -- name: GetSessionFamily :one

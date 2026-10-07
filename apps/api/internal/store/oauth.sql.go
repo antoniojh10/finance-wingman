@@ -24,8 +24,8 @@ func (q *Queries) CountRecentOAuthClients(ctx context.Context, createdAt time.Ti
 }
 
 const createAuthorizationCode = `-- name: CreateAuthorizationCode :exec
-INSERT INTO oauth_authorization_codes (code_hash, client_id, user_id, redirect_uri, code_challenge, scope, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO oauth_authorization_codes (code_hash, client_id, user_id, redirect_uri, code_challenge, scope, workspace_id, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `
 
 type CreateAuthorizationCodeParams struct {
@@ -35,6 +35,7 @@ type CreateAuthorizationCodeParams struct {
 	RedirectUri   string
 	CodeChallenge string
 	Scope         string
+	WorkspaceID   *uuid.UUID
 	ExpiresAt     time.Time
 }
 
@@ -46,6 +47,7 @@ func (q *Queries) CreateAuthorizationCode(ctx context.Context, arg CreateAuthori
 		arg.RedirectUri,
 		arg.CodeChallenge,
 		arg.Scope,
+		arg.WorkspaceID,
 		arg.ExpiresAt,
 	)
 	return err
@@ -128,8 +130,8 @@ func (q *Queries) CreateOAuthClient(ctx context.Context, arg CreateOAuthClientPa
 }
 
 const createOAuthSession = `-- name: CreateOAuthSession :one
-INSERT INTO sessions (user_id, token_hash, client, expires_at, oauth_client_id, oauth_family_id)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO sessions (user_id, token_hash, client, expires_at, oauth_client_id, oauth_family_id, workspace_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id
 `
 
@@ -140,6 +142,7 @@ type CreateOAuthSessionParams struct {
 	ExpiresAt     time.Time
 	OauthClientID *string
 	OauthFamilyID *uuid.UUID
+	WorkspaceID   *uuid.UUID
 }
 
 func (q *Queries) CreateOAuthSession(ctx context.Context, arg CreateOAuthSessionParams) (uuid.UUID, error) {
@@ -150,6 +153,7 @@ func (q *Queries) CreateOAuthSession(ctx context.Context, arg CreateOAuthSession
 		arg.ExpiresAt,
 		arg.OauthClientID,
 		arg.OauthFamilyID,
+		arg.WorkspaceID,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -157,17 +161,18 @@ func (q *Queries) CreateOAuthSession(ctx context.Context, arg CreateOAuthSession
 }
 
 const createRefreshToken = `-- name: CreateRefreshToken :exec
-INSERT INTO oauth_refresh_tokens (token_hash, family_id, client_id, user_id, scope, expires_at)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO oauth_refresh_tokens (token_hash, family_id, client_id, user_id, scope, workspace_id, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type CreateRefreshTokenParams struct {
-	TokenHash []byte
-	FamilyID  uuid.UUID
-	ClientID  string
-	UserID    uuid.UUID
-	Scope     string
-	ExpiresAt time.Time
+	TokenHash   []byte
+	FamilyID    uuid.UUID
+	ClientID    string
+	UserID      uuid.UUID
+	Scope       string
+	WorkspaceID *uuid.UUID
+	ExpiresAt   time.Time
 }
 
 func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) error {
@@ -177,6 +182,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 		arg.ClientID,
 		arg.UserID,
 		arg.Scope,
+		arg.WorkspaceID,
 		arg.ExpiresAt,
 	)
 	return err
@@ -215,7 +221,7 @@ func (q *Queries) DeleteFamilySessions(ctx context.Context, oauthFamilyID *uuid.
 }
 
 const getAuthorizationCode = `-- name: GetAuthorizationCode :one
-SELECT code_hash, client_id, user_id, redirect_uri, code_challenge, scope, expires_at, used_at, created_at FROM oauth_authorization_codes WHERE code_hash = $1
+SELECT code_hash, client_id, user_id, redirect_uri, code_challenge, scope, workspace_id, expires_at, used_at, created_at FROM oauth_authorization_codes WHERE code_hash = $1
 `
 
 func (q *Queries) GetAuthorizationCode(ctx context.Context, codeHash []byte) (OauthAuthorizationCode, error) {
@@ -228,6 +234,7 @@ func (q *Queries) GetAuthorizationCode(ctx context.Context, codeHash []byte) (Oa
 		&i.RedirectUri,
 		&i.CodeChallenge,
 		&i.Scope,
+		&i.WorkspaceID,
 		&i.ExpiresAt,
 		&i.UsedAt,
 		&i.CreatedAt,
@@ -294,7 +301,7 @@ func (q *Queries) GetOAuthClient(ctx context.Context, id string) (OauthClient, e
 }
 
 const getRefreshToken = `-- name: GetRefreshToken :one
-SELECT token_hash, family_id, client_id, user_id, scope, expires_at, revoked_at, created_at FROM oauth_refresh_tokens WHERE token_hash = $1
+SELECT token_hash, family_id, client_id, user_id, scope, workspace_id, expires_at, revoked_at, created_at FROM oauth_refresh_tokens WHERE token_hash = $1
 `
 
 func (q *Queries) GetRefreshToken(ctx context.Context, tokenHash []byte) (OauthRefreshToken, error) {
@@ -306,6 +313,7 @@ func (q *Queries) GetRefreshToken(ctx context.Context, tokenHash []byte) (OauthR
 		&i.ClientID,
 		&i.UserID,
 		&i.Scope,
+		&i.WorkspaceID,
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.CreatedAt,
@@ -337,7 +345,7 @@ func (q *Queries) RevokeRefreshTokenFamily(ctx context.Context, familyID uuid.UU
 const rotateRefreshToken = `-- name: RotateRefreshToken :one
 UPDATE oauth_refresh_tokens SET revoked_at = now()
 WHERE token_hash = $1 AND revoked_at IS NULL
-RETURNING token_hash, family_id, client_id, user_id, scope, expires_at, revoked_at, created_at
+RETURNING token_hash, family_id, client_id, user_id, scope, workspace_id, expires_at, revoked_at, created_at
 `
 
 // Revokes the token and returns it, only if it was still active.
@@ -350,6 +358,7 @@ func (q *Queries) RotateRefreshToken(ctx context.Context, tokenHash []byte) (Oau
 		&i.ClientID,
 		&i.UserID,
 		&i.Scope,
+		&i.WorkspaceID,
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.CreatedAt,
@@ -374,7 +383,7 @@ func (q *Queries) SetAuthorizationRequestEmail(ctx context.Context, arg SetAutho
 const useAuthorizationCode = `-- name: UseAuthorizationCode :one
 UPDATE oauth_authorization_codes SET used_at = now()
 WHERE code_hash = $1 AND used_at IS NULL
-RETURNING code_hash, client_id, user_id, redirect_uri, code_challenge, scope, expires_at, used_at, created_at
+RETURNING code_hash, client_id, user_id, redirect_uri, code_challenge, scope, workspace_id, expires_at, used_at, created_at
 `
 
 // Marks the code as used and returns it, only if it was unused.
@@ -388,6 +397,7 @@ func (q *Queries) UseAuthorizationCode(ctx context.Context, codeHash []byte) (Oa
 		&i.RedirectUri,
 		&i.CodeChallenge,
 		&i.Scope,
+		&i.WorkspaceID,
 		&i.ExpiresAt,
 		&i.UsedAt,
 		&i.CreatedAt,
