@@ -161,7 +161,7 @@ func (s *Server) registerRecurringTools() {
 		Description: "Record that a recurring item (subscription, bill, installment, salary) was paid or received: creates the linked expense or income transaction using the item's account, category and name, and marks the period paid. Use it instead of add_expense or add_income when the user paid something that matches a recurring item. Optional amount, date and period overrides. If the period is already paid it fails and explains how to proceed; ask the user before retrying with an explicit period.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args markRecurringPaidArgs) (*mcp.CallToolResult, markRecurringPaidOut, error) {
-		return s.markRecurringPaid(actorContext(ctx, req), args)
+		return s.markRecurringPaid(ctx, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -170,7 +170,7 @@ func (s *Server) registerRecurringTools() {
 		Description: "Track a new subscription, bill, installment plan or recurring income, e.g. 'Spotify, 99 a month starting on the 5th'. It only records the schedule and an estimated amount; it does not create transactions. Check list_recurring first to avoid duplicates.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args createRecurringArgs) (*mcp.CallToolResult, recurringOut, error) {
-		return s.createRecurring(actorContext(ctx, req), args)
+		return s.createRecurring(ctx, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{

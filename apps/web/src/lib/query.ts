@@ -1,3 +1,5 @@
+import { parseOwner } from "@/lib/owners";
+
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -8,6 +10,8 @@ export type TransactionQuery = {
   from?: string;
   to?: string;
   q?: string;
+  /** Accounts' owner: a user id or "shared". */
+  owner?: string;
   page: number;
 };
 
@@ -26,6 +30,7 @@ export function parseTransactionQuery(params: Record<string, string | string[] |
     from: datePattern.test(get("from") ?? "") ? get("from") : undefined,
     to: datePattern.test(get("to") ?? "") ? get("to") : undefined,
     q: get("q")?.slice(0, 100),
+    owner: parseOwner(get("owner")),
     page: Number.isFinite(page) && page > 0 ? page : 1,
   };
 }

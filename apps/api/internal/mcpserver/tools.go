@@ -18,7 +18,7 @@ import (
 
 type recordArgs struct {
 	Amount      float64 `json:"amount" jsonschema:"Positive amount in the account currency, e.g. 150.50"`
-	Account     string  `json:"account,omitempty" jsonschema:"Account name or ID. Optional when only one active account exists"`
+	Account     string  `json:"account,omitempty" jsonschema:"Account name or ID. When several members have an account with that name, the user's own is used; name another member's as shown by list_accounts, e.g. BNP (Ana). Optional when only one active account exists"`
 	Category    string  `json:"category,omitempty" jsonschema:"Existing category name (see list_categories). Optional"`
 	Description string  `json:"description,omitempty" jsonschema:"Short note, e.g. the merchant or what was bought"`
 	Date        string  `json:"date,omitempty" jsonschema:"Date in YYYY-MM-DD format. Defaults to today"`
@@ -43,15 +43,21 @@ type createAccountArgs struct {
 	Currency       string   `json:"currency" jsonschema:"ISO 4217 currency code, e.g. MXN or USD. Cannot be changed later"`
 	InitialBalance *float64 `json:"initial_balance,omitempty" jsonschema:"The balance the account holds on balance_as_of, in the account currency, e.g. 1500.00. May be negative (e.g. credit card debt). Defaults to 0. Transactions dated on or before balance_as_of are already included in it"`
 	BalanceAsOf    string   `json:"balance_as_of,omitempty" jsonschema:"Date (YYYY-MM-DD) the initial_balance refers to. Defaults to today. Only transactions dated after it change the balance, so past transactions can be backfilled without altering it"`
+	Owner          string   `json:"owner,omitempty" jsonschema:"Who the account belongs to: \"me\" (default, the user you are helping), \"shared\" (joint or household account), or a workspace member's name or email. Members can each have an account with the same name"`
 }
 
 type updateAccountArgs struct {
 	Account        string   `json:"account" jsonschema:"Name or ID of the account to edit. Archived accounts are accepted too, so they can be unarchived"`
-	Name           *string  `json:"name,omitempty" jsonschema:"New account name. Must not clash with another active account"`
+	Name           *string  `json:"name,omitempty" jsonschema:"New account name. Must not clash with another active account of the same owner"`
 	Type           *string  `json:"type,omitempty" jsonschema:"New type: one of checking, savings, credit_card, cash, investment, other"`
 	InitialBalance *float64 `json:"initial_balance,omitempty" jsonschema:"New balance on balance_as_of (the current anchor date unless balance_as_of is also passed), in the account currency, e.g. 1500.00. May be negative. Transactions are kept"`
 	BalanceAsOf    *string  `json:"balance_as_of,omitempty" jsonschema:"New date (YYYY-MM-DD) the initial_balance refers to. To say the balance is X today, pass initial_balance X and balance_as_of today. Editing initial_balance alone keeps the existing date"`
 	Archived       *bool    `json:"archived,omitempty" jsonschema:"true to archive the account (hidden from list_accounts and unusable for new transactions, history is kept), false to restore it"`
+	Owner          *string  `json:"owner,omitempty" jsonschema:"New owner: \"me\", \"shared\", or a workspace member's name or email"`
+}
+
+type listAccountsArgs struct {
+	Owner string `json:"owner,omitempty" jsonschema:"Only accounts of this owner: \"me\", \"shared\", or a workspace member's name or email. Omit for all accounts"`
 }
 
 type createCategoryArgs struct {
@@ -95,6 +101,7 @@ type summaryArgs struct {
 	Period string `json:"period,omitempty" jsonschema:"One of this_month (default), last_month, this_year, last_30_days. Ignored when from/to are given"`
 	From   string `json:"from,omitempty" jsonschema:"Start date YYYY-MM-DD (inclusive)"`
 	To     string `json:"to,omitempty" jsonschema:"End date YYYY-MM-DD (inclusive)"`
+	Owner  string `json:"owner,omitempty" jsonschema:"Only accounts of this owner: \"me\", \"shared\", or a workspace member's name or email. Omit for the whole workspace (the default)"`
 }
 
 type listTransactionsArgs struct {
@@ -105,6 +112,7 @@ type listTransactionsArgs struct {
 	From     string `json:"from,omitempty" jsonschema:"Start date YYYY-MM-DD"`
 	To       string `json:"to,omitempty" jsonschema:"End date YYYY-MM-DD"`
 	Search   string `json:"search,omitempty" jsonschema:"Text to search in descriptions"`
+	Owner    string `json:"owner,omitempty" jsonschema:"Only transactions on accounts of this owner (either side of a transfer): \"me\", \"shared\", or a workspace member's name or email"`
 }
 
 type deleteArgs struct {
@@ -119,6 +127,7 @@ type accountOut struct {
 	Type     string `json:"type"`
 	Currency string `json:"currency"`
 	Balance  string `json:"balance" jsonschema:"Current balance: initial balance plus transactions dated after balance_as_of"`
+	Owner    string `json:"owner" jsonschema:"Workspace member the account belongs to, or shared"`
 	// BalanceAsOf is the date the account's initial balance refers to.
 	BalanceAsOf string `json:"balance_as_of"`
 	Archived    bool   `json:"archived,omitempty"`
@@ -200,7 +209,7 @@ func (s *Server) registerTools() {
 		Description: "Record an expense (money spent) in an account, optionally with a category.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args recordArgs) (*mcp.CallToolResult, transactionOut, error) {
-		return s.record(actorContext(ctx, req), finance.TypeExpense, args)
+		return s.record(ctx, finance.TypeExpense, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -209,7 +218,7 @@ func (s *Server) registerTools() {
 		Description: "Record income (money received, e.g. salary) in an account, optionally with a category.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args recordArgs) (*mcp.CallToolResult, transactionOut, error) {
-		return s.record(actorContext(ctx, req), finance.TypeIncome, args)
+		return s.record(ctx, finance.TypeIncome, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -218,16 +227,16 @@ func (s *Server) registerTools() {
 		Description: "Move money between two of the workspace's accounts. Transfers are not counted as income or expenses.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args transferArgs) (*mcp.CallToolResult, transactionOut, error) {
-		return s.transfer(actorContext(ctx, req), args)
+		return s.transfer(ctx, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
 		Name:        "list_accounts",
 		Title:       "List accounts",
-		Description: "List active accounts with their currency and current balance (initial balance plus transactions dated after balance_as_of).",
+		Description: "List active accounts with their owner (a workspace member, or shared), currency and current balance (initial balance plus transactions dated after balance_as_of).",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: boolPtr(false)},
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, accountsOut, error) {
-		return s.listAccounts(ctx)
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, args listAccountsArgs) (*mcp.CallToolResult, accountsOut, error) {
+		return s.listAccounts(ctx, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -299,7 +308,7 @@ func (s *Server) registerTools() {
 		Description: "Record up to 100 expenses, incomes or transfers at once; each item has its own type. All-or-nothing: if any item is invalid nothing is recorded, and the error names the failing item.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args addTransactionsArgs) (*mcp.CallToolResult, transactionsOut, error) {
-		return s.addTransactions(actorContext(ctx, req), args)
+		return s.addTransactions(ctx, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -411,8 +420,12 @@ func (s *Server) transfer(ctx context.Context, args transferArgs) (*mcp.CallTool
 	return text(fmt.Sprintf("Transferred %s %s from %s to %s%s on %s (id %s).", out.Amount, out.Currency, out.Account, out.ToAccount, received, out.Date, out.ID)), out, nil
 }
 
-func (s *Server) listAccounts(ctx context.Context) (*mcp.CallToolResult, accountsOut, error) {
-	accounts, err := s.finance.ListAccounts(ctx, false)
+func (s *Server) listAccounts(ctx context.Context, args listAccountsArgs) (*mcp.CallToolResult, accountsOut, error) {
+	owner, err := s.ownerFilter(ctx, args.Owner)
+	if err != nil {
+		return nil, accountsOut{}, err
+	}
+	accounts, err := s.finance.ListOwnedAccounts(ctx, false, owner)
 	if err != nil {
 		return nil, accountsOut{}, err
 	}
@@ -420,7 +433,10 @@ func (s *Server) listAccounts(ctx context.Context) (*mcp.CallToolResult, account
 	lines := make([]string, len(accounts))
 	for i, a := range accounts {
 		out.Accounts[i] = accountToOut(a)
-		lines[i] = fmt.Sprintf("- %s (%s, %s): %s %s", a.Name, a.Type, a.Currency, out.Accounts[i].Balance, a.Currency)
+		lines[i] = fmt.Sprintf("- %s (%s, %s, %s): %s %s", a.Name, ownerLabel(a.Owner), a.Type, a.Currency, out.Accounts[i].Balance, a.Currency)
+	}
+	if len(lines) == 0 && args.Owner != "" {
+		return text("No active accounts belong to that owner."), out, nil
 	}
 	if len(lines) == 0 {
 		return text("There are no active accounts yet. Use create_account to add one."), out, nil
@@ -457,7 +473,11 @@ func (s *Server) listCategories(ctx context.Context, args listCategoriesArgs) (*
 }
 
 func (s *Server) createAccount(ctx context.Context, args createAccountArgs) (*mcp.CallToolResult, accountOut, error) {
-	in := finance.CreateAccountInput{Name: args.Name, Type: args.Type, Currency: args.Currency, BalanceAsOf: args.BalanceAsOf}
+	owner, err := s.resolveOwner(ctx, args.Owner)
+	if err != nil {
+		return nil, accountOut{}, err
+	}
+	in := finance.CreateAccountInput{Name: args.Name, Type: args.Type, Currency: args.Currency, BalanceAsOf: args.BalanceAsOf, Owner: owner}
 	if args.InitialBalance != nil {
 		currency, err := s.findCurrency(ctx, args.Currency)
 		if err != nil {
@@ -473,18 +493,28 @@ func (s *Server) createAccount(ctx context.Context, args createAccountArgs) (*mc
 		return nil, accountOut{}, friendly(err)
 	}
 	out := accountToOut(account)
-	return text(fmt.Sprintf("Created %s account %s in %s with a balance of %s %s (id %s).", out.Type, out.Name, out.Currency, out.Balance, out.Currency, out.ID)), out, nil
+	return text(fmt.Sprintf("Created %s account %s in %s (owner: %s) with a balance of %s %s (id %s).", out.Type, out.Name, out.Currency, out.Owner, out.Balance, out.Currency, out.ID)), out, nil
 }
 
 func (s *Server) updateAccount(ctx context.Context, args updateAccountArgs) (*mcp.CallToolResult, accountOut, error) {
-	if args.Name == nil && args.Type == nil && args.InitialBalance == nil && args.BalanceAsOf == nil && args.Archived == nil {
-		return nil, accountOut{}, errors.New("nothing to update; pass at least one of name, type, initial_balance, balance_as_of or archived")
+	if args.Name == nil && args.Type == nil && args.InitialBalance == nil && args.BalanceAsOf == nil && args.Archived == nil && args.Owner == nil {
+		return nil, accountOut{}, errors.New("nothing to update; pass at least one of name, type, initial_balance, balance_as_of, archived or owner")
 	}
 	account, err := s.resolveAnyAccount(ctx, args.Account)
 	if err != nil {
 		return nil, accountOut{}, err
 	}
 	in := finance.UpdateAccountInput{Name: args.Name, Type: args.Type, BalanceAsOf: args.BalanceAsOf, Archived: args.Archived}
+	if args.Owner != nil {
+		owner, err := s.resolveOwner(ctx, *args.Owner)
+		if err != nil {
+			return nil, accountOut{}, err
+		}
+		if owner == "" {
+			return nil, accountOut{}, errors.New("owner must not be empty; pass \"me\", \"shared\" or a member's name or email")
+		}
+		in.Owner = &owner
+	}
 	if args.InitialBalance != nil {
 		v, err := decimalToMinor(*args.InitialBalance, account.MinorUnits, account.Currency, "initial_balance")
 		if err != nil {
@@ -501,7 +531,7 @@ func (s *Server) updateAccount(ctx context.Context, args updateAccountArgs) (*mc
 	if updated.Archived {
 		state = " It is archived."
 	}
-	return text(fmt.Sprintf("Updated %s account %s in %s: balance is now %s %s (id %s).%s", out.Type, out.Name, out.Currency, out.Balance, out.Currency, out.ID, state)), out, nil
+	return text(fmt.Sprintf("Updated %s account %s in %s (owner: %s): balance is now %s %s (id %s).%s", out.Type, out.Name, out.Currency, out.Owner, out.Balance, out.Currency, out.ID, state)), out, nil
 }
 
 func (s *Server) createCategory(ctx context.Context, args createCategoryArgs) (*mcp.CallToolResult, categoryOut, error) {
@@ -568,7 +598,11 @@ func (s *Server) createAccounts(ctx context.Context, args createAccountsArgs) (*
 	}
 	inputs := make([]finance.CreateAccountInput, len(args.Items))
 	for i, item := range args.Items {
-		inputs[i] = finance.CreateAccountInput{Name: item.Name, Type: item.Type, Currency: item.Currency, BalanceAsOf: item.BalanceAsOf}
+		owner, err := s.resolveOwner(ctx, item.Owner)
+		if err != nil {
+			return nil, accountsOut{}, batchFailure(itemErr(i, "owner", err))
+		}
+		inputs[i] = finance.CreateAccountInput{Name: item.Name, Type: item.Type, Currency: item.Currency, BalanceAsOf: item.BalanceAsOf, Owner: owner}
 		if item.InitialBalance != nil {
 			currency, err := s.findCurrency(ctx, item.Currency)
 			if err != nil {
@@ -588,7 +622,7 @@ func (s *Server) createAccounts(ctx context.Context, args createAccountsArgs) (*
 	lines := make([]string, len(created))
 	for i, a := range created {
 		out.Accounts[i] = accountToOut(a)
-		lines[i] = fmt.Sprintf("- %s (%s, %s): %s %s", a.Name, a.Type, a.Currency, out.Accounts[i].Balance, a.Currency)
+		lines[i] = fmt.Sprintf("- %s (%s, %s, %s): %s %s", a.Name, ownerLabel(a.Owner), a.Type, a.Currency, out.Accounts[i].Balance, a.Currency)
 	}
 	return text(fmt.Sprintf("Created %d accounts:\n%s", len(created), strings.Join(lines, "\n"))), out, nil
 }
@@ -689,7 +723,11 @@ func (s *Server) summary(ctx context.Context, args summaryArgs) (*mcp.CallToolRe
 			return nil, summaryOut{}, err
 		}
 	}
-	sum, err := s.finance.Summary(ctx, from, to)
+	owner, err := s.ownerFilter(ctx, args.Owner)
+	if err != nil {
+		return nil, summaryOut{}, err
+	}
+	sum, err := s.finance.Summary(ctx, from, to, owner)
 	if err != nil {
 		return nil, summaryOut{}, friendly(err)
 	}
@@ -724,7 +762,11 @@ func (s *Server) listTransactions(ctx context.Context, args listTransactionsArgs
 	if limit <= 0 {
 		limit = 10
 	}
-	filter := finance.TransactionFilter{Limit: min(limit, 50)}
+	owner, err := s.ownerFilter(ctx, args.Owner)
+	if err != nil {
+		return nil, transactionsOut{}, err
+	}
+	filter := finance.TransactionFilter{Limit: min(limit, 50), Owner: owner}
 	if args.Account != "" {
 		account, err := s.resolveAccount(ctx, args.Account, "account")
 		if err != nil {
@@ -800,8 +842,10 @@ func (s *Server) deleteTransaction(ctx context.Context, args deleteArgs) (*mcp.C
 
 // --- Helpers ---
 
-// resolveAccount finds an active account by ID or case-insensitive name. An
-// empty reference resolves to the only active account, if there is exactly one.
+// resolveAccount finds an active account by ID, case-insensitive name or
+// label ("BNP (Antonio)"). When several members have an account with that
+// name, the caller's own wins. An empty reference resolves to the only
+// active account, if there is exactly one.
 func (s *Server) resolveAccount(ctx context.Context, ref, field string) (finance.Account, error) {
 	accounts, err := s.finance.ListAccounts(ctx, false)
 	if err != nil {
@@ -817,24 +861,33 @@ func (s *Server) resolveAccount(ctx context.Context, ref, field string) (finance
 		}
 		return finance.Account{}, fmt.Errorf("%s is required because there are several accounts: %s", field, accountNames(accounts))
 	}
-	var partial []finance.Account
+	var exact, partial []finance.Account
 	for _, a := range accounts {
-		if a.ID.String() == ref || strings.EqualFold(a.Name, ref) {
+		switch {
+		case a.ID.String() == ref:
 			return a, nil
-		}
-		if strings.Contains(strings.ToLower(a.Name), strings.ToLower(ref)) {
+		case strings.EqualFold(a.Name, ref) || strings.EqualFold(accountLabel(a), ref):
+			exact = append(exact, a)
+		case strings.Contains(strings.ToLower(a.Name), strings.ToLower(ref)):
 			partial = append(partial, a)
 		}
 	}
-	if len(partial) == 1 {
-		return partial[0], nil
+	if len(exact) > 0 {
+		if mine := preferMine(ctx, exact); len(mine) == 1 {
+			return mine[0], nil
+		}
+		return finance.Account{}, ambiguousAccounts(ref, exact)
+	}
+	if mine := preferMine(ctx, partial); len(mine) == 1 {
+		return mine[0], nil
 	}
 	return finance.Account{}, fmt.Errorf("no account matches %q for %s; available accounts: %s", ref, field, accountNames(accounts))
 }
 
-// resolveAnyAccount finds an account by ID or name among all accounts,
-// archived ones included (so they can be unarchived). Active accounts win
-// over archived ones with the same name.
+// resolveAnyAccount finds an account by ID, name or label among all
+// accounts, archived ones included (so they can be unarchived). Active
+// accounts win over archived ones with the same name, and the caller's own
+// account over other members' ones.
 func (s *Server) resolveAnyAccount(ctx context.Context, ref string) (finance.Account, error) {
 	accounts, err := s.finance.ListAccounts(ctx, true)
 	if err != nil {
@@ -847,16 +900,23 @@ func (s *Server) resolveAnyAccount(ctx context.Context, ref string) (finance.Acc
 	var exact, partial []finance.Account
 	for _, a := range accounts {
 		switch {
-		case a.ID.String() == ref || strings.EqualFold(a.Name, ref):
+		case a.ID.String() == ref || strings.EqualFold(a.Name, ref) || strings.EqualFold(accountLabel(a), ref):
 			exact = append(exact, a)
 		case ref != "" && strings.Contains(strings.ToLower(a.Name), strings.ToLower(ref)):
 			partial = append(partial, a)
 		}
 	}
+	var active []finance.Account
 	for _, a := range exact {
 		if !a.Archived {
-			return a, nil
+			active = append(active, a)
 		}
+	}
+	if len(active) > 0 {
+		if mine := preferMine(ctx, active); len(mine) == 1 {
+			return mine[0], nil
+		}
+		return finance.Account{}, ambiguousAccounts(ref, active)
 	}
 	if len(exact) > 0 {
 		return exact[0], nil
@@ -870,10 +930,7 @@ func (s *Server) resolveAnyAccount(ctx context.Context, ref string) (finance.Acc
 func accountNamesWithState(accounts []finance.Account) string {
 	names := make([]string, len(accounts))
 	for i, a := range accounts {
-		names[i] = fmt.Sprintf("%s (%s)", a.Name, a.Currency)
-		if a.Archived {
-			names[i] = fmt.Sprintf("%s (%s, archived)", a.Name, a.Currency)
-		}
+		names[i] = accountWithDetails(a)
 	}
 	return strings.Join(names, ", ")
 }
@@ -965,9 +1022,22 @@ func (s *Server) resolveAnyCategory(ctx context.Context, ref string) (finance.Ca
 func accountNames(accounts []finance.Account) string {
 	names := make([]string, len(accounts))
 	for i, a := range accounts {
-		names[i] = fmt.Sprintf("%s (%s)", a.Name, a.Currency)
+		names[i] = accountWithDetails(a)
 	}
 	return strings.Join(names, ", ")
+}
+
+// accountWithDetails names an account with its currency, owner and state,
+// e.g. "BNP (EUR, Antonio)" or "Cash (MXN, archived)".
+func accountWithDetails(a finance.Account) string {
+	details := []string{a.Currency}
+	if a.Owner != nil {
+		details = append(details, ownerDisplay(a.Owner))
+	}
+	if a.Archived {
+		details = append(details, "archived")
+	}
+	return fmt.Sprintf("%s (%s)", a.Name, strings.Join(details, ", "))
 }
 
 // findCurrency looks up a supported currency by its ISO 4217 code.
@@ -1056,7 +1126,7 @@ func periodRange(today time.Time, period string) (string, string, error) {
 }
 
 func accountToOut(a finance.Account) accountOut {
-	return accountOut{ID: a.ID.String(), Name: a.Name, Type: a.Type, Currency: a.Currency, Balance: money.Format(a.Balance, a.MinorUnits), BalanceAsOf: a.BalanceAsOf, Archived: a.Archived}
+	return accountOut{ID: a.ID.String(), Name: a.Name, Type: a.Type, Currency: a.Currency, Owner: ownerLabel(a.Owner), Balance: money.Format(a.Balance, a.MinorUnits), BalanceAsOf: a.BalanceAsOf, Archived: a.Archived}
 }
 
 func categoryToOut(c finance.Category) categoryOut {
@@ -1070,7 +1140,7 @@ func transactionToOut(tx finance.Transaction) transactionOut {
 		Date:        tx.OccurredOn,
 		Amount:      money.Format(tx.Amount, tx.MinorUnits),
 		Currency:    tx.Currency,
-		Account:     tx.AccountName,
+		Account:     ownedName(tx.AccountName, tx.AccountOwner),
 		Description: tx.Description,
 	}
 	if tx.CategoryName != nil {
@@ -1083,7 +1153,7 @@ func transactionToOut(tx finance.Transaction) transactionOut {
 		out.RecurringDueOn = *tx.RecurringDueOn
 	}
 	if tx.DestinationAccountName != nil {
-		out.ToAccount = *tx.DestinationAccountName
+		out.ToAccount = ownedName(*tx.DestinationAccountName, tx.DestinationOwner)
 	}
 	if tx.DestinationAmount != nil && tx.DestinationMinorUnits != nil && tx.DestinationCurrency != nil {
 		out.DestinationAmount = money.Format(*tx.DestinationAmount, *tx.DestinationMinorUnits)

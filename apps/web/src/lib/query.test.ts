@@ -4,6 +4,13 @@ import { filterHref, newTransactionHref, pageHref, parseTransactionQuery, safeRe
 const id = "3f2b8c1e-5a4d-4c3b-9e8f-1a2b3c4d5e6f";
 
 describe("parseTransactionQuery", () => {
+  it("keeps an owner filter and drops invalid ones", () => {
+    expect(parseTransactionQuery({ owner: "shared" }).owner).toBe("shared");
+    expect(parseTransactionQuery({ owner: id }).owner).toBe(id);
+    expect(parseTransactionQuery({ owner: "Ana" }).owner).toBeUndefined();
+    expect(pageHref(parseTransactionQuery({ owner: "shared", type: "expense" }), 2)).toBe("?type=expense&owner=shared&page=2");
+  });
+
   it("keeps valid filters", () => {
     expect(parseTransactionQuery({ account_id: id, type: "income", from: "2026-09-01", to: "2026-09-30", q: " tacos ", page: "3" })).toEqual({
       account_id: id,

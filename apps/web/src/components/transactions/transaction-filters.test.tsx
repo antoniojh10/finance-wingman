@@ -28,4 +28,19 @@ describe("TransactionFilters", () => {
     expect(screen.getByText("More filters").parentElement).toHaveTextContent("2");
     expect(screen.getByLabelText("Account")).toHaveValue(accountId);
   });
+
+  it("filters by the accounts' owner when the workspace has several members", () => {
+    const owners = { userId: "u1", owners: [{ id: "u1", name: "Luis" }, { id: "u2", name: "Ana" }] };
+    renderWithIntl(<TransactionFilters values={parseTransactionQuery({ owner: "shared" })} accounts={accounts} categories={[]} owners={owners} />);
+    const select = screen.getByLabelText("Owner");
+    expect(select).toHaveValue("shared");
+    expect(select).toHaveAttribute("name", "owner");
+    expect([...select.querySelectorAll("option")].map((o) => o.textContent)).toEqual(["Everyone", "Luis (you)", "Ana", "Shared"]);
+    expect(screen.getByText("More filters").parentElement).toHaveTextContent("1");
+  });
+
+  it("hides the owner filter in single-member workspaces", () => {
+    renderWithIntl(<TransactionFilters values={parseTransactionQuery({})} accounts={accounts} categories={[]} />);
+    expect(screen.queryByLabelText("Owner")).not.toBeInTheDocument();
+  });
 });

@@ -42,6 +42,7 @@ Commit messages follow [Conventional Commits 1.0.0](https://www.conventionalcomm
 - Authentication: passwordless magic link by email; no public sign-up (users come from `INITIAL_USERS` or accepted invitations).
 - MCP clients (Claude / ChatGPT mobile) authenticate via OAuth, reusing the magic-link login.
 - Accounts each have one ISO 4217 currency. Money is stored as int64 minor units.
+- Accounts belong to a workspace member or are shared. The owner is only a label (every member manages every account); names are unique per owner, and a member's accounts become shared when they leave.
 - Summaries are grouped per currency; no currency conversion.
 - Transaction types: expense, income, and transfer between accounts (transfers are not income/expense).
 - Transactions can have a category.

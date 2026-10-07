@@ -798,6 +798,8 @@ export interface components {
             minor_units: number;
             /** @example BBVA Checking */
             name: string;
+            /** @description Workspace member the account belongs to. Omitted when the account is shared */
+            owner?: components["schemas"]["UserRef"];
             /** @enum {string} */
             type: "checking" | "savings" | "credit_card" | "cash" | "investment" | "other";
             /** Format: date-time */
@@ -891,6 +893,11 @@ export interface components {
              */
             initial_balance?: number;
             name: string;
+            /**
+             * @description "me", "shared" or the user id of a workspace member. Defaults to the user creating the account
+             * @example me
+             */
+            owner?: string;
             /** @enum {string} */
             type: "checking" | "savings" | "credit_card" | "cash" | "investment" | "other";
         };
@@ -1577,6 +1584,8 @@ export interface components {
             /** Format: uuid */
             account_id: string;
             account_name: string;
+            /** @description Owner of the account. Omitted when it is shared */
+            account_owner?: components["schemas"]["UserRef"];
             /**
              * Format: int64
              * @description Positive amount in minor units of the account currency
@@ -1595,6 +1604,8 @@ export interface components {
             /** Format: uuid */
             destination_account_id: string | null;
             destination_account_name: string | null;
+            /** @description Owner of the destination account. Omitted when it is shared or there is none */
+            destination_account_owner?: components["schemas"]["UserRef"];
             /**
              * Format: int64
              * @description Amount received by the destination account (transfers only)
@@ -1721,6 +1732,11 @@ export interface components {
              */
             initial_balance?: number;
             name?: string;
+            /**
+             * @description "me", "shared" or the user id of a workspace member
+             * @example shared
+             */
+            owner?: string;
             /** @enum {string} */
             type?: "checking" | "savings" | "credit_card" | "cash" | "investment" | "other";
         };
@@ -1847,6 +1863,8 @@ export interface operations {
             query?: {
                 /** @description Include archived accounts */
                 include_archived?: boolean;
+                /** @description "me", "shared" or a member's user id; omit for every owner */
+                owner?: string;
             };
             header?: never;
             path?: never;
@@ -2871,6 +2889,8 @@ export interface operations {
                 from?: string;
                 /** @description Inclusive end date; defaults to the last day of the current month */
                 to?: string;
+                /** @description Limit to accounts of this owner: "me", "shared" or a member's user id; omit for the whole workspace */
+                owner?: string;
             };
             header?: never;
             path?: never;
@@ -2911,6 +2931,8 @@ export interface operations {
                 to?: string;
                 /** @description Search in the description */
                 q?: string;
+                /** @description Transactions on accounts of this owner (either side of a transfer): "me", "shared" or a member's user id */
+                owner?: string;
                 limit?: number;
                 offset?: number;
             };

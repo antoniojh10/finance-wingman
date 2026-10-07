@@ -91,7 +91,7 @@ func (s *Server) registerRecurringSuggestionTools() {
 		Description: "Turn a suggestion into a recurring item and link its matching past transactions to it. Only call it after the user agreed to track it. Optional name, amount and category overrides. Fails if the name clashes with another non-cancelled item.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args acceptSuggestionArgs) (*mcp.CallToolResult, acceptSuggestionOut, error) {
-		return s.acceptRecurringSuggestion(actorContext(ctx, req), args)
+		return s.acceptRecurringSuggestion(ctx, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{
@@ -100,7 +100,7 @@ func (s *Server) registerRecurringSuggestionTools() {
 		Description: "Hide a suggestion for good because the user does not want to track it. It does not touch any transaction. Ask the user first.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), IdempotentHint: true, OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, req *mcp.CallToolRequest, args dismissSuggestionArgs) (*mcp.CallToolResult, dismissSuggestionOut, error) {
-		return s.dismissRecurringSuggestion(actorContext(ctx, req), args)
+		return s.dismissRecurringSuggestion(ctx, args)
 	})
 
 	mcp.AddTool(s.mcp, &mcp.Tool{

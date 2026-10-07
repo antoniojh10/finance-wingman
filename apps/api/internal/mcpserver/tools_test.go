@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
@@ -19,8 +20,13 @@ type harness struct {
 	t       *testing.T
 	svc     *finance.Service
 	session *mcp.ClientSession
+	pool    *pgxpool.Pool
 	// ctx acts on the workspace the tools act on.
-	ctx context.Context
+	ctx         context.Context
+	workspaceID uuid.UUID
+	// actor is the user tool calls act as; calls are anonymous while it is
+	// uuid.Nil.
+	actor uuid.UUID
 }
 
 func newHarness(t *testing.T) *harness {
@@ -31,6 +37,8 @@ func newHarness(t *testing.T) *harness {
 	server := New(svc, "test")
 	workspaceID := testutil.NewWorkspace(t, pool, "Home")
 	server.workspaceOf = func(*mcp.CallToolRequest) (uuid.UUID, bool) { return workspaceID, true }
+	h := &harness{t: t, svc: svc, pool: pool, ctx: db.WithWorkspace(ctx, workspaceID), workspaceID: workspaceID}
+	server.actorOf = func(*mcp.CallToolRequest) (uuid.UUID, bool) { return h.actor, h.actor != uuid.Nil }
 
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 	if _, err := server.MCP().Connect(ctx, serverTransport, nil); err != nil {
@@ -41,7 +49,8 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { session.Close() })
-	return &harness{t: t, svc: svc, session: session, ctx: db.WithWorkspace(ctx, workspaceID)}
+	h.session = session
+	return h
 }
 
 func (h *harness) account(name, currency string) finance.Account {
@@ -269,7 +278,7 @@ func TestCreateAccount(t *testing.T) {
 	if out.Name != "BBVA Checking" || out.Currency != "MXN" || out.Balance != "1500.50" || out.ID == "" {
 		t.Fatalf("unexpected account: %+v", out)
 	}
-	if !strings.Contains(text, "Created checking account BBVA Checking in MXN with a balance of 1500.50 MXN") {
+	if !strings.Contains(text, "Created checking account BBVA Checking in MXN (owner: shared) with a balance of 1500.50 MXN") {
 		t.Fatalf("unexpected text: %s", text)
 	}
 

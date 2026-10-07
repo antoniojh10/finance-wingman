@@ -22,6 +22,7 @@ type Account struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	BalanceAsOf    time.Time
+	OwnerUserID    *uuid.UUID
 }
 
 type Category struct {
