@@ -37,8 +37,9 @@ Commit messages follow [Conventional Commits 1.0.0](https://www.conventionalcomm
 - Monorepo: single repository, each app deployed as its own service.
 
 ## Domain
-- Single shared workspace, accessible by two users with equal permissions.
-- Authentication: passwordless magic link by email; no public sign-up (users are allowlisted).
+- Data lives in workspaces. A user can belong to several and switch between them; a session (and each MCP connection) acts on one.
+- Workspace roles: owners manage the workspace, members and invitations; members manage its data. A workspace always keeps an owner.
+- Authentication: passwordless magic link by email; no public sign-up (users come from `INITIAL_USERS` or accepted invitations).
 - MCP clients (Claude / ChatGPT mobile) authenticate via OAuth, reusing the magic-link login.
 - Accounts each have one ISO 4217 currency. Money is stored as int64 minor units.
 - Summaries are grouped per currency; no currency conversion.
@@ -60,7 +61,8 @@ Commit messages follow [Conventional Commits 1.0.0](https://www.conventionalcomm
 - Run `make api-lint api-test` before considering backend work done, and `make web-lint web-test` (plus `make web-e2e` for flow changes) for frontend work.
 - Integration tests use `testutil.NewDatabase`, which creates an isolated database per test; never share state between tests.
 - SQL lives in `apps/api/internal/db/queries`; run `make api-generate` after editing queries or migrations. Never edit `internal/store` by hand.
-- Business rules live in `internal/finance` and are shared by REST and MCP; transport layers only translate input/output and errors.
+- Business rules live in `internal/finance` and are shared by REST and MCP; transport layers only translate input/output and errors. Workspaces, members and invitations live in `internal/workspace`.
+- Finance tables are isolated per workspace with row-level security: the API runs as `wingman_app` and every query acts on the workspace in its context (`db.WithWorkspace`). A new finance table needs `workspace_id` (defaulting to `current_workspace_id()`), composite foreign keys to other finance tables, and a `workspace_isolation` policy with `FORCE ROW LEVEL SECURITY`. Tests calling services directly need a workspace context (`testutil.NewWorkspace`, `api.ctx`).
 - Amounts in the REST API are integer minor units; use `internal/money` to convert decimal input (e.g. from MCP tools).
 - Every `/api/v1` operation requires a bearer session unless registered with `Metadata: publicMetadata`; keep the public surface minimal.
 - Tests use `newTestAPI`, which signs requests as an owner user; use `api.as("")` for anonymous requests and `testutil.MailRecorder` to read sent emails.

@@ -18,6 +18,12 @@ as `DATABASE_URL` for the API (append `?sslmode=require` if the connection
 string does not specify an SSL mode and the database requires TLS).
 Migrations run automatically when the API starts.
 
+The database must be PostgreSQL 15 or newer. Migrations run as the
+`DATABASE_URL` user, which must be able to create roles: they create
+`wingman_app`, the role the API switches to after connecting so that
+row-level security isolates workspaces even when the connection user is a
+superuser.
+
 ## 2. API service (`apps/api`)
 
 - **Runtime:** Go (any available version; the build downloads the Go
@@ -38,7 +44,8 @@ Environment variables:
 | `PUBLIC_URL` | `https://api.example.com` | Public HTTPS origin of the API; the MCP endpoint is `PUBLIC_URL/mcp` |
 | `WEB_BASE_URL` | `https://app.example.com` | Public URL of the web app (magic links point here) |
 | `APP_TIMEZONE` | `America/Mexico_City` | Used for "today" and monthly summaries |
-| `INITIAL_USERS` | `ana@example.com:Ana,bob@example.com:Bob` | Users granted access on startup (no public sign-up) |
+| `INITIAL_USERS` | `ana@example.com:Ana,bob@example.com:Bob` | Users granted access on startup (no public sign-up); they own the first workspace |
+| `INITIAL_WORKSPACE_NAME` | `Home` | Optional; name of the first workspace, created when the database has none (default `Finance Wingman`) |
 | `EMAIL_PROVIDER` | `resend` | `resend` or `smtp` (`log` is rejected in production) |
 | `EMAIL_FROM` | `no-reply@example.com` | Must belong to a domain verified in Resend |
 | `EMAIL_FROM_NAME` | `Finance Wingman` | Optional |

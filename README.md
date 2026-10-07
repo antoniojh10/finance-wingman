@@ -1,8 +1,9 @@
 # Finance Wingman
 
-Personal finance app for a shared workspace: multiple accounts in different
-currencies, categorized expenses/income, transfers, and an MCP server so
-transactions can be added from Claude or ChatGPT mobile.
+Personal finance app organized in workspaces shared by invitation: multiple
+accounts in different currencies, categorized expenses/income, transfers,
+and an MCP server so transactions can be added from Claude or ChatGPT
+mobile.
 
 ## Structure
 
@@ -27,13 +28,17 @@ make api-run     # API on :8080 (applies migrations on start)
 make web-install && make web-dev   # Web on :3000
 ```
 
-Grant access to a user (no public sign-up), then sign in with the link or
-code that arrives in Mailpit:
+Grant access to the first users (no public sign-up), then sign in with the
+link or code that arrives in Mailpit:
 
 ```bash
-cd apps/api && go run ./cmd/api users add you@example.com "Your Name"
-# or set INITIAL_USERS="you@example.com:You,partner@example.com:Partner"
+# in .env; on startup they own a first workspace (INITIAL_WORKSPACE_NAME)
+INITIAL_USERS="you@example.com:You,partner@example.com:Partner"
 ```
+
+Everyone else joins by invitation from a workspace's settings page. Users
+added with `go run ./cmd/api users add` start without a workspace and are
+asked to create one.
 
 - Health check: http://localhost:8080/healthz
 - API docs: http://localhost:8080/docs
