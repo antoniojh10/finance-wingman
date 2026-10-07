@@ -55,8 +55,8 @@ func registerFinance(api huma.API, svc *finance.Service, logger *slog.Logger) {
 	h.registerSummary(api)
 }
 
-func (h *financeHandlers) fail(err error) error {
-	return toHTTPError(h.logger, err)
+func (h *financeHandlers) fail(ctx context.Context, err error) error {
+	return toHTTPError(ctx, h.logger, err)
 }
 
 // --- Currencies ---
@@ -71,7 +71,7 @@ func (h *financeHandlers) registerCurrencies(api huma.API) {
 	}, func(ctx context.Context, _ *struct{}) (*listOutput[finance.Currency], error) {
 		items, err := h.svc.ListCurrencies(ctx)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return newList(items), nil
 	})
@@ -104,7 +104,7 @@ func (h *financeHandlers) registerAccounts(api huma.API) {
 	}, func(ctx context.Context, in *listAccountsInput) (*listOutput[finance.Account], error) {
 		items, err := h.svc.ListAccounts(ctx, in.IncludeArchived)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return newList(items), nil
 	})
@@ -119,7 +119,7 @@ func (h *financeHandlers) registerAccounts(api huma.API) {
 	}, func(ctx context.Context, in *createAccountInput) (*bodyOutput[finance.Account], error) {
 		account, err := h.svc.CreateAccount(ctx, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Account]{Body: account}, nil
 	})
@@ -137,7 +137,7 @@ func (h *financeHandlers) registerAccounts(api huma.API) {
 		}
 		account, err := h.svc.GetAccount(ctx, id)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Account]{Body: account}, nil
 	})
@@ -156,7 +156,7 @@ func (h *financeHandlers) registerAccounts(api huma.API) {
 		}
 		account, err := h.svc.UpdateAccount(ctx, id, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Account]{Body: account}, nil
 	})
@@ -175,7 +175,7 @@ func (h *financeHandlers) registerAccounts(api huma.API) {
 			return nil, err
 		}
 		if err := h.svc.DeleteAccount(ctx, id); err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return nil, nil
 	})
@@ -191,7 +191,7 @@ func (h *financeHandlers) registerAccounts(api huma.API) {
 	}, func(ctx context.Context, in *batchInput[finance.CreateAccountInput]) (*listOutput[finance.Account], error) {
 		items, err := h.svc.CreateAccounts(ctx, in.Body.Items)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return newList(items), nil
 	})
@@ -225,7 +225,7 @@ func (h *financeHandlers) registerCategories(api huma.API) {
 	}, func(ctx context.Context, in *listCategoriesInput) (*listOutput[finance.Category], error) {
 		items, err := h.svc.ListCategories(ctx, optionalString(in.Kind), in.IncludeArchived)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return newList(items), nil
 	})
@@ -240,7 +240,7 @@ func (h *financeHandlers) registerCategories(api huma.API) {
 	}, func(ctx context.Context, in *createCategoryInput) (*bodyOutput[finance.Category], error) {
 		category, err := h.svc.CreateCategory(ctx, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Category]{Body: category}, nil
 	})
@@ -258,7 +258,7 @@ func (h *financeHandlers) registerCategories(api huma.API) {
 		}
 		category, err := h.svc.GetCategory(ctx, id)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Category]{Body: category}, nil
 	})
@@ -277,7 +277,7 @@ func (h *financeHandlers) registerCategories(api huma.API) {
 		}
 		category, err := h.svc.UpdateCategory(ctx, id, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Category]{Body: category}, nil
 	})
@@ -296,7 +296,7 @@ func (h *financeHandlers) registerCategories(api huma.API) {
 			return nil, err
 		}
 		if err := h.svc.DeleteCategory(ctx, id); err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return nil, nil
 	})
@@ -312,7 +312,7 @@ func (h *financeHandlers) registerCategories(api huma.API) {
 	}, func(ctx context.Context, in *batchInput[finance.CreateCategoryInput]) (*listOutput[finance.Category], error) {
 		items, err := h.svc.CreateCategories(ctx, in.Body.Items)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return newList(items), nil
 	})
@@ -370,7 +370,7 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 			Offset:     in.Offset,
 		})
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.TransactionPage]{Body: page}, nil
 	})
@@ -386,7 +386,7 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 	}, func(ctx context.Context, in *transactionBodyInput) (*bodyOutput[finance.Transaction], error) {
 		tx, err := h.svc.CreateTransaction(ctx, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Transaction]{Body: tx}, nil
 	})
@@ -404,7 +404,7 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 		}
 		tx, err := h.svc.GetTransaction(ctx, id)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Transaction]{Body: tx}, nil
 	})
@@ -423,7 +423,7 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 		}
 		tx, err := h.svc.UpdateTransaction(ctx, id, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Transaction]{Body: tx}, nil
 	})
@@ -441,7 +441,7 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 			return nil, err
 		}
 		if err := h.svc.DeleteTransaction(ctx, id); err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return nil, nil
 	})
@@ -457,7 +457,7 @@ func (h *financeHandlers) registerTransactions(api huma.API) {
 	}, func(ctx context.Context, in *batchInput[finance.TransactionInput]) (*listOutput[finance.Transaction], error) {
 		items, err := h.svc.CreateTransactions(ctx, in.Body.Items)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return newList(items), nil
 	})
@@ -481,7 +481,7 @@ func (h *financeHandlers) registerSummary(api huma.API) {
 	}, func(ctx context.Context, in *summaryInput) (*bodyOutput[finance.Summary], error) {
 		summary, err := h.svc.Summary(ctx, in.From, in.To)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Summary]{Body: summary}, nil
 	})

@@ -62,6 +62,10 @@ func TestTelemetryNamesSpansAfterRoute(t *testing.T) {
 		t.Fatalf("missing http.route attribute: %v", ended[0].Attributes())
 	}
 
+	if !strings.Contains(h.logs.String(), `"msg":"GET /api/v1/accounts/0b5d6c1e-8a4f-4a52-9a43-0d2f1f3a8c11 401 `) {
+		t.Fatalf("request log message does not summarize the request: %s", h.logs)
+	}
+
 	traceID := ended[0].SpanContext().TraceID().String()
 	if !strings.Contains(h.logs.String(), `"trace_id":"`+traceID+`"`) {
 		t.Fatalf("request log does not include trace_id %s: %s", traceID, h.logs)
@@ -105,6 +109,30 @@ func TestTelemetrySkipsHealthAndLabelsUnmatched(t *testing.T) {
 	}
 	if got := ended[0].Name(); got != "GET unmatched" {
 		t.Fatalf("span name = %q, want %q", got, "GET unmatched")
+	}
+}
+
+// Search terms can reveal spending, so the query string must stay out of
+// spans and request logs (both are exported to the telemetry backend).
+func TestTelemetryOmitsQueryString(t *testing.T) {
+	h := newInstrumentedHandler(t)
+	const secret = "pharmacy-secret"
+	get(t, h.handler, "/api/v1/transactions?q="+secret+"&from=2026-01-01")
+
+	ended := h.spans.Ended()
+	if len(ended) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(ended))
+	}
+	if strings.Contains(ended[0].Name(), secret) {
+		t.Fatalf("span name contains the query: %q", ended[0].Name())
+	}
+	for _, a := range ended[0].Attributes() {
+		if strings.Contains(a.Value.Emit(), secret) {
+			t.Fatalf("span attribute %s contains the query: %q", a.Key, a.Value.Emit())
+		}
+	}
+	if strings.Contains(h.logs.String(), secret) {
+		t.Fatalf("request log contains the query: %s", h.logs)
 	}
 }
 

@@ -56,7 +56,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 			Type:   optionalString(in.Type),
 		})
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return newList(items), nil
 	})
@@ -71,7 +71,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 	}, func(ctx context.Context, _ *struct{}) (*bodyOutput[finance.RecurringSummary], error) {
 		summary, err := h.svc.RecurringSummary(ctx)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.RecurringSummary]{Body: summary}, nil
 	})
@@ -90,7 +90,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 		}
 		items, err := h.svc.UpcomingRecurring(ctx, days)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return newList(items), nil
 	})
@@ -105,7 +105,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 	}, func(ctx context.Context, _ *struct{}) (*listOutput[finance.RecurringSuggestion], error) {
 		items, err := h.svc.ListRecurringSuggestions(ctx)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return newList(items), nil
 	})
@@ -121,7 +121,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 	}, func(ctx context.Context, in *acceptSuggestionInput) (*bodyOutput[finance.RecurringItem], error) {
 		item, err := h.svc.AcceptRecurringSuggestion(ctx, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.RecurringItem]{Body: item}, nil
 	})
@@ -136,7 +136,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 		DefaultStatus: http.StatusNoContent,
 	}, func(ctx context.Context, in *dismissSuggestionInput) (*struct{}, error) {
 		if err := h.svc.DismissRecurringSuggestion(ctx, in.Body); err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return nil, nil
 	})
@@ -156,7 +156,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 		}
 		tx, err := h.svc.RegisterRecurringPayment(ctx, id, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Transaction]{Body: tx}, nil
 	})
@@ -171,7 +171,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 	}, func(ctx context.Context, in *createRecurringInput) (*bodyOutput[finance.RecurringItem], error) {
 		item, err := h.svc.CreateRecurringItem(ctx, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.RecurringItem]{Body: item}, nil
 	})
@@ -189,7 +189,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 		}
 		item, err := h.svc.GetRecurringItem(ctx, id)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.RecurringItem]{Body: item}, nil
 	})
@@ -208,7 +208,7 @@ func (h *financeHandlers) registerRecurring(api huma.API) {
 		}
 		item, err := h.svc.UpdateRecurringItem(ctx, id, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.RecurringItem]{Body: item}, nil
 	})
@@ -236,7 +236,7 @@ func (h *financeHandlers) registerTransactionLinks(api huma.API) {
 		}
 		tx, err := h.svc.LinkTransactionToRecurring(ctx, id, in.Body)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Transaction]{Body: tx}, nil
 	})
@@ -255,7 +255,7 @@ func (h *financeHandlers) registerTransactionLinks(api huma.API) {
 		}
 		match, err := h.svc.MatchRecurringItem(ctx, id)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.RecurringMatch]{Body: match}, nil
 	})
@@ -274,7 +274,7 @@ func (h *financeHandlers) registerTransactionLinks(api huma.API) {
 		}
 		tx, err := h.svc.UnlinkTransactionFromRecurring(ctx, id)
 		if err != nil {
-			return nil, h.fail(err)
+			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.Transaction]{Body: tx}, nil
 	})

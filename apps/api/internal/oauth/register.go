@@ -69,7 +69,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	recent, err := s.q.CountRecentOAuthClients(r.Context(), s.now().Add(-time.Hour))
 	if err != nil {
-		s.serverError(w, "count clients", err)
+		s.serverError(w, r, "count clients", err)
 		return
 	}
 	if recent >= int64(s.cfg.MaxClientsPerHour) {
@@ -82,7 +82,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	var secretHash []byte
 	if method != "none" {
 		if secret, err = auth.RandomToken(); err != nil {
-			s.serverError(w, "generate secret", err)
+			s.serverError(w, r, "generate secret", err)
 			return
 		}
 		secretHash = auth.HashToken(secret)
@@ -96,7 +96,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		TokenEndpointAuthMethod: method,
 	})
 	if err != nil {
-		s.serverError(w, "create client", err)
+		s.serverError(w, r, "create client", err)
 		return
 	}
 
@@ -117,8 +117,8 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, resp)
 }
 
-func (s *Server) serverError(w http.ResponseWriter, msg string, err error) {
-	s.logger.Error("oauth: "+msg, "error", err)
+func (s *Server) serverError(w http.ResponseWriter, r *http.Request, msg string, err error) {
+	s.logger.ErrorContext(r.Context(), "oauth: "+msg, "error", err)
 	oauthError(w, http.StatusInternalServerError, "server_error", "")
 }
 

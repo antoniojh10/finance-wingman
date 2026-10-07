@@ -6,7 +6,7 @@ API_DIR := apps/api
 WEB_PORT ?= 3000
 export
 
-.PHONY: up down jaeger logs measure psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new tunnel tunnel-down
+.PHONY: up down grafana logs measure psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new tunnel tunnel-down
 
 ## Infrastructure
 up: ## Start Postgres and Mailpit
@@ -15,8 +15,8 @@ up: ## Start Postgres and Mailpit
 down: ## Stop local services
 	docker compose --profile observability down
 
-jaeger: ## Start the local trace viewer (http://localhost:16686)
-	docker compose --profile observability up -d jaeger
+grafana: ## Start local Grafana for traces, metrics and logs (http://localhost:3300)
+	docker compose --profile observability up -d grafana
 
 ## Tunnel (Tailscale Funnel): exposes the API so Claude.ai/ChatGPT can reach
 ## the MCP server. Set PUBLIC_URL in .env to the printed https URL.

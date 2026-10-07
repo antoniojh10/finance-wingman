@@ -65,7 +65,7 @@ func (s *Server) handleToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		s.serverError(w, "authenticate client", err)
+		s.serverError(w, r, "authenticate client", err)
 		return
 	}
 
@@ -92,7 +92,7 @@ func (s *Server) exchangeCode(w http.ResponseWriter, r *http.Request, client sto
 		return
 	}
 	if err != nil {
-		s.serverError(w, "use authorization code", err)
+		s.serverError(w, r, "use authorization code", err)
 		return
 	}
 	switch {
@@ -112,7 +112,7 @@ func (s *Server) exchangeCode(w http.ResponseWriter, r *http.Request, client sto
 
 	resp, err := s.issueTokens(r.Context(), client.ID, record.UserID, uuid.New())
 	if err != nil {
-		s.serverError(w, "issue tokens", err)
+		s.serverError(w, r, "issue tokens", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -131,14 +131,14 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, client store.Oa
 		// A revoked token being presented again means it may have leaked:
 		// revoke every token in its family (OAuth 2.1 §4.3.1).
 		if old, err := s.q.GetRefreshToken(r.Context(), hash); err == nil && old.RevokedAt != nil {
-			s.logger.Warn("oauth: refresh token reuse detected", "client_id", old.ClientID, "user_id", old.UserID)
+			s.logger.WarnContext(r.Context(), "oauth: refresh token reuse detected", "client_id", old.ClientID, "user_id", old.UserID)
 			s.revokeFamily(r.Context(), old.FamilyID)
 		}
 		oauthError(w, http.StatusBadRequest, "invalid_grant", "invalid refresh token")
 		return
 	}
 	if err != nil {
-		s.serverError(w, "rotate refresh token", err)
+		s.serverError(w, r, "rotate refresh token", err)
 		return
 	}
 	if record.ClientID != client.ID {
@@ -153,7 +153,7 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, client store.Oa
 
 	resp, err := s.issueTokens(r.Context(), client.ID, record.UserID, record.FamilyID)
 	if err != nil {
-		s.serverError(w, "issue tokens", err)
+		s.serverError(w, r, "issue tokens", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
@@ -200,10 +200,10 @@ func (s *Server) issueTokens(ctx context.Context, clientID string, userID, famil
 
 func (s *Server) revokeFamily(ctx context.Context, family uuid.UUID) {
 	if err := s.q.RevokeRefreshTokenFamily(ctx, family); err != nil {
-		s.logger.Error("oauth: revoke refresh tokens", "error", err)
+		s.logger.ErrorContext(ctx, "oauth: revoke refresh tokens", "error", err)
 	}
 	if err := s.q.DeleteFamilySessions(ctx, &family); err != nil {
-		s.logger.Error("oauth: delete family sessions", "error", err)
+		s.logger.ErrorContext(ctx, "oauth: delete family sessions", "error", err)
 	}
 }
 
@@ -221,7 +221,7 @@ func (s *Server) handleRevoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		s.serverError(w, "authenticate client", err)
+		s.serverError(w, r, "authenticate client", err)
 		return
 	}
 

@@ -27,12 +27,12 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	client, err := s.q.GetOAuthClient(r.Context(), q.Get("client_id"))
 	if errors.Is(err, pgx.ErrNoRows) {
-		s.renderError(w, locale, http.StatusBadRequest, msgUnknownClient)
+		s.renderError(w, r, locale, http.StatusBadRequest, msgUnknownClient)
 		return
 	}
 	if err != nil {
-		s.logger.Error("oauth: get client", "error", err)
-		s.renderError(w, locale, http.StatusInternalServerError, msgServerError)
+		s.logger.ErrorContext(r.Context(), "oauth: get client", "error", err)
+		s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 		return
 	}
 
@@ -41,7 +41,7 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		redirectURI = client.RedirectUris[0]
 	}
 	if !matchRedirectURI(client.RedirectUris, redirectURI) {
-		s.renderError(w, locale, http.StatusBadRequest, msgInvalidRedirect)
+		s.renderError(w, r, locale, http.StatusBadRequest, msgInvalidRedirect)
 		return
 	}
 
@@ -72,12 +72,12 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt:     s.now().Add(s.cfg.AuthorizationRequestTTL),
 	})
 	if err != nil {
-		s.logger.Error("oauth: create authorization request", "error", err)
-		s.renderError(w, locale, http.StatusInternalServerError, msgServerError)
+		s.logger.ErrorContext(r.Context(), "oauth: create authorization request", "error", err)
+		s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 		return
 	}
 
-	s.renderPage(w, http.StatusOK, pageData{
+	s.renderPage(w, r, http.StatusOK, pageData{
 		Locale:       locale,
 		Step:         stepEmail,
 		RequestID:    req.ID.String(),
@@ -89,24 +89,24 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 // handleAuthorizeSubmit processes the sign-in page forms.
 func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		s.renderError(w, "en", http.StatusBadRequest, msgExpired)
+		s.renderError(w, r, "en", http.StatusBadRequest, msgExpired)
 		return
 	}
 	locale := pickLocale(r.PostForm.Get("locale"), r.Header.Get("Accept-Language"))
 
 	id, err := uuid.Parse(r.PostForm.Get("request_id"))
 	if err != nil {
-		s.renderError(w, locale, http.StatusBadRequest, msgExpired)
+		s.renderError(w, r, locale, http.StatusBadRequest, msgExpired)
 		return
 	}
 	req, err := s.q.GetAuthorizationRequest(r.Context(), id)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !s.now().Before(req.ExpiresAt)) {
-		s.renderError(w, locale, http.StatusBadRequest, msgExpired)
+		s.renderError(w, r, locale, http.StatusBadRequest, msgExpired)
 		return
 	}
 	if err != nil {
-		s.logger.Error("oauth: get authorization request", "error", err)
-		s.renderError(w, locale, http.StatusInternalServerError, msgServerError)
+		s.logger.ErrorContext(r.Context(), "oauth: get authorization request", "error", err)
+		s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 		return
 	}
 
@@ -122,60 +122,60 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 		email, err := auth.NormalizeEmail(r.PostForm.Get("email"))
 		if err != nil {
 			page.Step, page.Error, page.Email = stepEmail, msgInvalidEmail, r.PostForm.Get("email")
-			s.renderPage(w, http.StatusUnprocessableEntity, page)
+			s.renderPage(w, r, http.StatusUnprocessableEntity, page)
 			return
 		}
 		if err := s.auth.RequestLoginCode(r.Context(), email, locale, page.ClientName); err != nil {
-			s.logger.Error("oauth: request login code", "error", err)
+			s.logger.ErrorContext(r.Context(), "oauth: request login code", "error", err)
 			page.Step, page.Error, page.Email = stepEmail, msgSendFailed, email
-			s.renderPage(w, http.StatusInternalServerError, page)
+			s.renderPage(w, r, http.StatusInternalServerError, page)
 			return
 		}
 		if err := s.q.SetAuthorizationRequestEmail(r.Context(), store.SetAuthorizationRequestEmailParams{ID: req.ID, Email: &email}); err != nil {
-			s.logger.Error("oauth: set request email", "error", err)
-			s.renderError(w, locale, http.StatusInternalServerError, msgServerError)
+			s.logger.ErrorContext(r.Context(), "oauth: set request email", "error", err)
+			s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 			return
 		}
 		page.Step, page.Email = stepCode, email
-		s.renderPage(w, http.StatusOK, page)
+		s.renderPage(w, r, http.StatusOK, page)
 
 	case "verify":
 		if req.Email == nil {
 			page.Step = stepEmail
-			s.renderPage(w, http.StatusBadRequest, page)
+			s.renderPage(w, r, http.StatusBadRequest, page)
 			return
 		}
 		user, err := s.auth.AuthenticateCode(r.Context(), *req.Email, r.PostForm.Get("code"))
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			page.Step, page.Email, page.Error = stepCode, *req.Email, msgInvalidCode
-			s.renderPage(w, http.StatusUnauthorized, page)
+			s.renderPage(w, r, http.StatusUnauthorized, page)
 			return
 		}
 		if err != nil {
-			s.logger.Error("oauth: authenticate code", "error", err)
-			s.renderError(w, locale, http.StatusInternalServerError, msgServerError)
+			s.logger.ErrorContext(r.Context(), "oauth: authenticate code", "error", err)
+			s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 			return
 		}
 		code, err := s.issueAuthorizationCode(r, req, user.ID)
 		if err != nil {
-			s.logger.Error("oauth: issue authorization code", "error", err)
-			s.renderError(w, locale, http.StatusInternalServerError, msgServerError)
+			s.logger.ErrorContext(r.Context(), "oauth: issue authorization code", "error", err)
+			s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 			return
 		}
 		http.Redirect(w, r, s.successRedirect(req.RedirectUri, req.State, code), http.StatusFound)
 
 	case "change_email":
 		page.Step = stepEmail
-		s.renderPage(w, http.StatusOK, page)
+		s.renderPage(w, r, http.StatusOK, page)
 
 	case "deny":
 		if err := s.q.DeleteAuthorizationRequest(r.Context(), req.ID); err != nil {
-			s.logger.Error("oauth: delete authorization request", "error", err)
+			s.logger.ErrorContext(r.Context(), "oauth: delete authorization request", "error", err)
 		}
 		http.Redirect(w, r, s.errorRedirect(req.RedirectUri, req.State, "access_denied", "the user denied the request"), http.StatusFound)
 
 	default:
-		s.renderError(w, locale, http.StatusBadRequest, msgExpired)
+		s.renderError(w, r, locale, http.StatusBadRequest, msgExpired)
 	}
 }
 

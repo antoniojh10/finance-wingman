@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"testing"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/log/global"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -25,6 +28,7 @@ func TestEnabled(t *testing.T) {
 		"shared endpoint":     {env: map[string]string{"OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.example"}, want: true},
 		"traces endpoint":     {env: map[string]string{"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": "https://otlp.example/v1/traces"}, want: true},
 		"metrics endpoint":    {env: map[string]string{"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": "https://otlp.example/v1/metrics"}, want: true},
+		"logs endpoint":       {env: map[string]string{"OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": "https://otlp.example/v1/logs"}, want: true},
 		"explicitly disabled": {env: map[string]string{"OTEL_EXPORTER_OTLP_ENDPOINT": "https://otlp.example", "OTEL_SDK_DISABLED": "TRUE"}, want: false},
 	}
 	for name, tc := range tests {
@@ -39,10 +43,11 @@ func TestEnabled(t *testing.T) {
 // Setup changes the process-wide providers, so these tests restore them and
 // don't run in parallel.
 func restoreGlobals(t *testing.T) {
-	tp, mp, prop := otel.GetTracerProvider(), otel.GetMeterProvider(), otel.GetTextMapPropagator()
+	tp, mp, lp, prop := otel.GetTracerProvider(), otel.GetMeterProvider(), global.GetLoggerProvider(), otel.GetTextMapPropagator()
 	t.Cleanup(func() {
 		otel.SetTracerProvider(tp)
 		otel.SetMeterProvider(mp)
+		global.SetLoggerProvider(lp)
 		otel.SetTextMapPropagator(prop)
 	})
 }
@@ -55,6 +60,9 @@ func TestSetupDisabledKeepsNoopProviders(t *testing.T) {
 	}
 	if _, ok := otel.GetTracerProvider().(*sdktrace.TracerProvider); ok {
 		t.Fatal("tracer provider installed without an endpoint")
+	}
+	if _, ok := global.GetLoggerProvider().(*sdklog.LoggerProvider); ok {
+		t.Fatal("logger provider installed without an endpoint")
 	}
 	if fields := otel.GetTextMapPropagator().Fields(); len(fields) == 0 {
 		t.Fatal("trace context propagator not installed")
@@ -90,13 +98,14 @@ func TestSetupExportsToOTLPEndpoint(t *testing.T) {
 
 	_, span := otel.Tracer("test").Start(context.Background(), "work")
 	span.End()
+	slog.New(LogHandler(slog.DiscardHandler, slog.LevelInfo)).Info("hello")
 	if err := shutdown(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
 	mu.Lock()
 	defer mu.Unlock()
-	if paths["/v1/traces"] == 0 || paths["/v1/metrics"] == 0 {
-		t.Fatalf("expected traces and metrics to be exported, got %v", paths)
+	if paths["/v1/traces"] == 0 || paths["/v1/metrics"] == 0 || paths["/v1/logs"] == 0 {
+		t.Fatalf("expected traces, metrics and logs to be exported, got %v", paths)
 	}
 }
