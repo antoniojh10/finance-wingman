@@ -1,0 +1,40 @@
+name: Deploy
+
+# Manual deploy to Railway production for the rare cases the GitHub
+# autodeploy skips, such as a commit whose watch paths did not match the
+# service. RAILWAY_TOKEN is a project token scoped to the production
+# environment.
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to deploy
+        type: choice
+        options: [api, web, both]
+        default: api
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Production only takes main; runs from other branches are skipped.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --global @railway/cli@5.63.4
+      # The repository root is uploaded; each service builds from its own
+      # root directory (/apps/api, /apps/web) set in Railway.
+      - name: Deploy API
+        if: inputs.service == 'api' || inputs.service == 'both'
+        run: railway up --service api --environment production --ci --message "$GITHUB_SHA"
+      - name: Deploy web
+        if: inputs.service == 'web' || inputs.service == 'both'
+        run: railway up --service web --environment production --ci --message "$GITHUB_SHA"
