@@ -4,6 +4,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/mail"
 	"net/url"
 	"os"
@@ -29,7 +30,10 @@ type Config struct {
 	InitialUsers []InitialUser
 	// LoginEmailsPerHour caps sign-in emails per user (LOGIN_EMAILS_PER_HOUR).
 	LoginEmailsPerHour int
-	Email              EmailConfig
+	// PprofAddr, when set, serves net/http/pprof on a separate listener
+	// (PPROF_ADDR, e.g. "localhost:6060"). Never expose it publicly.
+	PprofAddr string
+	Email     EmailConfig
 }
 
 type InitialUser struct {
@@ -66,6 +70,7 @@ func load(getenv func(string) string) (Config, error) {
 		WebBaseURL:         valueOr(getenv("WEB_BASE_URL"), "http://localhost:3000"),
 		InitialUsers:       parseInitialUsers(getenv("INITIAL_USERS")),
 		LoginEmailsPerHour: 5,
+		PprofAddr:          getenv("PPROF_ADDR"),
 		Email: EmailConfig{
 			Provider:     valueOr(getenv("EMAIL_PROVIDER"), "log"),
 			From:         formatFrom(valueOr(getenv("EMAIL_FROM_NAME"), "Finance Wingman"), valueOr(getenv("EMAIL_FROM"), "no-reply@localhost")),
@@ -116,6 +121,14 @@ func load(getenv func(string) string) (Config, error) {
 			errs = append(errs, fmt.Errorf("LOGIN_EMAILS_PER_HOUR must be a positive integer, got %q", raw))
 		} else {
 			cfg.LoginEmailsPerHour = n
+		}
+	}
+
+	if cfg.PprofAddr != "" {
+		if _, port, err := net.SplitHostPort(cfg.PprofAddr); err != nil || port == "" {
+			errs = append(errs, fmt.Errorf("PPROF_ADDR must be host:port, got %q", cfg.PprofAddr))
+		} else if cfg.Port > 0 && port == strconv.Itoa(cfg.Port) {
+			errs = append(errs, errors.New("PPROF_ADDR must not use the public PORT"))
 		}
 	}
 

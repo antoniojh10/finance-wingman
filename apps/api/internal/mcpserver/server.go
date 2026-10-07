@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	mcpauth "github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"go.opentelemetry.io/otel"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
@@ -51,6 +52,8 @@ func New(fin *finance.Service, version string) *Server {
 			Version: version,
 		}, &mcp.ServerOptions{Instructions: instructions}),
 	}
+	// The global provider forwards to the SDK once telemetry is set up.
+	s.mcp.AddReceivingMiddleware(tracing(otel.GetTracerProvider()))
 	s.registerTools()
 	s.registerRecurringTools()
 	s.registerRecurringSuggestionTools()

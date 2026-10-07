@@ -17,6 +17,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -33,6 +34,7 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mail"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/telemetry"
 )
 
 func main() {
@@ -56,6 +58,19 @@ func run(args []string, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
+
+	shutdownTelemetry, err := telemetry.Setup(ctx, os.Getenv, httpapi.Version)
+	if err != nil {
+		return fmt.Errorf("set up telemetry: %w", err)
+	}
+	defer func() {
+		// The signal context is already done here; give exporters time to flush.
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTelemetry(flushCtx); err != nil {
+			logger.Warn("flush telemetry", "error", err)
+		}
+	}()
 
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -88,6 +103,10 @@ func run(args []string, logger *slog.Logger) error {
 		oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: cfg.PublicURL}, logger)
 		mcpHandler := mcpserver.New(financeSvc, httpapi.Version).Handler(authSvc, cfg.PublicURL, oauthSrv.ResourceMetadataURL(), logger)
 		go purgeExpiredPeriodically(ctx, logger, authSvc.PurgeExpired, oauthSrv.PurgeExpired)
+		if cfg.PprofAddr != "" {
+			go servePprof(ctx, cfg.PprofAddr, logger)
+		}
+		logger.Info("telemetry", "otlp_export", telemetry.Enabled(os.Getenv))
 		handler := httpapi.NewHandler(httpapi.Deps{
 			Logger:  logger,
 			DB:      pool,
@@ -158,6 +177,26 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, handler 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return server.Shutdown(shutdownCtx)
+}
+
+// servePprof exposes the runtime profiler on its own listener so it is never
+// reachable through the public port.
+func servePprof(ctx context.Context, addr string, logger *slog.Logger) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	server := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	go func() {
+		<-ctx.Done()
+		_ = server.Close()
+	}()
+	logger.Info("pprof listening", "addr", addr)
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Warn("pprof server stopped", "error", err)
+	}
 }
 
 func purgeExpiredPeriodically(ctx context.Context, logger *slog.Logger, purgers ...func(context.Context) error) {
