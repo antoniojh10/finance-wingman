@@ -69,4 +69,19 @@ describe("AccountList", () => {
     renderWithIntl(<AccountList accounts={[]} currencies={currencies} defaultCurrency="MXN" defaultDate="2026-10-05" />);
     expect(screen.getByText("No accounts yet.")).toBeInTheDocument();
   });
+
+  it("shows each account's owner when the workspace has several members", () => {
+    const ownership = { userId: "u1", owners: [{ id: "u1", name: "Luis" }, { id: "u2", name: "Ana" }] };
+    renderWithIntl(
+      <AccountList
+        accounts={[account({ id: "a", owner: { id: "u2", name: "Ana", email: "ana@example.com" } }), account({ id: "b", name: "Joint" })]}
+        currencies={currencies}
+        defaultCurrency="MXN"
+        defaultDate="2026-10-05"
+        ownership={ownership}
+      />,
+    );
+    expect(screen.getByText("Checking · Ana")).toBeInTheDocument();
+    expect(screen.getByText("Checking · Shared")).toBeInTheDocument();
+  });
 });

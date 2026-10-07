@@ -99,4 +99,46 @@ describe("AccountForm", () => {
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });
+
+  describe("with several workspace members", () => {
+    const ownership = {
+      userId: "u1",
+      owners: [
+        { id: "u1", name: "Luis" },
+        { id: "u2", name: "Ana" },
+      ],
+    };
+    const renderOwned = (a?: EditableAccount) =>
+      renderWithIntl(
+        <AccountForm account={a} currencies={currencies} defaultCurrency="MXN" defaultDate="2026-10-05" ownership={ownership} onSaved={vi.fn()} onCancel={vi.fn()} />,
+      );
+
+    it("defaults new accounts to the user and submits the chosen owner", async () => {
+      saveAccount.mockResolvedValue({ ok: true, nonce: 1 });
+      const user = userEvent.setup();
+      renderOwned();
+      const owner = screen.getByLabelText("Owner");
+      expect(owner).toHaveValue("u1");
+      expect([...owner.querySelectorAll("option")].map((o) => o.textContent)).toEqual(["Luis (you)", "Ana", "Shared (joint account)"]);
+
+      await user.type(screen.getByLabelText("Name"), "BNP");
+      await user.selectOptions(owner, "shared");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(saveAccount).toHaveBeenCalled());
+      expect(submittedData().owner).toBe("shared");
+    });
+
+    it("prefills the owner of an existing account", () => {
+      const { unmount } = renderOwned({ ...account, owner: { id: "u2", name: "Ana", email: "ana@example.com" } });
+      expect(screen.getByLabelText("Owner")).toHaveValue("u2");
+      unmount();
+      renderOwned(account);
+      expect(screen.getByLabelText("Owner")).toHaveValue("shared");
+    });
+  });
+
+  it("hides the owner in single-member workspaces", () => {
+    renderForm();
+    expect(screen.queryByLabelText("Owner")).not.toBeInTheDocument();
+  });
 });

@@ -8,7 +8,7 @@ import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
 import { today } from "@/lib/dates";
 import { pageHref, parseTransactionQuery } from "@/lib/query";
-import { authedApi, expectData } from "@/lib/session";
+import { authedApi, expectData, getAccountOwners, getCurrentUser } from "@/lib/session";
 import { toAccountOption, toCategoryOption, toRecurringNames, toRecurringOption, toTransactionRow } from "@/lib/view-models";
 
 const PAGE_SIZE = 25;
@@ -28,7 +28,7 @@ export default async function TransactionsPage({
   const todayDate = today(process.env.APP_TIMEZONE);
 
   const api = await authedApi();
-  const [accountsRes, categoriesRes, recurringRes, transactionsRes] = await Promise.all([
+  const [accountsRes, categoriesRes, recurringRes, transactionsRes, owners, user] = await Promise.all([
     api.GET("/api/v1/accounts", { params: { query: { include_archived: true } } }),
     api.GET("/api/v1/categories", { params: { query: { include_archived: true } } }),
     api.GET("/api/v1/recurring"),
@@ -41,13 +41,17 @@ export default async function TransactionsPage({
           from: query.from,
           to: query.to,
           q: query.q,
+          owner: query.owner,
           limit: PAGE_SIZE,
           offset: (query.page - 1) * PAGE_SIZE,
         },
       },
     }),
+    getAccountOwners(),
+    getCurrentUser(),
   ]);
-  const accounts = expectData(accountsRes).items.map(toAccountOption);
+  const showOwners = owners.length > 1;
+  const accounts = expectData(accountsRes).items.map((a) => toAccountOption(a, showOwners));
   const categories = expectData(categoriesRes).items.map(toCategoryOption);
   const page = expectData(transactionsRes);
   const hasActiveAccounts = accounts.some((a) => !a.archived);
@@ -67,9 +71,14 @@ export default async function TransactionsPage({
             </Link>
           </p>
         )}
-        <TransactionFilters values={query} accounts={accounts} categories={categories} />
+        <TransactionFilters
+          values={query}
+          accounts={accounts}
+          categories={categories}
+          owners={showOwners ? { owners, userId: user.id } : undefined}
+        />
         <TransactionList
-          transactions={page.items.map(toTransactionRow)}
+          transactions={page.items.map((tx) => toTransactionRow(tx, showOwners))}
           accounts={accounts}
           categories={categories}
           defaultDate={todayDate}

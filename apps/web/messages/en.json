@@ -156,7 +156,7 @@
     "deleteDescription": "Only accounts without transactions can be deleted. Archive it instead to hide it while keeping its history.",
     "deleted": "Account deleted",
     "deleteConflict": "This account has transactions. Archive it instead.",
-    "nameTaken": "An active account with this name already exists.",
+    "nameTaken": "An active account with this name already exists for this owner.",
     "types": {
       "checking": "Checking",
       "savings": "Savings",
@@ -394,5 +394,15 @@
     "accepting": "Joining…",
     "invalid": "This invitation is invalid, has expired or was already used. Ask for a new one.",
     "backToLogin": "Go to sign in"
+  },
+  "owners": {
+    "everyone": "Everyone",
+    "mine": "Mine",
+    "shared": "Shared",
+    "filterLabel": "Whose accounts",
+    "owner": "Owner",
+    "ownerHint": "Who the account belongs to. Every member can still see and use it.",
+    "sharedOption": "Shared (joint account)",
+    "you": "{name} (you)"
   }
 }

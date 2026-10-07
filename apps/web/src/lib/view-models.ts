@@ -1,25 +1,30 @@
 import type { Account, Category, RecurringItem, Transaction } from "@/lib/api/client";
 import type { AccountOption, CategoryOption, RecurringOption, TransactionRow } from "@/components/transactions/types";
+import { accountLabel } from "@/lib/owners";
 
-export function toAccountOption(a: Account): AccountOption {
-  return { id: a.id, name: a.name, currency: a.currency, minor_units: a.minor_units, archived: a.archived };
+/** showOwner labels members' accounts with their owner, e.g. "BNP (Ana)". */
+export function toAccountOption(a: Account, showOwner = false): AccountOption {
+  return { id: a.id, name: accountLabel(a.name, a.owner, showOwner), currency: a.currency, minor_units: a.minor_units, archived: a.archived };
 }
 
 export function toCategoryOption(c: Category): CategoryOption {
   return { id: c.id, name: c.name, kind: c.kind, color: c.color, archived: c.archived };
 }
 
-export function toTransactionRow(tx: Transaction): TransactionRow {
+/** showOwner labels members' accounts with their owner, e.g. "BNP (Ana)". */
+export function toTransactionRow(tx: Transaction, showOwner = false): TransactionRow {
   return {
     id: tx.id,
     type: tx.type,
     account_id: tx.account_id,
-    account_name: tx.account_name,
+    account_name: accountLabel(tx.account_name, tx.account_owner, showOwner),
     currency: tx.currency,
     minor_units: tx.minor_units,
     amount: tx.amount,
     destination_account_id: tx.destination_account_id,
-    destination_account_name: tx.destination_account_name ?? null,
+    destination_account_name: tx.destination_account_name
+      ? accountLabel(tx.destination_account_name, tx.destination_account_owner, showOwner)
+      : null,
     destination_currency: tx.destination_currency ?? null,
     destination_minor_units: tx.destination_minor_units ?? null,
     destination_amount: tx.destination_amount,

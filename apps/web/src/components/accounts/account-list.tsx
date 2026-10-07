@@ -11,9 +11,10 @@ import { ConfirmAction } from "@/components/confirm-action";
 import { Money } from "@/components/money";
 import { RowActions } from "@/components/row-actions";
 import { Badge } from "@/components/ui/badge";
+import { ownerName } from "@/lib/owners";
 import { cn } from "@/lib/utils";
 
-import { AccountDialog, type CurrencyOption, type EditableAccount } from "./account-dialog";
+import { AccountDialog, type CurrencyOption, type EditableAccount, type Ownership } from "./account-dialog";
 import { accountStyles } from "./account-style";
 
 export type AccountListItem = EditableAccount & { balance: number; archived: boolean };
@@ -49,11 +50,13 @@ export function AccountList({
   currencies,
   defaultCurrency,
   defaultDate,
+  ownership,
 }: {
   accounts: AccountListItem[];
   currencies: CurrencyOption[];
   defaultCurrency: string;
   defaultDate: string;
+  ownership?: Ownership;
 }) {
   const t = useTranslations();
 
@@ -85,6 +88,7 @@ export function AccountList({
                 currencies={currencies}
                 defaultCurrency={defaultCurrency}
                 defaultDate={defaultDate}
+                ownership={ownership}
               />
             ))}
           </ul>
@@ -99,11 +103,13 @@ function AccountRow({
   currencies,
   defaultCurrency,
   defaultDate,
+  ownership,
 }: {
   account: AccountListItem;
   currencies: CurrencyOption[];
   defaultCurrency: string;
   defaultDate: string;
+  ownership?: Ownership;
 }) {
   const t = useTranslations();
   const [pending, startTransition] = useTransition();
@@ -132,7 +138,10 @@ function AccountRow({
           <span className="min-w-0 truncate">{account.name}</span>
           {account.archived && <Badge variant="secondary">{t("common.archived")}</Badge>}
         </p>
-        <p className="text-[12.5px] text-muted-foreground">{t(`accounts.types.${account.type}`)}</p>
+        <p className="text-[12.5px] text-muted-foreground">
+          {t(`accounts.types.${account.type}`)}
+          {ownership && ` · ${account.owner ? ownerName(account.owner) : t("owners.shared")}`}
+        </p>
       </div>
       <Money
         amount={account.balance}
@@ -158,6 +167,7 @@ function AccountRow({
         currencies={currencies}
         defaultCurrency={defaultCurrency}
         defaultDate={defaultDate}
+        ownership={ownership}
         open={editing}
         onOpenChange={setEditing}
       />

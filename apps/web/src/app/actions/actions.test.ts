@@ -203,6 +203,20 @@ describe("account actions", () => {
     expect(requests[1].body).toEqual({ name: "Main", type: "cash", initial_balance: 1050, balance_as_of: "2026-10-05" });
   });
 
+  it("sends the chosen owner when creating and editing", async () => {
+    const requests = mockApi([
+      { method: "GET", path: "/api/v1/currencies", status: 200, body: { items: [{ code: "EUR", name: "Euro", minor_units: 2 }] } },
+      { method: "POST", path: "/api/v1/accounts", status: 201, body: {} },
+      { method: "GET", path: "/api/v1/accounts/a1", status: 200, body: { minor_units: 2 } },
+      { method: "PATCH", path: "/api/v1/accounts/a1", status: 200, body: {} },
+    ]);
+    const base = { name: "BNP", type: "checking", initial_balance: "0", balance_as_of: "2026-10-01" };
+    expect((await saveAccount({ ok: false }, form({ ...base, currency: "EUR", owner: "shared" }))).ok).toBe(true);
+    expect(requests[1].body).toMatchObject({ name: "BNP", owner: "shared" });
+    expect((await saveAccount({ ok: false }, form({ ...base, id: "a1", owner: "u2" }))).ok).toBe(true);
+    expect(requests[3].body).toMatchObject({ name: "BNP", owner: "u2" });
+  });
+
   it("requires the balance date", async () => {
     mockApi([{ method: "GET", path: "/api/v1/currencies", status: 200, body: { items: [{ code: "MXN", name: "Peso", minor_units: 2 }] } }]);
     const result = await saveAccount({ ok: false }, form({ name: "Main", type: "cash", currency: "MXN", initial_balance: "1" }));
@@ -217,7 +231,7 @@ describe("account actions", () => {
     ]);
     expect(await saveAccount({ ok: false }, form({ name: "Main", type: "cash", currency: "MXN", balance_as_of: "2026-09-01" }))).toEqual({
       ok: false,
-      message: "An active account with this name already exists.",
+      message: "An active account with this name already exists for this owner.",
     });
   });
 
