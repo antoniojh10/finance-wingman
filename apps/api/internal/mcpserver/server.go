@@ -27,6 +27,7 @@ Guidelines:
 - Amounts are decimal numbers in the account's currency (e.g. 150.50). Never convert currencies yourself.
 - Call list_accounts and list_categories when unsure which account or category the user means. Prefer existing categories; do not invent names.
 - Create accounts or categories (create_account, create_category) only when the user asks for them or confirms a new one is needed.
+- Each account belongs to a workspace member or is shared (joint or household accounts). New accounts belong to the user you are helping unless they say otherwise (owner "shared" or another member's name). Members can each have an account with the same name, e.g. two "BNP" accounts: list_accounts shows them as BNP (Ana) and BNP (Luis); a bare "BNP" means the user's own, and another member's is named with the owner in parentheses. list_accounts, list_transactions and get_summary take an optional owner ("me", "shared" or a member) when the user asks about one person's money; otherwise cover the whole workspace.
 - An account's initial_balance is the balance it holds on balance_as_of (default today), not a balance before all history: transactions dated on or before balance_as_of are already part of it, only later ones change the balance. So when the user states today's balance, create the account with it and then past transactions can be backfilled without altering the balance; for a balance on another date pass balance_as_of. Income and expense summaries still count backdated transactions.
 - To fix or change an existing account use update_account (rename, change type, correct initial_balance or its balance_as_of date, archive or unarchive). The currency cannot be changed. Confirm with the user before changing a balance or archiving. Archived accounts are hidden from list_accounts and cannot receive new transactions, but update_account still finds them so they can be restored. There is no tool to delete accounts.
 - To fix or change an existing category use update_category (rename, change color or icon, archive or unarchive). The kind (expense or income) cannot be changed. Confirm with the user before archiving. Archived categories are hidden from list_categories but their transactions stay categorized, and update_category still finds them so they can be restored.
@@ -45,6 +46,9 @@ type Server struct {
 	// workspaceOf returns the workspace a tool call acts on; tests replace it
 	// because in-memory transports carry no bearer token.
 	workspaceOf func(*mcp.CallToolRequest) (uuid.UUID, bool)
+	// actorOf returns the user behind a tool call, replaced by tests for the
+	// same reason.
+	actorOf func(*mcp.CallToolRequest) (uuid.UUID, bool)
 }
 
 // tokenWorkspaceKey is the TokenInfo.Extra key holding the workspace of the
@@ -58,6 +62,7 @@ func New(fin *finance.Service, version string) *Server {
 	s := &Server{
 		finance:     fin,
 		workspaceOf: tokenWorkspace,
+		actorOf:     tokenUser,
 		mcp: mcp.NewServer(&mcp.Implementation{
 			Name:    "finance-wingman",
 			Title:   "Finance Wingman",
@@ -145,7 +150,7 @@ func isLoopback(hostport string) bool {
 func (s *Server) MCP() *mcp.Server { return s.mcp }
 
 // workspaceScope makes every tool call act on the workspace of its bearer
-// session, and refuses calls from sessions without one.
+// session, as its user, and refuses calls from sessions without one.
 func (s *Server) workspaceScope(next mcp.MethodHandler) mcp.MethodHandler {
 	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 		call, ok := req.(*mcp.CallToolRequest)
@@ -156,7 +161,11 @@ func (s *Server) workspaceScope(next mcp.MethodHandler) mcp.MethodHandler {
 		if !ok {
 			return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: noWorkspaceMessage}}}, nil
 		}
-		return next(db.WithWorkspace(ctx, id), method, req)
+		ctx = db.WithWorkspace(ctx, id)
+		if user, ok := s.actorOf(call); ok {
+			ctx = finance.WithActor(ctx, user)
+		}
+		return next(ctx, method, req)
 	}
 }
 
@@ -169,13 +178,12 @@ func tokenWorkspace(req *mcp.CallToolRequest) (uuid.UUID, bool) {
 	return id, err == nil
 }
 
-// actorContext attributes writes to the user behind the bearer token.
-func actorContext(ctx context.Context, req *mcp.CallToolRequest) context.Context {
-	if req == nil || req.Extra == nil || req.Extra.TokenInfo == nil {
-		return ctx
+// tokenUser returns the user behind the bearer token, so writes are
+// attributed to them and "my" accounts can be told apart.
+func tokenUser(req *mcp.CallToolRequest) (uuid.UUID, bool) {
+	if req.Extra == nil || req.Extra.TokenInfo == nil {
+		return uuid.Nil, false
 	}
-	if id, err := uuid.Parse(req.Extra.TokenInfo.UserID); err == nil {
-		return finance.WithActor(ctx, id)
-	}
-	return ctx
+	id, err := uuid.Parse(req.Extra.TokenInfo.UserID)
+	return id, err == nil
 }

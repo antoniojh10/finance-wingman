@@ -74,7 +74,13 @@ SELECT
     dcur.minor_units AS destination_minor_units,
     c.name AS category_name,
     u.name AS created_by_name,
-    u.email AS created_by_email
+    u.email AS created_by_email,
+    a.owner_user_id AS account_owner_id,
+    ao.name AS account_owner_name,
+    ao.email AS account_owner_email,
+    da.owner_user_id AS destination_account_owner_id,
+    dao.name AS destination_account_owner_name,
+    dao.email AS destination_account_owner_email
 FROM transactions t
 JOIN accounts a ON a.id = t.account_id
 JOIN currencies cur ON cur.code = a.currency
@@ -82,34 +88,42 @@ LEFT JOIN accounts da ON da.id = t.destination_account_id
 LEFT JOIN currencies dcur ON dcur.code = da.currency
 LEFT JOIN categories c ON c.id = t.category_id
 LEFT JOIN users u ON u.id = t.created_by
+LEFT JOIN users ao ON ao.id = a.owner_user_id
+LEFT JOIN users dao ON dao.id = da.owner_user_id
 WHERE t.id = $1
 `
 
 type GetTransactionRow struct {
-	ID                     uuid.UUID
-	WorkspaceID            uuid.UUID
-	Type                   string
-	AccountID              uuid.UUID
-	Amount                 int64
-	DestinationAccountID   *uuid.UUID
-	DestinationAmount      *int64
-	CategoryID             *uuid.UUID
-	Description            string
-	OccurredOn             time.Time
-	CreatedBy              *uuid.UUID
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
-	RecurringID            *uuid.UUID
-	RecurringDueOn         *time.Time
-	AccountName            string
-	Currency               string
-	MinorUnits             int16
-	DestinationAccountName *string
-	DestinationCurrency    *string
-	DestinationMinorUnits  *int16
-	CategoryName           *string
-	CreatedByName          *string
-	CreatedByEmail         *string
+	ID                           uuid.UUID
+	WorkspaceID                  uuid.UUID
+	Type                         string
+	AccountID                    uuid.UUID
+	Amount                       int64
+	DestinationAccountID         *uuid.UUID
+	DestinationAmount            *int64
+	CategoryID                   *uuid.UUID
+	Description                  string
+	OccurredOn                   time.Time
+	CreatedBy                    *uuid.UUID
+	CreatedAt                    time.Time
+	UpdatedAt                    time.Time
+	RecurringID                  *uuid.UUID
+	RecurringDueOn               *time.Time
+	AccountName                  string
+	Currency                     string
+	MinorUnits                   int16
+	DestinationAccountName       *string
+	DestinationCurrency          *string
+	DestinationMinorUnits        *int16
+	CategoryName                 *string
+	CreatedByName                *string
+	CreatedByEmail               *string
+	AccountOwnerID               *uuid.UUID
+	AccountOwnerName             *string
+	AccountOwnerEmail            *string
+	DestinationAccountOwnerID    *uuid.UUID
+	DestinationAccountOwnerName  *string
+	DestinationAccountOwnerEmail *string
 }
 
 func (q *Queries) GetTransaction(ctx context.Context, id uuid.UUID) (GetTransactionRow, error) {
@@ -140,6 +154,12 @@ func (q *Queries) GetTransaction(ctx context.Context, id uuid.UUID) (GetTransact
 		&i.CategoryName,
 		&i.CreatedByName,
 		&i.CreatedByEmail,
+		&i.AccountOwnerID,
+		&i.AccountOwnerName,
+		&i.AccountOwnerEmail,
+		&i.DestinationAccountOwnerID,
+		&i.DestinationAccountOwnerName,
+		&i.DestinationAccountOwnerEmail,
 	)
 	return i, err
 }
@@ -198,6 +218,12 @@ SELECT
     c.name AS category_name,
     u.name AS created_by_name,
     u.email AS created_by_email,
+    a.owner_user_id AS account_owner_id,
+    ao.name AS account_owner_name,
+    ao.email AS account_owner_email,
+    da.owner_user_id AS destination_account_owner_id,
+    dao.name AS destination_account_owner_name,
+    dao.email AS destination_account_owner_email,
     count(*) OVER () AS total_count
 FROM transactions t
 JOIN accounts a ON a.id = t.account_id
@@ -206,6 +232,8 @@ LEFT JOIN accounts da ON da.id = t.destination_account_id
 LEFT JOIN currencies dcur ON dcur.code = da.currency
 LEFT JOIN categories c ON c.id = t.category_id
 LEFT JOIN users u ON u.id = t.created_by
+LEFT JOIN users ao ON ao.id = a.owner_user_id
+LEFT JOIN users dao ON dao.id = da.owner_user_id
 WHERE ($1::uuid IS NULL
         OR t.account_id = $1
         OR t.destination_account_id = $1)
@@ -214,8 +242,15 @@ WHERE ($1::uuid IS NULL
   AND ($4::date IS NULL OR t.occurred_on >= $4)
   AND ($5::date IS NULL OR t.occurred_on <= $5)
   AND ($6::text IS NULL OR t.description ILIKE '%' || $6 || '%')
+  -- Owner filter: a transfer matches when either side is in the owner's accounts.
+  AND ($7::uuid IS NULL
+        OR a.owner_user_id = $7
+        OR da.owner_user_id = $7)
+  AND (NOT $8::boolean
+        OR a.owner_user_id IS NULL
+        OR (da.id IS NOT NULL AND da.owner_user_id IS NULL))
 ORDER BY t.occurred_on DESC, t.created_at DESC, t.id
-LIMIT $8 OFFSET $7
+LIMIT $10 OFFSET $9
 `
 
 type ListTransactionsParams struct {
@@ -225,36 +260,44 @@ type ListTransactionsParams struct {
 	FromDate   *time.Time
 	ToDate     *time.Time
 	Search     *string
+	OwnerID    *uuid.UUID
+	SharedOnly bool
 	RowOffset  int32
 	RowLimit   int32
 }
 
 type ListTransactionsRow struct {
-	ID                     uuid.UUID
-	WorkspaceID            uuid.UUID
-	Type                   string
-	AccountID              uuid.UUID
-	Amount                 int64
-	DestinationAccountID   *uuid.UUID
-	DestinationAmount      *int64
-	CategoryID             *uuid.UUID
-	Description            string
-	OccurredOn             time.Time
-	CreatedBy              *uuid.UUID
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
-	RecurringID            *uuid.UUID
-	RecurringDueOn         *time.Time
-	AccountName            string
-	Currency               string
-	MinorUnits             int16
-	DestinationAccountName *string
-	DestinationCurrency    *string
-	DestinationMinorUnits  *int16
-	CategoryName           *string
-	CreatedByName          *string
-	CreatedByEmail         *string
-	TotalCount             int64
+	ID                           uuid.UUID
+	WorkspaceID                  uuid.UUID
+	Type                         string
+	AccountID                    uuid.UUID
+	Amount                       int64
+	DestinationAccountID         *uuid.UUID
+	DestinationAmount            *int64
+	CategoryID                   *uuid.UUID
+	Description                  string
+	OccurredOn                   time.Time
+	CreatedBy                    *uuid.UUID
+	CreatedAt                    time.Time
+	UpdatedAt                    time.Time
+	RecurringID                  *uuid.UUID
+	RecurringDueOn               *time.Time
+	AccountName                  string
+	Currency                     string
+	MinorUnits                   int16
+	DestinationAccountName       *string
+	DestinationCurrency          *string
+	DestinationMinorUnits        *int16
+	CategoryName                 *string
+	CreatedByName                *string
+	CreatedByEmail               *string
+	AccountOwnerID               *uuid.UUID
+	AccountOwnerName             *string
+	AccountOwnerEmail            *string
+	DestinationAccountOwnerID    *uuid.UUID
+	DestinationAccountOwnerName  *string
+	DestinationAccountOwnerEmail *string
+	TotalCount                   int64
 }
 
 func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]ListTransactionsRow, error) {
@@ -265,6 +308,8 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 		arg.FromDate,
 		arg.ToDate,
 		arg.Search,
+		arg.OwnerID,
+		arg.SharedOnly,
 		arg.RowOffset,
 		arg.RowLimit,
 	)
@@ -300,6 +345,12 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 			&i.CategoryName,
 			&i.CreatedByName,
 			&i.CreatedByEmail,
+			&i.AccountOwnerID,
+			&i.AccountOwnerName,
+			&i.AccountOwnerEmail,
+			&i.DestinationAccountOwnerID,
+			&i.DestinationAccountOwnerName,
+			&i.DestinationAccountOwnerEmail,
 			&i.TotalCount,
 		); err != nil {
 			return nil, err

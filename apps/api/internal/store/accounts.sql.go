@@ -24,8 +24,8 @@ func (q *Queries) CountAccountTransactions(ctx context.Context, accountID uuid.U
 }
 
 const createAccount = `-- name: CreateAccount :one
-INSERT INTO accounts (name, type, currency, initial_balance, balance_as_of)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO accounts (name, type, currency, initial_balance, balance_as_of, owner_user_id)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id
 `
 
@@ -35,6 +35,7 @@ type CreateAccountParams struct {
 	Currency       string
 	InitialBalance int64
 	BalanceAsOf    time.Time
+	OwnerUserID    *uuid.UUID
 }
 
 func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (uuid.UUID, error) {
@@ -44,6 +45,7 @@ func (q *Queries) CreateAccount(ctx context.Context, arg CreateAccountParams) (u
 		arg.Currency,
 		arg.InitialBalance,
 		arg.BalanceAsOf,
+		arg.OwnerUserID,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -64,11 +66,14 @@ func (q *Queries) DeleteAccount(ctx context.Context, id uuid.UUID) (int64, error
 
 const getAccount = `-- name: GetAccount :one
 SELECT
-    a.id, a.workspace_id, a.name, a.type, a.currency, a.initial_balance, a.archived_at, a.created_at, a.updated_at, a.balance_as_of,
+    a.id, a.workspace_id, a.name, a.type, a.currency, a.initial_balance, a.archived_at, a.created_at, a.updated_at, a.balance_as_of, a.owner_user_id,
     c.minor_units,
-    (a.initial_balance + COALESCE(b.delta, 0))::bigint AS balance
+    (a.initial_balance + COALESCE(b.delta, 0))::bigint AS balance,
+    o.name AS owner_name,
+    o.email AS owner_email
 FROM accounts a
 JOIN currencies c ON c.code = a.currency
+LEFT JOIN users o ON o.id = a.owner_user_id
 LEFT JOIN LATERAL (
     SELECT sum(
         CASE
@@ -95,8 +100,11 @@ type GetAccountRow struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	BalanceAsOf    time.Time
+	OwnerUserID    *uuid.UUID
 	MinorUnits     int16
 	Balance        int64
+	OwnerName      *string
+	OwnerEmail     *string
 }
 
 func (q *Queries) GetAccount(ctx context.Context, id uuid.UUID) (GetAccountRow, error) {
@@ -113,20 +121,61 @@ func (q *Queries) GetAccount(ctx context.Context, id uuid.UUID) (GetAccountRow, 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.BalanceAsOf,
+		&i.OwnerUserID,
 		&i.MinorUnits,
 		&i.Balance,
+		&i.OwnerName,
+		&i.OwnerEmail,
 	)
 	return i, err
+}
+
+const listAccountOwners = `-- name: ListAccountOwners :many
+SELECT u.id, u.name, u.email
+FROM workspace_members m
+JOIN users u ON u.id = m.user_id
+WHERE m.workspace_id = current_workspace_id()
+ORDER BY lower(u.name), u.email
+`
+
+type ListAccountOwnersRow struct {
+	ID    uuid.UUID
+	Name  string
+	Email string
+}
+
+// Members of the current workspace, who can own accounts.
+func (q *Queries) ListAccountOwners(ctx context.Context) ([]ListAccountOwnersRow, error) {
+	rows, err := q.db.Query(ctx, listAccountOwners)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAccountOwnersRow{}
+	for rows.Next() {
+		var i ListAccountOwnersRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAccounts = `-- name: ListAccounts :many
 
 SELECT
-    a.id, a.workspace_id, a.name, a.type, a.currency, a.initial_balance, a.archived_at, a.created_at, a.updated_at, a.balance_as_of,
+    a.id, a.workspace_id, a.name, a.type, a.currency, a.initial_balance, a.archived_at, a.created_at, a.updated_at, a.balance_as_of, a.owner_user_id,
     c.minor_units,
-    (a.initial_balance + COALESCE(b.delta, 0))::bigint AS balance
+    (a.initial_balance + COALESCE(b.delta, 0))::bigint AS balance,
+    o.name AS owner_name,
+    o.email AS owner_email
 FROM accounts a
 JOIN currencies c ON c.code = a.currency
+LEFT JOIN users o ON o.id = a.owner_user_id
 LEFT JOIN LATERAL (
     SELECT sum(
         CASE
@@ -139,9 +188,17 @@ LEFT JOIN LATERAL (
     WHERE (t.account_id = a.id OR t.destination_account_id = a.id)
       AND t.occurred_on > a.balance_as_of
 ) b ON true
-WHERE $1::boolean OR a.archived_at IS NULL
-ORDER BY a.archived_at IS NOT NULL, lower(a.name)
+WHERE ($1::boolean OR a.archived_at IS NULL)
+  AND ($2::uuid IS NULL OR a.owner_user_id = $2)
+  AND (NOT $3::boolean OR a.owner_user_id IS NULL)
+ORDER BY a.archived_at IS NOT NULL, lower(a.name), o.name NULLS FIRST
 `
+
+type ListAccountsParams struct {
+	IncludeArchived bool
+	OwnerID         *uuid.UUID
+	SharedOnly      bool
+}
 
 type ListAccountsRow struct {
 	ID             uuid.UUID
@@ -154,16 +211,19 @@ type ListAccountsRow struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	BalanceAsOf    time.Time
+	OwnerUserID    *uuid.UUID
 	MinorUnits     int16
 	Balance        int64
+	OwnerName      *string
+	OwnerEmail     *string
 }
 
 // Balance = initial balance + income - expenses - transfers out + transfers in,
 // counting only transactions dated after the account's balance_as_of day
 // (the initial balance already includes everything up to and including it).
 // Transfers apply the rule per side, using each account's own anchor.
-func (q *Queries) ListAccounts(ctx context.Context, includeArchived bool) ([]ListAccountsRow, error) {
-	rows, err := q.db.Query(ctx, listAccounts, includeArchived)
+func (q *Queries) ListAccounts(ctx context.Context, arg ListAccountsParams) ([]ListAccountsRow, error) {
+	rows, err := q.db.Query(ctx, listAccounts, arg.IncludeArchived, arg.OwnerID, arg.SharedOnly)
 	if err != nil {
 		return nil, err
 	}
@@ -182,8 +242,11 @@ func (q *Queries) ListAccounts(ctx context.Context, includeArchived bool) ([]Lis
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.BalanceAsOf,
+			&i.OwnerUserID,
 			&i.MinorUnits,
 			&i.Balance,
+			&i.OwnerName,
+			&i.OwnerEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -201,12 +264,13 @@ UPDATE accounts SET
     type = COALESCE($2, type),
     initial_balance = COALESCE($3, initial_balance),
     balance_as_of = COALESCE($4, balance_as_of),
+    owner_user_id = CASE WHEN $5::boolean THEN $6::uuid ELSE owner_user_id END,
     archived_at = CASE
-        WHEN $5::boolean IS NULL THEN archived_at
-        WHEN $5::boolean THEN COALESCE(archived_at, now())
+        WHEN $7::boolean IS NULL THEN archived_at
+        WHEN $7::boolean THEN COALESCE(archived_at, now())
         ELSE NULL
     END
-WHERE id = $6
+WHERE id = $8
 `
 
 type UpdateAccountParams struct {
@@ -214,6 +278,8 @@ type UpdateAccountParams struct {
 	Type           *string
 	InitialBalance *int64
 	BalanceAsOf    *time.Time
+	SetOwner       bool
+	OwnerUserID    *uuid.UUID
 	Archived       *bool
 	ID             uuid.UUID
 }
@@ -224,6 +290,8 @@ func (q *Queries) UpdateAccount(ctx context.Context, arg UpdateAccountParams) er
 		arg.Type,
 		arg.InitialBalance,
 		arg.BalanceAsOf,
+		arg.SetOwner,
+		arg.OwnerUserID,
 		arg.Archived,
 		arg.ID,
 	)

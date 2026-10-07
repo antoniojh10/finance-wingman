@@ -18,7 +18,13 @@ SELECT
     dcur.minor_units AS destination_minor_units,
     c.name AS category_name,
     u.name AS created_by_name,
-    u.email AS created_by_email
+    u.email AS created_by_email,
+    a.owner_user_id AS account_owner_id,
+    ao.name AS account_owner_name,
+    ao.email AS account_owner_email,
+    da.owner_user_id AS destination_account_owner_id,
+    dao.name AS destination_account_owner_name,
+    dao.email AS destination_account_owner_email
 FROM transactions t
 JOIN accounts a ON a.id = t.account_id
 JOIN currencies cur ON cur.code = a.currency
@@ -26,6 +32,8 @@ LEFT JOIN accounts da ON da.id = t.destination_account_id
 LEFT JOIN currencies dcur ON dcur.code = da.currency
 LEFT JOIN categories c ON c.id = t.category_id
 LEFT JOIN users u ON u.id = t.created_by
+LEFT JOIN users ao ON ao.id = a.owner_user_id
+LEFT JOIN users dao ON dao.id = da.owner_user_id
 WHERE t.id = $1;
 
 -- name: ListTransactions :many
@@ -40,6 +48,12 @@ SELECT
     c.name AS category_name,
     u.name AS created_by_name,
     u.email AS created_by_email,
+    a.owner_user_id AS account_owner_id,
+    ao.name AS account_owner_name,
+    ao.email AS account_owner_email,
+    da.owner_user_id AS destination_account_owner_id,
+    dao.name AS destination_account_owner_name,
+    dao.email AS destination_account_owner_email,
     count(*) OVER () AS total_count
 FROM transactions t
 JOIN accounts a ON a.id = t.account_id
@@ -48,6 +62,8 @@ LEFT JOIN accounts da ON da.id = t.destination_account_id
 LEFT JOIN currencies dcur ON dcur.code = da.currency
 LEFT JOIN categories c ON c.id = t.category_id
 LEFT JOIN users u ON u.id = t.created_by
+LEFT JOIN users ao ON ao.id = a.owner_user_id
+LEFT JOIN users dao ON dao.id = da.owner_user_id
 WHERE (sqlc.narg('account_id')::uuid IS NULL
         OR t.account_id = sqlc.narg('account_id')
         OR t.destination_account_id = sqlc.narg('account_id'))
@@ -56,6 +72,13 @@ WHERE (sqlc.narg('account_id')::uuid IS NULL
   AND (sqlc.narg('from_date')::date IS NULL OR t.occurred_on >= sqlc.narg('from_date'))
   AND (sqlc.narg('to_date')::date IS NULL OR t.occurred_on <= sqlc.narg('to_date'))
   AND (sqlc.narg('search')::text IS NULL OR t.description ILIKE '%' || sqlc.narg('search') || '%')
+  -- Owner filter: a transfer matches when either side is in the owner's accounts.
+  AND (sqlc.narg('owner_id')::uuid IS NULL
+        OR a.owner_user_id = sqlc.narg('owner_id')
+        OR da.owner_user_id = sqlc.narg('owner_id'))
+  AND (NOT sqlc.arg('shared_only')::boolean
+        OR a.owner_user_id IS NULL
+        OR (da.id IS NOT NULL AND da.owner_user_id IS NULL))
 ORDER BY t.occurred_on DESC, t.created_at DESC, t.id
 LIMIT sqlc.arg('row_limit') OFFSET sqlc.arg('row_offset');
 

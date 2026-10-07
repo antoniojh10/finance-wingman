@@ -97,6 +97,10 @@
             ],
             "type": "string"
           },
+          "owner": {
+            "$ref": "#/components/schemas/UserRef",
+            "description": "Workspace member the account belongs to. Omitted when the account is shared"
+          },
           "type": {
             "enum": [
               "checking",
@@ -354,6 +358,13 @@
           "name": {
             "maxLength": 100,
             "minLength": 1,
+            "type": "string"
+          },
+          "owner": {
+            "description": "\"me\", \"shared\" or the user id of a workspace member. Defaults to the user creating the account",
+            "examples": [
+              "me"
+            ],
             "type": "string"
           },
           "type": {
@@ -1893,6 +1904,10 @@
           "account_name": {
             "type": "string"
           },
+          "account_owner": {
+            "$ref": "#/components/schemas/UserRef",
+            "description": "Owner of the account. Omitted when it is shared"
+          },
           "amount": {
             "description": "Positive amount in minor units of the account currency",
             "format": "int64",
@@ -1940,6 +1955,10 @@
               "string",
               "null"
             ]
+          },
+          "destination_account_owner": {
+            "$ref": "#/components/schemas/UserRef",
+            "description": "Owner of the destination account. Omitted when it is shared or there is none"
           },
           "destination_amount": {
             "description": "Amount received by the destination account (transfers only)",
@@ -2214,6 +2233,13 @@
           "name": {
             "maxLength": 100,
             "minLength": 1,
+            "type": "string"
+          },
+          "owner": {
+            "description": "\"me\", \"shared\" or the user id of a workspace member",
+            "examples": [
+              "shared"
+            ],
             "type": "string"
           },
           "type": {
@@ -2528,6 +2554,16 @@
             "schema": {
               "description": "Include archived accounts",
               "type": "boolean"
+            }
+          },
+          {
+            "description": "\"me\", \"shared\" or a member's user id; omit for every owner",
+            "explode": false,
+            "in": "query",
+            "name": "owner",
+            "schema": {
+              "description": "\"me\", \"shared\" or a member's user id; omit for every owner",
+              "type": "string"
             }
           }
         ],
@@ -3865,6 +3901,16 @@
               "format": "date",
               "type": "string"
             }
+          },
+          {
+            "description": "Limit to accounts of this owner: \"me\", \"shared\" or a member's user id; omit for the whole workspace",
+            "explode": false,
+            "in": "query",
+            "name": "owner",
+            "schema": {
+              "description": "Limit to accounts of this owner: \"me\", \"shared\" or a member's user id; omit for the whole workspace",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3963,6 +4009,16 @@
             "schema": {
               "description": "Search in the description",
               "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Transactions on accounts of this owner (either side of a transfer): \"me\", \"shared\" or a member's user id",
+            "explode": false,
+            "in": "query",
+            "name": "owner",
+            "schema": {
+              "description": "Transactions on accounts of this owner (either side of a transfer): \"me\", \"shared\" or a member's user id",
               "type": "string"
             }
           },

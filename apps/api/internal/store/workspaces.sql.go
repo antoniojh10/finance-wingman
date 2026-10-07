@@ -438,6 +438,28 @@ func (q *Queries) RemoveWorkspaceMember(ctx context.Context, arg RemoveWorkspace
 	return result.RowsAffected(), nil
 }
 
+const renameClashingMemberAccounts = `-- name: RenameClashingMemberAccounts :exec
+UPDATE accounts a
+SET name = a.name || ' (' || COALESCE(NULLIF(u.name, ''), u.email::text) || ')'
+FROM users u
+WHERE u.id = a.owner_user_id
+  AND a.owner_user_id = $1
+  AND a.archived_at IS NULL
+  AND EXISTS (
+      SELECT 1 FROM accounts s
+      WHERE s.owner_user_id IS NULL AND s.archived_at IS NULL AND lower(s.name) = lower(a.name)
+  )
+`
+
+// Removing a member makes their accounts shared (see accounts_owner_fkey).
+// Before that, their active accounts whose name is taken by an active shared
+// account get the member's name appended, e.g. "BNP (Luis)". Needs the
+// workspace context, since accounts are isolated per workspace.
+func (q *Queries) RenameClashingMemberAccounts(ctx context.Context, ownerUserID *uuid.UUID) error {
+	_, err := q.db.Exec(ctx, renameClashingMemberAccounts, ownerUserID)
+	return err
+}
+
 const renameWorkspace = `-- name: RenameWorkspace :one
 UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at, updated_at
 `

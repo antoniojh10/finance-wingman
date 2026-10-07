@@ -32,11 +32,13 @@ type Transaction struct {
 	Type                   string     `json:"type" enum:"expense,income,transfer"`
 	AccountID              uuid.UUID  `json:"account_id" format:"uuid"`
 	AccountName            string     `json:"account_name"`
+	AccountOwner           *UserRef   `json:"account_owner,omitempty" doc:"Owner of the account. Omitted when it is shared"`
 	Currency               string     `json:"currency" example:"MXN"`
 	MinorUnits             int        `json:"minor_units" example:"2"`
 	Amount                 int64      `json:"amount" doc:"Positive amount in minor units of the account currency"`
 	DestinationAccountID   *uuid.UUID `json:"destination_account_id" format:"uuid" nullable:"true"`
 	DestinationAccountName *string    `json:"destination_account_name"`
+	DestinationOwner       *UserRef   `json:"destination_account_owner,omitempty" doc:"Owner of the destination account. Omitted when it is shared or there is none"`
 	DestinationCurrency    *string    `json:"destination_currency"`
 	DestinationMinorUnits  *int       `json:"destination_minor_units"`
 	DestinationAmount      *int64     `json:"destination_amount" doc:"Amount received by the destination account (transfers only)"`
@@ -71,6 +73,7 @@ type TransactionFilter struct {
 	From       *string
 	To         *string
 	Search     *string
+	Owner      OwnerFilter
 	Limit      int
 	Offset     int
 }
@@ -111,10 +114,17 @@ func transactionFromRow(r store.GetTransactionRow) Transaction {
 		units := int(*r.DestinationMinorUnits)
 		t.DestinationMinorUnits = &units
 	}
-	if r.CreatedBy != nil {
-		t.CreatedBy = &UserRef{ID: *r.CreatedBy, Name: deref(r.CreatedByName), Email: deref(r.CreatedByEmail)}
-	}
+	t.CreatedBy = userRef(r.CreatedBy, r.CreatedByName, r.CreatedByEmail)
+	t.AccountOwner = userRef(r.AccountOwnerID, r.AccountOwnerName, r.AccountOwnerEmail)
+	t.DestinationOwner = userRef(r.DestinationAccountOwnerID, r.DestinationAccountOwnerName, r.DestinationAccountOwnerEmail)
 	return t
+}
+
+func userRef(id *uuid.UUID, name, email *string) *UserRef {
+	if id == nil {
+		return nil
+	}
+	return &UserRef{ID: *id, Name: deref(name), Email: deref(email)}
 }
 
 func deref[T any](p *T) T {
@@ -141,6 +151,8 @@ func (s *Service) ListTransactions(ctx context.Context, f TransactionFilter) (Tr
 		AccountID:  f.AccountID,
 		CategoryID: f.CategoryID,
 		Type:       f.Type,
+		OwnerID:    f.Owner.UserID,
+		SharedOnly: f.Owner.Shared,
 		RowLimit:   int32(DefaultPageSize),
 		RowOffset:  int32(f.Offset),
 	}
@@ -192,6 +204,9 @@ func (s *Service) ListTransactions(ctx context.Context, f TransactionFilter) (Tr
 			DestinationAccountName: r.DestinationAccountName, DestinationCurrency: r.DestinationCurrency,
 			DestinationMinorUnits: r.DestinationMinorUnits, CategoryName: r.CategoryName,
 			CreatedByName: r.CreatedByName, CreatedByEmail: r.CreatedByEmail,
+			AccountOwnerID: r.AccountOwnerID, AccountOwnerName: r.AccountOwnerName, AccountOwnerEmail: r.AccountOwnerEmail,
+			DestinationAccountOwnerID: r.DestinationAccountOwnerID, DestinationAccountOwnerName: r.DestinationAccountOwnerName,
+			DestinationAccountOwnerEmail: r.DestinationAccountOwnerEmail,
 		})
 	}
 	return page, nil

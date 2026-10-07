@@ -113,7 +113,10 @@ func (s *Service) CreateAccounts(ctx context.Context, items []CreateAccountInput
 		if err != nil {
 			return nil, itemError(i, err)
 		}
-		if err := seen.check(i, strings.ToLower(name)); err != nil {
+		// Names repeat across owners; the database catches the cases this
+		// misses, such as "me" and the creator's id.
+		owner := strings.ToLower(strings.TrimSpace(in.Owner))
+		if err := seen.check(i, owner+"|"+strings.ToLower(name)); err != nil {
 			return nil, err
 		}
 	}
