@@ -95,11 +95,11 @@ tunnel (e.g. `cloudflared tunnel --url http://localhost:8080`) and set
 
 ## Deployment
 
-Production runs on Railway. The `deploy` job in
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) deploys the apps
-that changed with `railway up` after every job of a push to `main`
-passes (or on a manual run of the workflow, which deploys both). It needs
-the `RAILWAY_TOKEN` repository secret: a Railway project token for the
+Production runs on Railway, which deploys each app from `main` when its
+folder changes. To deploy a service by hand (e.g. after a commit that
+skipped it), run the **Deploy** workflow from the Actions tab and pick
+`api`, `web` or `both`; it only deploys `main`. It needs the
+`RAILWAY_TOKEN` repository secret: a Railway project token for the
 `production` environment.
 
 See [docs/deploy-seenode.md](docs/deploy-seenode.md) for deploying the API,
