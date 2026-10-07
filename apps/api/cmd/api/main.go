@@ -63,6 +63,12 @@ func run(args []string, logger *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("set up telemetry: %w", err)
 	}
+	// Emails printed by the log sender contain magic links; they only go to
+	// stdout, never to the telemetry backend.
+	mailLogger := logger
+	if telemetry.Enabled(os.Getenv) {
+		logger = slog.New(telemetry.LogHandler(logger.Handler(), slog.LevelInfo))
+	}
 	defer func() {
 		// The signal context is already done here; give exporters time to flush.
 		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -78,7 +84,7 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 
-	authSvc := auth.NewService(pool, newMailSender(cfg.Email, logger), auth.Config{WebBaseURL: cfg.WebBaseURL, MaxChallengesPerHour: cfg.LoginEmailsPerHour}, logger)
+	authSvc := auth.NewService(pool, newMailSender(cfg.Email, mailLogger), auth.Config{WebBaseURL: cfg.WebBaseURL, MaxChallengesPerHour: cfg.LoginEmailsPerHour}, logger)
 
 	command := "serve"
 	if len(args) > 0 {
