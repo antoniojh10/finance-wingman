@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { acceptSuggestion, dismissSuggestion } from "@/app/actions/recurring";
+import { AmountInput } from "@/components/amount-input";
 import { Field } from "@/components/field";
 import { Money } from "@/components/money";
 import { Button } from "@/components/ui/button";
@@ -194,11 +195,9 @@ function AcceptSuggestionForm({
         hint={t("subscriptions.amountHint")}
         error={errors.amount}
       >
-        <Input
+        <AmountInput
           id="suggestion-amount"
           name="amount"
-          inputMode="decimal"
-          autoComplete="off"
           defaultValue={toDecimalString(suggestion.amount, suggestion.minor_units)}
           aria-invalid={Boolean(errors.amount)}
         />

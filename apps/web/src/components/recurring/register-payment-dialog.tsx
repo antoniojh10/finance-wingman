@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { registerRecurringPayment } from "@/app/actions/recurring";
+import { AmountInput } from "@/components/amount-input";
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import {
@@ -106,11 +107,9 @@ export function RegisterPaymentForm({
         {t("subscriptions.registerPeriod", { date: formatDate(target.period, locale) })}
       </p>
       <Field id="payment-amount" label={`${t("subscriptions.amount")} (${target.currency})`} error={errors.amount}>
-        <Input
+        <AmountInput
           id="payment-amount"
           name="amount"
-          inputMode="decimal"
-          autoComplete="off"
           autoFocus
           defaultValue={toDecimalString(target.amount, target.minor_units)}
           aria-invalid={Boolean(errors.amount)}

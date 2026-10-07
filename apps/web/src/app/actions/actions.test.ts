@@ -144,6 +144,15 @@ describe("saveTransaction", () => {
     expect(requests[1]).toMatchObject({ method: "PUT", body: { type: "expense", account_id: "mxn", amount: 500 } });
   });
 
+  it("accepts amounts grouped in thousands with spaces", async () => {
+    const requests = mockApi([
+      { method: "GET", path: "/api/v1/accounts", status: 200, body: accounts },
+      { method: "POST", path: "/api/v1/transactions", status: 201, body: { id: "tx1" } },
+    ]);
+    expect((await saveTransaction({ ok: false }, form({ type: "expense", account_id: "mxn", amount: "1 234 567.50" }))).ok).toBe(true);
+    expect(requests[1].body).toMatchObject({ amount: 123456750 });
+  });
+
   it("returns translated field errors for invalid input", async () => {
     const requests = mockApi([{ method: "GET", path: "/api/v1/accounts", status: 200, body: accounts }]);
     expect(await saveTransaction({ ok: false }, form({ type: "expense", account_id: "mxn", amount: "1.234" }))).toEqual({
@@ -189,7 +198,7 @@ describe("account actions", () => {
       { method: "GET", path: "/api/v1/currencies", status: 200, body: { items: [{ code: "JPY", name: "Yen", minor_units: 0 }] } },
       { method: "POST", path: "/api/v1/accounts", status: 201, body: {} },
     ]);
-    expect((await saveAccount({ ok: false }, form({ name: "Yen", type: "cash", currency: "JPY", initial_balance: "-1500", balance_as_of: "2026-09-01" }))).ok).toBe(true);
+    expect((await saveAccount({ ok: false }, form({ name: "Yen", type: "cash", currency: "JPY", initial_balance: "-1 500", balance_as_of: "2026-09-01" }))).ok).toBe(true);
     expect(requests[1].body).toEqual({ name: "Yen", type: "cash", currency: "JPY", initial_balance: -1500, balance_as_of: "2026-09-01" });
   });
 

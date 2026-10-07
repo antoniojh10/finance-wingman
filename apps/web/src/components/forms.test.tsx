@@ -59,7 +59,7 @@ describe("AccountForm", () => {
     );
     expect(screen.getByLabelText("Currency")).toBeDisabled();
     expect(screen.getByText("The currency cannot be changed after creation.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Opening balance")).toHaveValue("-1500.00");
+    expect(screen.getByLabelText("Opening balance")).toHaveValue("-1 500.00");
 
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("An active account with this name already exists.")).toBeInTheDocument();

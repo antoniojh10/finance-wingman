@@ -19,6 +19,7 @@ test("manages accounts, categories and transactions", { tag: "@mobile" }, async 
   await accountDialog.getByLabel("Name").fill(accountName);
   await accountDialog.getByLabel("Currency").selectOption("MXN");
   await accountDialog.getByLabel("Opening balance").fill("1000");
+  await expect(accountDialog.getByLabel("Opening balance")).toHaveValue("1 000");
   // Anchor the opening balance in the past: transactions on or before that
   // day are already part of it, so today's expense must come after it.
   await accountDialog.getByLabel("Balance as of").fill("2020-01-01");
@@ -40,7 +41,7 @@ test("manages accounts, categories and transactions", { tag: "@mobile" }, async 
   await openNewTransaction(page);
   const txForm = page.getByRole("main");
   await txForm.locator("label", { hasText: accountName }).click();
-  await txForm.getByLabel(/^Amount/).fill("abc");
+  await txForm.getByLabel(/^Amount/).fill("0");
   await txForm.getByRole("button", { name: "Save" }).click();
   await expect(txForm.getByText(/positive amount/i)).toBeVisible();
   await txForm.getByLabel(/^Amount/).fill("250.50");

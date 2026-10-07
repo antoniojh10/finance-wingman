@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { saveRecurring } from "@/app/actions/recurring";
+import { AmountInput } from "@/components/amount-input";
 import { ChipRadioGroup } from "@/components/chip-radio";
 import { ColorTile } from "@/components/color-tile";
 import { Field } from "@/components/field";
@@ -171,11 +172,9 @@ export function RecurringForm({
         hint={t("subscriptions.amountHint")}
         error={errors.amount}
       >
-        <Input
+        <AmountInput
           id="amount"
           name="amount"
-          inputMode="decimal"
-          autoComplete="off"
           placeholder="0.00"
           defaultValue={item ? toDecimalString(item.amount, item.minor_units) : ""}
           aria-invalid={Boolean(errors.amount)}
