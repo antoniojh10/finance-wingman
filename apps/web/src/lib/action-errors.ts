@@ -19,6 +19,8 @@ export async function failure(error: unknown, options: { conflict?: string } = {
   switch (error.status) {
     case 401:
       redirect("/auth/signout");
+    case 403:
+      return { ok: false, message: t("forbidden") };
     case 404:
       return { ok: false, message: t("notFound") };
     case 409:

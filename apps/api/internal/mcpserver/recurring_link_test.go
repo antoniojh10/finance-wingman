@@ -1,7 +1,6 @@
 package mcpserver
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -12,7 +11,7 @@ func TestTransactionsExposeRecurringID(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
 	account := h.account("Card", "MXN")
-	ctx := context.Background()
+	ctx := h.ctx
 
 	item, err := h.svc.CreateRecurringItem(ctx, finance.CreateRecurringItemInput{
 		Name: "Netflix", Type: "expense", AccountID: account.ID, Amount: 18900, IntervalUnit: "month",

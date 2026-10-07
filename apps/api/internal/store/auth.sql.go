@@ -81,16 +81,17 @@ func (q *Queries) CreateChallenge(ctx context.Context, arg CreateChallengeParams
 }
 
 const createSession = `-- name: CreateSession :one
-INSERT INTO sessions (user_id, token_hash, client, expires_at)
-VALUES ($1, $2, $3, $4)
-RETURNING id, user_id, token_hash, client, expires_at, last_used_at, created_at, oauth_client_id, oauth_family_id
+INSERT INTO sessions (user_id, token_hash, client, expires_at, workspace_id)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, user_id, token_hash, client, expires_at, last_used_at, created_at, oauth_client_id, oauth_family_id, workspace_id
 `
 
 type CreateSessionParams struct {
-	UserID    uuid.UUID
-	TokenHash []byte
-	Client    string
-	ExpiresAt time.Time
+	UserID      uuid.UUID
+	TokenHash   []byte
+	Client      string
+	ExpiresAt   time.Time
+	WorkspaceID *uuid.UUID
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
@@ -99,6 +100,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		arg.TokenHash,
 		arg.Client,
 		arg.ExpiresAt,
+		arg.WorkspaceID,
 	)
 	var i Session
 	err := row.Scan(
@@ -111,6 +113,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		&i.CreatedAt,
 		&i.OauthClientID,
 		&i.OauthFamilyID,
+		&i.WorkspaceID,
 	)
 	return i, err
 }
@@ -168,6 +171,26 @@ func (q *Queries) GetChallengeByTokenHash(ctx context.Context, tokenHash []byte)
 	return i, err
 }
 
+const getDefaultWorkspaceID = `-- name: GetDefaultWorkspaceID :one
+SELECT m.workspace_id
+FROM workspace_members m
+WHERE m.user_id = $1
+ORDER BY (
+    SELECT max(s.last_used_at) FROM sessions s
+    WHERE s.user_id = m.user_id AND s.workspace_id = m.workspace_id
+) DESC NULLS LAST, m.created_at
+LIMIT 1
+`
+
+// The workspace a new session starts in: the one the user used last, or
+// the first one they joined.
+func (q *Queries) GetDefaultWorkspaceID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, getDefaultWorkspaceID, userID)
+	var workspace_id uuid.UUID
+	err := row.Scan(&workspace_id)
+	return workspace_id, err
+}
+
 const getLatestOpenChallenge = `-- name: GetLatestOpenChallenge :one
 SELECT id, user_id, token_hash, code_hash, attempts, expires_at, consumed_at, created_at FROM login_challenges
 WHERE user_id = $1 AND consumed_at IS NULL AND expires_at > $2
@@ -196,28 +219,62 @@ func (q *Queries) GetLatestOpenChallenge(ctx context.Context, arg GetLatestOpenC
 	return i, err
 }
 
+const getMembership = `-- name: GetMembership :one
+SELECT w.id, w.name, m.role
+FROM workspace_members m
+JOIN workspaces w ON w.id = m.workspace_id
+WHERE m.workspace_id = $1 AND m.user_id = $2
+`
+
+type GetMembershipParams struct {
+	WorkspaceID uuid.UUID
+	UserID      uuid.UUID
+}
+
+type GetMembershipRow struct {
+	ID   uuid.UUID
+	Name string
+	Role string
+}
+
+func (q *Queries) GetMembership(ctx context.Context, arg GetMembershipParams) (GetMembershipRow, error) {
+	row := q.db.QueryRow(ctx, getMembership, arg.WorkspaceID, arg.UserID)
+	var i GetMembershipRow
+	err := row.Scan(&i.ID, &i.Name, &i.Role)
+	return i, err
+}
+
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
-SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, u.email, u.name, u.locale
+SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, s.workspace_id, u.email, u.name, u.locale,
+    w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role
 FROM sessions s
 JOIN users u ON u.id = s.user_id
+LEFT JOIN workspace_members m ON m.workspace_id = s.workspace_id AND m.user_id = s.user_id
+LEFT JOIN workspaces w ON w.id = m.workspace_id
 WHERE s.token_hash = $1
 `
 
 type GetSessionByTokenHashRow struct {
-	ID            uuid.UUID
-	UserID        uuid.UUID
-	TokenHash     []byte
-	Client        string
-	ExpiresAt     time.Time
-	LastUsedAt    time.Time
-	CreatedAt     time.Time
-	OauthClientID *string
-	OauthFamilyID *uuid.UUID
-	Email         string
-	Name          string
-	Locale        string
+	ID                uuid.UUID
+	UserID            uuid.UUID
+	TokenHash         []byte
+	Client            string
+	ExpiresAt         time.Time
+	LastUsedAt        time.Time
+	CreatedAt         time.Time
+	OauthClientID     *string
+	OauthFamilyID     *uuid.UUID
+	WorkspaceID       *uuid.UUID
+	Email             string
+	Name              string
+	Locale            string
+	ActiveWorkspaceID *uuid.UUID
+	WorkspaceName     *string
+	WorkspaceRole     *string
 }
 
+// The session's workspace is only reported while the user is still a
+// member of it.
 func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (GetSessionByTokenHashRow, error) {
 	row := q.db.QueryRow(ctx, getSessionByTokenHash, tokenHash)
 	var i GetSessionByTokenHashRow
@@ -231,9 +288,13 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.CreatedAt,
 		&i.OauthClientID,
 		&i.OauthFamilyID,
+		&i.WorkspaceID,
 		&i.Email,
 		&i.Name,
 		&i.Locale,
+		&i.ActiveWorkspaceID,
+		&i.WorkspaceName,
+		&i.WorkspaceRole,
 	)
 	return i, err
 }
@@ -314,6 +375,22 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setSessionWorkspace = `-- name: SetSessionWorkspace :exec
+UPDATE sessions SET workspace_id = $2, last_used_at = now() WHERE id = $1
+`
+
+type SetSessionWorkspaceParams struct {
+	ID          uuid.UUID
+	WorkspaceID *uuid.UUID
+}
+
+// Switching counts as using the session, so the next sign-in resumes the
+// workspace the user switched to.
+func (q *Queries) SetSessionWorkspace(ctx context.Context, arg SetSessionWorkspaceParams) error {
+	_, err := q.db.Exec(ctx, setSessionWorkspace, arg.ID, arg.WorkspaceID)
+	return err
 }
 
 const touchSession = `-- name: TouchSession :exec

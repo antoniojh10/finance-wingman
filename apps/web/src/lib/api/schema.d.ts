@@ -122,6 +122,43 @@ export interface paths {
         patch: operations["update-current-user"];
         trace?: never;
     };
+    "/api/v1/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the current session
+         * @description Returns the signed-in user and the workspace the session acts on.
+         */
+        get: operations["get-session"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/session/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Switch the session to another workspace */
+        put: operations["switch-workspace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/verify": {
         parameters: {
             query?: never;
@@ -216,6 +253,46 @@ export interface paths {
         get: operations["list-currencies"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invitations/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept an invitation
+         * @description Adds the invitee to the workspace (creating their user if needed) and returns a session acting on it. The token proves ownership of the invited address, like a magic link.
+         */
+        post: operations["accept-invitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/invitations/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Describe an invitation from its token
+         * @description The token travels in the body so it doesn't end up in access logs.
+         */
+        post: operations["preview-invitation"];
         delete?: never;
         options?: never;
         head?: never;
@@ -512,6 +589,132 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the workspaces the user belongs to */
+        get: operations["list-workspaces"];
+        put?: never;
+        /**
+         * Create a workspace
+         * @description The user becomes its owner. The session keeps its current workspace; switch to the new one with PUT /auth/session/workspace.
+         */
+        post: operations["create-workspace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rename a workspace
+         * @description Owners only.
+         */
+        patch: operations["rename-workspace"];
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List open invitations
+         * @description Owners only.
+         */
+        get: operations["list-workspace-invitations"];
+        put?: never;
+        /**
+         * Invite someone by email
+         * @description Owners only. Emails a link to join the workspace; inviting the same address again replaces its open invitation.
+         */
+        post: operations["create-workspace-invitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/invitations/{invitation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke an open invitation
+         * @description Owners only.
+         */
+        delete: operations["revoke-workspace-invitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the members of a workspace */
+        get: operations["list-workspace-members"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/workspaces/{id}/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a member, or leave a workspace
+         * @description Owners can remove anyone; members can only remove themselves. The last owner can't leave.
+         */
+        delete: operations["remove-workspace-member"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a member's role
+         * @description Owners only. The last owner can't be made a member.
+         */
+        patch: operations["update-workspace-member"];
         trace?: never;
     };
     "/healthz": {
@@ -861,6 +1064,72 @@ export interface components {
              */
             status: string;
         };
+        Invitation: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Invitation.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: email */
+            email: string;
+            /** Format: date-time */
+            expires_at: string;
+            id: string;
+            /** @description Name or email of the inviter; omitted when unknown */
+            invited_by?: string;
+            /** @enum {string} */
+            role: "owner" | "member";
+        };
+        InvitationPreview: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/InvitationPreview.json
+             */
+            readonly $schema?: string;
+            /** Format: email */
+            email: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @description Name or email of the inviter; omitted when unknown */
+            invited_by?: string;
+            /** @enum {string} */
+            role: "owner" | "member";
+            workspace_name: string;
+        };
+        InvitationTokenBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/InvitationTokenBody.json
+             */
+            readonly $schema?: string;
+            /** @description Token from the invitation link */
+            token: string;
+        };
+        InviteInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/InviteInput.json
+             */
+            readonly $schema?: string;
+            /** Format: email */
+            email: string;
+            /**
+             * @description Language of the email; defaults to the inviter's
+             * @enum {string}
+             */
+            locale?: "en" | "es";
+            /**
+             * @description Defaults to member
+             * @enum {string}
+             */
+            role?: "owner" | "member";
+        };
         LinkRecurringInput: {
             /**
              * Format: uri
@@ -902,6 +1171,33 @@ export interface components {
              */
             readonly $schema?: string;
             items: components["schemas"]["Currency"][];
+        };
+        ListOutputInvitationBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputInvitationBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Invitation"][];
+        };
+        ListOutputMemberBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputMemberBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Member"][];
+        };
+        ListOutputMembershipBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputMembershipBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Membership"][];
         };
         ListOutputRecurringItemBody: {
             /**
@@ -962,6 +1258,30 @@ export interface components {
              */
             readonly $schema?: string;
             message: string;
+        };
+        Member: {
+            /** Format: email */
+            email: string;
+            /** Format: date-time */
+            joined_at: string;
+            name: string;
+            /** @enum {string} */
+            role: "owner" | "member";
+            user_id: string;
+        };
+        Membership: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Membership.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            name: string;
+            /** @enum {string} */
+            role: "owner" | "member";
         };
         RecurringCurrencySummary: {
             /** @example MXN */
@@ -1206,6 +1526,14 @@ export interface components {
             /** @description Bearer token; only returned when the session is created */
             token?: string;
             user: components["schemas"]["User"];
+            /** @description The workspace the session acts on; omitted until the user joins or picks one */
+            workspace?: components["schemas"]["SessionWorkspace"];
+        };
+        SessionWorkspace: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            role: "owner" | "member";
         };
         SuggestionKeyInput: {
             /**
@@ -1229,6 +1557,15 @@ export interface components {
             from: string;
             /** Format: date */
             to: string;
+        };
+        "Switch-workspaceRequest": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Switch-workspaceRequest.json
+             */
+            readonly $schema?: string;
+            workspace_id: string;
         };
         Transaction: {
             /**
@@ -1355,6 +1692,16 @@ export interface components {
             /** @enum {string} */
             status: "paid" | "pending" | "overdue";
         };
+        "Update-workspace-memberRequest": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Update-workspace-memberRequest.json
+             */
+            readonly $schema?: string;
+            /** @enum {string} */
+            role: "owner" | "member";
+        };
         UpdateAccountInput: {
             /**
              * Format: uri
@@ -1464,6 +1811,27 @@ export interface components {
             email?: string;
             /** @description Token from the magic link */
             token?: string;
+        };
+        Workspace: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Workspace.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            name: string;
+        };
+        WorkspaceNameBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/WorkspaceNameBody.json
+             */
+            readonly $schema?: string;
+            name: string;
         };
     };
     responses: never;
@@ -1789,6 +2157,68 @@ export interface operations {
             };
         };
     };
+    "get-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "switch-workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Switch-workspaceRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "verify-login": {
         parameters: {
             query?: never;
@@ -2033,6 +2463,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListOutputCurrencyBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "accept-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationTokenBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "preview-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InvitationTokenBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitationPreview"];
                 };
             };
             /** @description Error */
@@ -2690,6 +3186,294 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["RecurringMatch"];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-workspaces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputMembershipBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceNameBody"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Membership"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "rename-workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceNameBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-workspace-invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputInvitationBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-workspace-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Invitation"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "revoke-workspace-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                invitation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-workspace-members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputMemberBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "remove-workspace-member": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-workspace-member": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Update-workspace-memberRequest"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {

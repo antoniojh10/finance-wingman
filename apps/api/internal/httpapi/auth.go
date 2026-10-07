@@ -10,6 +10,7 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 )
 
@@ -26,7 +27,8 @@ func sessionFrom(ctx context.Context) (auth.Session, bool) {
 }
 
 // authMiddleware requires a valid bearer session for every operation that is
-// not explicitly public, and exposes the user to the finance service.
+// not explicitly public, and exposes the user and the session's workspace to
+// the finance service.
 func authMiddleware(api huma.API, svc *auth.Service, logger *slog.Logger) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
 		if public, _ := ctx.Operation().Metadata["public"].(bool); public {
@@ -49,7 +51,27 @@ func authMiddleware(api huma.API, svc *auth.Service, logger *slog.Logger) func(h
 			return
 		}
 		ctx = huma.WithValue(ctx, sessionKey{}, session)
-		ctx = huma.WithContext(ctx, finance.WithActor(ctx.Context(), session.User.ID))
+		reqCtx := finance.WithActor(ctx.Context(), session.User.ID)
+		if session.Workspace != nil {
+			reqCtx = db.WithWorkspace(reqCtx, session.Workspace.ID)
+		}
+		next(huma.WithContext(ctx, reqCtx))
+	}
+}
+
+// errNoWorkspace is returned by workspace-scoped operations when the session
+// has no workspace.
+const errNoWorkspace = "no workspace selected: create a workspace or switch to one you belong to"
+
+// requireWorkspace rejects operations on workspace data when the session
+// does not act on a workspace. Row-level security would hide the data
+// anyway; this turns empty results and failed writes into a clear error.
+func requireWorkspace(api huma.API) func(huma.Context, func(huma.Context)) {
+	return func(ctx huma.Context, next func(huma.Context)) {
+		if _, ok := db.WorkspaceFrom(ctx.Context()); !ok {
+			_ = huma.WriteErr(api, ctx, http.StatusConflict, errNoWorkspace)
+			return
+		}
 		next(ctx)
 	}
 }

@@ -4,11 +4,23 @@ import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 
 import { logout } from "@/app/actions/auth";
-import { Avatar, Brand } from "@/components/brand";
+import { Avatar, Brand, BrandMark } from "@/components/brand";
 import { AddTransactionLink, SidebarLinks, TabLinks } from "@/components/nav-links";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { WorkspaceSwitcher, type WorkspaceOption } from "@/components/workspaces/workspace-switcher";
 
-export function AppShell({ userName, children }: { userName: string; children: React.ReactNode }) {
+export function AppShell({
+  userName,
+  workspace,
+  workspaces,
+  children,
+}: {
+  userName: string;
+  /** The session's workspace; undefined when the user has none. */
+  workspace?: WorkspaceOption;
+  workspaces: WorkspaceOption[];
+  children: React.ReactNode;
+}) {
   const t = useTranslations();
 
   return (
@@ -17,6 +29,7 @@ export function AppShell({ userName, children }: { userName: string; children: R
         <Link href="/" className="px-2">
           <Brand name={t("common.appName")} />
         </Link>
+        <WorkspaceSwitcher current={workspace} workspaces={workspaces} className="w-full" />
         <Suspense>
           <AddTransactionLink className={buttonVariants({ size: "lg", className: "w-full" })}>
             <PlusIcon />
@@ -41,11 +54,13 @@ export function AppShell({ userName, children }: { userName: string; children: R
       </aside>
 
       <div className="flex min-w-0 flex-col">
-        <header className="flex items-center justify-between px-5 pt-5 pb-1 md:hidden">
-          <Link href="/">
-            <Brand name={t("common.appName")} />
+        <header className="flex items-center gap-3 px-5 pt-5 pb-1 md:hidden">
+          {/* Only the logo mark fits next to the workspace switcher. */}
+          <Link href="/" aria-label={t("common.appName")} className="shrink-0">
+            <BrandMark />
           </Link>
-          <Link href="/settings" aria-label={t("nav.settings")} className="rounded-full">
+          <WorkspaceSwitcher current={workspace} workspaces={workspaces} className="min-w-0 flex-1 shrink" />
+          <Link href="/settings" aria-label={t("nav.settings")} className="shrink-0 rounded-full">
             <Avatar name={userName} />
           </Link>
         </header>

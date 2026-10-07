@@ -1,4 +1,4 @@
-import { ChevronRightIcon, LogOutIcon, TagIcon } from "lucide-react";
+import { ChevronRightIcon, LogOutIcon, TagIcon, UsersIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -11,7 +11,7 @@ import { ThemePicker } from "@/components/theme-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { apiBaseUrl } from "@/lib/api/client";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentSession } from "@/lib/session";
 
 import { ProfileForm } from "./profile-form";
 
@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function SettingsPage() {
   const t = await getTranslations();
-  const user = await getCurrentUser();
+  const { user, workspace } = await getCurrentSession();
   // The public API URL may differ from the internal one used by the server.
   const mcpUrl = `${(process.env.API_PUBLIC_URL ?? apiBaseUrl()).replace(/\/$/, "")}/mcp`;
   const steps = [
@@ -80,6 +80,20 @@ export default async function SettingsPage() {
             </ol>
             <p className="text-[13px] leading-relaxed text-hero-muted">{t("settings.assistantsHint")}</p>
           </section>
+
+          {workspace && (
+            <Link
+              href="/settings/workspace"
+              className="flex min-h-17.5 items-center gap-3.5 rounded-3xl bg-card px-5 py-3 ring-1 ring-foreground/5 transition-colors hover:bg-accent"
+            >
+              <UsersIcon className="size-5 shrink-0 text-primary" aria-hidden />
+              <span className="grid min-w-0 flex-1">
+                <span className="font-heading text-base font-bold">{t("workspaces.manage")}</span>
+                <span className="text-sm text-muted-foreground">{t("workspaces.settingsDescription", { name: workspace.name })}</span>
+              </span>
+              <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+            </Link>
+          )}
 
           <Link
             href="/categories"

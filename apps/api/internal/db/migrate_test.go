@@ -66,6 +66,7 @@ func TestMigrationsRoundTrip(t *testing.T) {
 
 // schemaFixture holds ids of rows created for constraint tests.
 type schemaFixture struct {
+	ctx      context.Context // acts on the fixture's workspace
 	pool     *pgxpool.Pool
 	mxn, usd string // account ids
 	expense  string // category id
@@ -74,15 +75,16 @@ type schemaFixture struct {
 func newSchemaFixture(t *testing.T) schemaFixture {
 	t.Helper()
 	f := schemaFixture{pool: testutil.NewDatabase(t, true)}
-	mustScan(t, f.pool, &f.mxn, `INSERT INTO accounts (name, type, currency) VALUES ('Checking', 'checking', 'MXN') RETURNING id`)
-	mustScan(t, f.pool, &f.usd, `INSERT INTO accounts (name, type, currency) VALUES ('Savings USD', 'savings', 'USD') RETURNING id`)
-	mustScan(t, f.pool, &f.expense, `INSERT INTO categories (name, kind) VALUES ('Food', 'expense') RETURNING id`)
+	f.ctx = db.WithWorkspace(context.Background(), testutil.NewWorkspace(t, f.pool, "Home"))
+	mustScan(t, f.ctx, f.pool, &f.mxn, `INSERT INTO accounts (name, type, currency) VALUES ('Checking', 'checking', 'MXN') RETURNING id`)
+	mustScan(t, f.ctx, f.pool, &f.usd, `INSERT INTO accounts (name, type, currency) VALUES ('Savings USD', 'savings', 'USD') RETURNING id`)
+	mustScan(t, f.ctx, f.pool, &f.expense, `INSERT INTO categories (name, kind) VALUES ('Food', 'expense') RETURNING id`)
 	return f
 }
 
-func mustScan(t *testing.T, pool *pgxpool.Pool, dest any, sql string, args ...any) {
+func mustScan(t *testing.T, ctx context.Context, pool *pgxpool.Pool, dest any, sql string, args ...any) {
 	t.Helper()
-	if err := pool.QueryRow(context.Background(), sql, args...).Scan(dest); err != nil {
+	if err := pool.QueryRow(ctx, sql, args...).Scan(dest); err != nil {
 		t.Fatalf("%s: %v", sql, err)
 	}
 }
@@ -104,7 +106,7 @@ const (
 func TestSchemaConstraints(t *testing.T) {
 	t.Parallel()
 	f := newSchemaFixture(t)
-	ctx := context.Background()
+	ctx := f.ctx
 
 	insertTx := `INSERT INTO transactions (type, account_id, amount, destination_account_id, destination_amount, category_id, occurred_on)
 		VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE)`
@@ -153,7 +155,7 @@ func TestSchemaConstraints(t *testing.T) {
 func TestAccountConstraints(t *testing.T) {
 	t.Parallel()
 	f := newSchemaFixture(t)
-	ctx := context.Background()
+	ctx := f.ctx
 
 	_, err := f.pool.Exec(ctx, `INSERT INTO accounts (name, type, currency) VALUES ('Wallet', 'cash', 'XXX')`)
 	if got := pgCode(err); got != foreignKeyViolation {
@@ -189,7 +191,7 @@ func TestAccountBalanceAsOfDefaultsToToday(t *testing.T) {
 	f := newSchemaFixture(t)
 
 	var isToday bool
-	mustScan(t, f.pool, &isToday, `SELECT balance_as_of = CURRENT_DATE FROM accounts WHERE id = $1`, f.mxn)
+	mustScan(t, f.ctx, f.pool, &isToday, `SELECT balance_as_of = CURRENT_DATE FROM accounts WHERE id = $1`, f.mxn)
 	if !isToday {
 		t.Fatal("expected balance_as_of to default to the current date")
 	}
@@ -198,7 +200,7 @@ func TestAccountBalanceAsOfDefaultsToToday(t *testing.T) {
 func TestCategoryConstraints(t *testing.T) {
 	t.Parallel()
 	f := newSchemaFixture(t)
-	ctx := context.Background()
+	ctx := f.ctx
 
 	_, err := f.pool.Exec(ctx, `INSERT INTO categories (name, kind) VALUES ('food', 'expense')`)
 	if got := pgCode(err); got != uniqueViolation {
@@ -214,13 +216,13 @@ func TestCategoryConstraints(t *testing.T) {
 
 	// Deleting a category keeps its transactions, uncategorized.
 	var txID string
-	mustScan(t, f.pool, &txID, `INSERT INTO transactions (type, account_id, amount, category_id, occurred_on)
+	mustScan(t, f.ctx, f.pool, &txID, `INSERT INTO transactions (type, account_id, amount, category_id, occurred_on)
 		VALUES ('expense', $1, 500, $2, CURRENT_DATE) RETURNING id`, f.mxn, f.expense)
 	if _, err := f.pool.Exec(ctx, `DELETE FROM categories WHERE id = $1`, f.expense); err != nil {
 		t.Fatal(err)
 	}
 	var categoryID *string
-	mustScan(t, f.pool, &categoryID, `SELECT category_id FROM transactions WHERE id = $1`, txID)
+	mustScan(t, f.ctx, f.pool, &categoryID, `SELECT category_id FROM transactions WHERE id = $1`, txID)
 	if categoryID != nil {
 		t.Fatalf("expected category to be cleared, got %v", *categoryID)
 	}
@@ -231,9 +233,9 @@ func TestUpdatedAtTrigger(t *testing.T) {
 	f := newSchemaFixture(t)
 
 	var before, after time.Time
-	mustScan(t, f.pool, &before, `SELECT updated_at FROM accounts WHERE id = $1`, f.mxn)
+	mustScan(t, f.ctx, f.pool, &before, `SELECT updated_at FROM accounts WHERE id = $1`, f.mxn)
 	// now() is fixed per transaction, so separate statements are enough.
-	mustScan(t, f.pool, &after, `UPDATE accounts SET name = 'Main checking' WHERE id = $1 RETURNING updated_at`, f.mxn)
+	mustScan(t, f.ctx, f.pool, &after, `UPDATE accounts SET name = 'Main checking' WHERE id = $1 RETURNING updated_at`, f.mxn)
 	if !after.After(before) {
 		t.Fatalf("updated_at was not bumped: before=%s after=%s", before, after)
 	}
@@ -242,7 +244,7 @@ func TestUpdatedAtTrigger(t *testing.T) {
 func TestUserEmailIsCaseInsensitive(t *testing.T) {
 	t.Parallel()
 	f := newSchemaFixture(t)
-	ctx := context.Background()
+	ctx := f.ctx
 
 	if _, err := f.pool.Exec(ctx, `INSERT INTO users (email) VALUES ('Ana@Example.com')`); err != nil {
 		t.Fatal(err)

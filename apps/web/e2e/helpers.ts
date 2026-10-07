@@ -75,3 +75,19 @@ export async function openCategories(page: Page): Promise<void> {
   }
   await link.first().click();
 }
+
+export function invitationLinkFrom(text: string): string {
+  const match = /(https?:\/\/\S+\/invite\?token=\S+)/.exec(text);
+  if (!match) throw new Error(`no invitation link in email:\n${text}`);
+  return match[1];
+}
+
+/** Opens the workspace menu (sidebar on desktop, header on mobile). */
+export async function openWorkspaceMenu(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Switch workspace" }).filter({ visible: true }).first().click();
+}
+
+/** Asserts the workspace shown by the switcher. */
+export async function expectWorkspace(page: Page, name: string): Promise<void> {
+  await expect(page.getByRole("button", { name: "Switch workspace" }).filter({ visible: true }).first()).toContainText(name);
+}

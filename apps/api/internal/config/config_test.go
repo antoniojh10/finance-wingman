@@ -26,6 +26,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.PprofAddr != "" {
 		t.Fatalf("pprof should be disabled by default: %q", cfg.PprofAddr)
 	}
+	if cfg.InitialWorkspaceName != "Finance Wingman" {
+		t.Fatalf("unexpected initial workspace name: %q", cfg.InitialWorkspaceName)
+	}
 	if cfg.WebBaseURL != "http://localhost:3000" || cfg.Email.Provider != "log" || cfg.Email.SMTPPort != 1025 || len(cfg.InitialUsers) != 0 {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
@@ -33,20 +36,21 @@ func TestLoadDefaults(t *testing.T) {
 
 func TestLoadOverrides(t *testing.T) {
 	cfg, err := load(envFrom(map[string]string{
-		"APP_ENV":          "production",
-		"PORT":             "9000",
-		"DATABASE_URL":     "postgres://localhost/db",
-		"MIGRATE_ON_START": "false",
-		"APP_TIMEZONE":     "America/Mexico_City",
-		"WEB_BASE_URL":     "https://app.example.com",
-		"PUBLIC_URL":       "https://api.example.com/",
-		"INITIAL_USERS":    " ana@example.com:Ana , bob@example.com ,",
-		"EMAIL_PROVIDER":   "resend",
-		"RESEND_API_KEY":   "re_123",
-		"SMTP_PORT":        "2525",
-		"EMAIL_FROM":       "hi@example.com",
-		"EMAIL_FROM_NAME":  "Wingman",
-		"PPROF_ADDR":       "localhost:6060",
+		"APP_ENV":                "production",
+		"PORT":                   "9000",
+		"DATABASE_URL":           "postgres://localhost/db",
+		"MIGRATE_ON_START":       "false",
+		"APP_TIMEZONE":           "America/Mexico_City",
+		"WEB_BASE_URL":           "https://app.example.com",
+		"PUBLIC_URL":             "https://api.example.com/",
+		"INITIAL_USERS":          " ana@example.com:Ana , bob@example.com ,",
+		"INITIAL_WORKSPACE_NAME": " Home ",
+		"EMAIL_PROVIDER":         "resend",
+		"RESEND_API_KEY":         "re_123",
+		"SMTP_PORT":              "2525",
+		"EMAIL_FROM":             "hi@example.com",
+		"EMAIL_FROM_NAME":        "Wingman",
+		"PPROF_ADDR":             "localhost:6060",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -59,6 +63,9 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if cfg.PprofAddr != "localhost:6060" {
 		t.Fatalf("unexpected pprof address: %q", cfg.PprofAddr)
+	}
+	if cfg.InitialWorkspaceName != "Home" {
+		t.Fatalf("unexpected initial workspace name: %q", cfg.InitialWorkspaceName)
 	}
 	want := []InitialUser{{Email: "ana@example.com", Name: "Ana"}, {Email: "bob@example.com"}}
 	if len(cfg.InitialUsers) != 2 || cfg.InitialUsers[0] != want[0] || cfg.InitialUsers[1] != want[1] {

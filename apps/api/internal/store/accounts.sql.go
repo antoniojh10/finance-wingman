@@ -64,7 +64,7 @@ func (q *Queries) DeleteAccount(ctx context.Context, id uuid.UUID) (int64, error
 
 const getAccount = `-- name: GetAccount :one
 SELECT
-    a.id, a.name, a.type, a.currency, a.initial_balance, a.archived_at, a.created_at, a.updated_at, a.balance_as_of,
+    a.id, a.workspace_id, a.name, a.type, a.currency, a.initial_balance, a.archived_at, a.created_at, a.updated_at, a.balance_as_of,
     c.minor_units,
     (a.initial_balance + COALESCE(b.delta, 0))::bigint AS balance
 FROM accounts a
@@ -86,6 +86,7 @@ WHERE a.id = $1
 
 type GetAccountRow struct {
 	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
 	Name           string
 	Type           string
 	Currency       string
@@ -103,6 +104,7 @@ func (q *Queries) GetAccount(ctx context.Context, id uuid.UUID) (GetAccountRow, 
 	var i GetAccountRow
 	err := row.Scan(
 		&i.ID,
+		&i.WorkspaceID,
 		&i.Name,
 		&i.Type,
 		&i.Currency,
@@ -120,7 +122,7 @@ func (q *Queries) GetAccount(ctx context.Context, id uuid.UUID) (GetAccountRow, 
 const listAccounts = `-- name: ListAccounts :many
 
 SELECT
-    a.id, a.name, a.type, a.currency, a.initial_balance, a.archived_at, a.created_at, a.updated_at, a.balance_as_of,
+    a.id, a.workspace_id, a.name, a.type, a.currency, a.initial_balance, a.archived_at, a.created_at, a.updated_at, a.balance_as_of,
     c.minor_units,
     (a.initial_balance + COALESCE(b.delta, 0))::bigint AS balance
 FROM accounts a
@@ -143,6 +145,7 @@ ORDER BY a.archived_at IS NOT NULL, lower(a.name)
 
 type ListAccountsRow struct {
 	ID             uuid.UUID
+	WorkspaceID    uuid.UUID
 	Name           string
 	Type           string
 	Currency       string
@@ -170,6 +173,7 @@ func (q *Queries) ListAccounts(ctx context.Context, includeArchived bool) ([]Lis
 		var i ListAccountsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.WorkspaceID,
 			&i.Name,
 			&i.Type,
 			&i.Currency,

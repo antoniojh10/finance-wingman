@@ -17,6 +17,7 @@ import (
 	"go.opentelemetry.io/otel"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 )
 
@@ -41,11 +42,22 @@ Guidelines:
 type Server struct {
 	finance *finance.Service
 	mcp     *mcp.Server
+	// workspaceOf returns the workspace a tool call acts on; tests replace it
+	// because in-memory transports carry no bearer token.
+	workspaceOf func(*mcp.CallToolRequest) (uuid.UUID, bool)
 }
+
+// tokenWorkspaceKey is the TokenInfo.Extra key holding the workspace of the
+// bearer session.
+const tokenWorkspaceKey = "workspace_id"
+
+const noWorkspaceMessage = "This connection is not linked to a workspace (the user may have left it). " +
+	"Ask the user to disconnect and reconnect the Finance Wingman connector, and to pick a workspace when signing in."
 
 func New(fin *finance.Service, version string) *Server {
 	s := &Server{
-		finance: fin,
+		finance:     fin,
+		workspaceOf: tokenWorkspace,
 		mcp: mcp.NewServer(&mcp.Implementation{
 			Name:    "finance-wingman",
 			Title:   "Finance Wingman",
@@ -53,7 +65,7 @@ func New(fin *finance.Service, version string) *Server {
 		}, &mcp.ServerOptions{Instructions: instructions}),
 	}
 	// The global provider forwards to the SDK once telemetry is set up.
-	s.mcp.AddReceivingMiddleware(tracing(otel.GetTracerProvider()))
+	s.mcp.AddReceivingMiddleware(tracing(otel.GetTracerProvider()), s.workspaceScope)
 	s.registerTools()
 	s.registerRecurringTools()
 	s.registerRecurringSuggestionTools()
@@ -79,11 +91,15 @@ func (s *Server) Handler(authSvc *auth.Service, publicURL, resourceMetadataURL s
 		if err != nil {
 			return nil, err
 		}
-		return &mcpauth.TokenInfo{
+		info := &mcpauth.TokenInfo{
 			UserID:     session.User.ID.String(),
 			Expiration: session.ExpiresAt,
 			Scopes:     []string{"finance"},
-		}, nil
+		}
+		if session.Workspace != nil {
+			info.Extra = map[string]any{tokenWorkspaceKey: session.Workspace.ID.String()}
+		}
+		return info, nil
 	}
 	return hostGuard(publicURL, mcpauth.RequireBearerToken(verifier, &mcpauth.RequireBearerTokenOptions{
 		ResourceMetadataURL: resourceMetadataURL,
@@ -127,6 +143,31 @@ func isLoopback(hostport string) bool {
 
 // MCP exposes the underlying server, e.g. for in-memory tests.
 func (s *Server) MCP() *mcp.Server { return s.mcp }
+
+// workspaceScope makes every tool call act on the workspace of its bearer
+// session, and refuses calls from sessions without one.
+func (s *Server) workspaceScope(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+		call, ok := req.(*mcp.CallToolRequest)
+		if !ok {
+			return next(ctx, method, req)
+		}
+		id, ok := s.workspaceOf(call)
+		if !ok {
+			return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: noWorkspaceMessage}}}, nil
+		}
+		return next(db.WithWorkspace(ctx, id), method, req)
+	}
+}
+
+func tokenWorkspace(req *mcp.CallToolRequest) (uuid.UUID, bool) {
+	if req.Extra == nil || req.Extra.TokenInfo == nil {
+		return uuid.Nil, false
+	}
+	raw, _ := req.Extra.TokenInfo.Extra[tokenWorkspaceKey].(string)
+	id, err := uuid.Parse(raw)
+	return id, err == nil
+}
 
 // actorContext attributes writes to the user behind the bearer token.
 func actorContext(ctx context.Context, req *mcp.CallToolRequest) context.Context {

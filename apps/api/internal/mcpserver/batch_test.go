@@ -1,7 +1,6 @@
 package mcpserver
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -11,7 +10,7 @@ import (
 
 func (h *harness) transactionCount() int64 {
 	h.t.Helper()
-	page, err := h.svc.ListTransactions(context.Background(), finance.TransactionFilter{})
+	page, err := h.svc.ListTransactions(h.ctx, finance.TransactionFilter{})
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -31,7 +30,7 @@ func TestCreateCategoriesBatch(t *testing.T) {
 	if len(out.Categories) != 3 || out.Categories[0].Kind != "expense" || out.Categories[2].Kind != "income" || !strings.Contains(text, "Created 3 categories") {
 		t.Fatalf("unexpected output: %+v / %s", out, text)
 	}
-	cats, err := h.svc.ListCategories(context.Background(), nil, false)
+	cats, err := h.svc.ListCategories(h.ctx, nil, false)
 	if err != nil || len(cats) != 3 {
 		t.Fatalf("expected 3 categories: %+v %v", cats, err)
 	}
@@ -62,7 +61,7 @@ func TestCreateCategoriesBatchErrors(t *testing.T) {
 	}
 	h.mustFail("create_categories", map[string]any{"items": items}, "at most 100 items")
 
-	cats, err := h.svc.ListCategories(context.Background(), nil, false)
+	cats, err := h.svc.ListCategories(h.ctx, nil, false)
 	if err != nil || len(cats) != 1 {
 		t.Fatalf("failed batches must not create anything: %+v %v", cats, err)
 	}
@@ -119,7 +118,7 @@ func TestCreateAccountsBatchErrors(t *testing.T) {
 	}
 	h.mustFail("create_accounts", map[string]any{"items": items}, "at most 100 items")
 
-	accounts, err := h.svc.ListAccounts(context.Background(), true)
+	accounts, err := h.svc.ListAccounts(h.ctx, true)
 	if err != nil || len(accounts) != 1 {
 		t.Fatalf("failed batches must not create anything: %+v %v", accounts, err)
 	}

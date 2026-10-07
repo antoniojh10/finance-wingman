@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/testutil"
 )
@@ -18,13 +19,18 @@ type harness struct {
 	t       *testing.T
 	svc     *finance.Service
 	session *mcp.ClientSession
+	// ctx acts on the workspace the tools act on.
+	ctx context.Context
 }
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
 	ctx := context.Background()
-	svc := finance.NewService(testutil.NewDatabase(t, true), time.UTC)
+	pool := testutil.NewDatabase(t, true)
+	svc := finance.NewService(pool, time.UTC)
 	server := New(svc, "test")
+	workspaceID := testutil.NewWorkspace(t, pool, "Home")
+	server.workspaceOf = func(*mcp.CallToolRequest) (uuid.UUID, bool) { return workspaceID, true }
 
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 	if _, err := server.MCP().Connect(ctx, serverTransport, nil); err != nil {
@@ -35,12 +41,12 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { session.Close() })
-	return &harness{t: t, svc: svc, session: session}
+	return &harness{t: t, svc: svc, session: session, ctx: db.WithWorkspace(ctx, workspaceID)}
 }
 
 func (h *harness) account(name, currency string) finance.Account {
 	h.t.Helper()
-	a, err := h.svc.CreateAccount(context.Background(), finance.CreateAccountInput{Name: name, Type: "checking", Currency: currency, BalanceAsOf: "2000-01-01"})
+	a, err := h.svc.CreateAccount(h.ctx, finance.CreateAccountInput{Name: name, Type: "checking", Currency: currency, BalanceAsOf: "2000-01-01"})
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -49,7 +55,7 @@ func (h *harness) account(name, currency string) finance.Account {
 
 func (h *harness) category(name, kind string) finance.Category {
 	h.t.Helper()
-	c, err := h.svc.CreateCategory(context.Background(), finance.CreateCategoryInput{Name: name, Kind: kind})
+	c, err := h.svc.CreateCategory(h.ctx, finance.CreateCategoryInput{Name: name, Kind: kind})
 	if err != nil {
 		h.t.Fatal(err)
 	}
@@ -231,7 +237,7 @@ func TestListAccountsAndCategories(t *testing.T) {
 	}
 
 	a := h.account("Cash", "MXN")
-	if _, err := h.svc.CreateTransaction(context.Background(), finance.TransactionInput{Type: "income", AccountID: a.ID, Amount: 123456}); err != nil {
+	if _, err := h.svc.CreateTransaction(h.ctx, finance.TransactionInput{Type: "income", AccountID: a.ID, Amount: 123456}); err != nil {
 		t.Fatal(err)
 	}
 	var accounts accountsOut
@@ -301,7 +307,7 @@ func TestCreateCategory(t *testing.T) {
 	if out.Name != "Groceries" || out.Kind != "expense" || out.ID == "" || !strings.Contains(text, "Created expense category Groceries") {
 		t.Fatalf("unexpected category: %+v / %s", out, text)
 	}
-	cat, err := h.svc.GetCategory(context.Background(), uuid.MustParse(out.ID))
+	cat, err := h.svc.GetCategory(h.ctx, uuid.MustParse(out.ID))
 	if err != nil || cat.Color == nil || *cat.Color != "#22c55e" {
 		t.Fatalf("color not stored: %+v %v", cat, err)
 	}
@@ -427,7 +433,7 @@ func TestUpdateAccount(t *testing.T) {
 	h := newHarness(t)
 	a := h.account("BBVA", "MXN")
 	h.account("Cash", "MXN")
-	if _, err := h.svc.CreateTransaction(context.Background(), finance.TransactionInput{Type: "income", AccountID: a.ID, Amount: 10000}); err != nil {
+	if _, err := h.svc.CreateTransaction(h.ctx, finance.TransactionInput{Type: "income", AccountID: a.ID, Amount: 10000}); err != nil {
 		t.Fatal(err)
 	}
 

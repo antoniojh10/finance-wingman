@@ -14,24 +14,32 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/testutil"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/workspace"
 )
 
 // testAPI drives the full HTTP stack against an isolated database. Requests
-// are authenticated as owner unless token is changed.
+// are authenticated as owner, acting on the owner's workspace, unless token
+// is changed.
 type testAPI struct {
-	t       *testing.T
-	handler http.Handler
-	svc     *finance.Service
-	auth    *auth.Service
-	oauth   *oauth.Server
-	mail    *testutil.MailRecorder
-	pool    *pgxpool.Pool
-	owner   auth.User
-	token   string
+	t          *testing.T
+	handler    http.Handler
+	svc        *finance.Service
+	auth       *auth.Service
+	oauth      *oauth.Server
+	workspaces *workspace.Service
+	mail       *testutil.MailRecorder
+	pool       *pgxpool.Pool
+	owner      auth.User
+	token      string
+	// workspace is the owner's workspace; ctx acts on it, for calling the
+	// services directly.
+	workspace workspace.Workspace
+	ctx       context.Context
 }
 
 func newTestAPI(t *testing.T) *testAPI {
@@ -49,27 +57,36 @@ func newTestAPI(t *testing.T) *testAPI {
 	if err != nil {
 		t.Fatal(err)
 	}
+	workspaces := workspace.NewService(pool, recorder, workspace.Config{WebBaseURL: "http://web.test"})
+	home, err := workspaces.Create(ctx, owner.ID, "Home")
+	if err != nil {
+		t.Fatal(err)
+	}
 	session, err := authSvc.CreateSession(ctx, owner.ID, auth.ClientWeb, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	return &testAPI{
-		t:     t,
-		svc:   svc,
-		auth:  authSvc,
-		oauth: oauthSrv,
-		mail:  recorder,
-		pool:  pool,
-		owner: owner,
-		token: session.Token,
+		t:          t,
+		svc:        svc,
+		auth:       authSvc,
+		oauth:      oauthSrv,
+		workspaces: workspaces,
+		mail:       recorder,
+		pool:       pool,
+		owner:      owner,
+		token:      session.Token,
+		workspace:  home,
+		ctx:        db.WithWorkspace(ctx, home.ID),
 		handler: NewHandler(Deps{
-			Logger:  logger,
-			DB:      pool,
-			Auth:    authSvc,
-			Finance: svc,
-			OAuth:   oauthSrv,
-			MCP:     mcpHandler,
+			Logger:     logger,
+			DB:         pool,
+			Auth:       authSvc,
+			Finance:    svc,
+			Workspaces: workspaces,
+			OAuth:      oauthSrv,
+			MCP:        mcpHandler,
 		}),
 	}
 }
@@ -188,3 +205,26 @@ func (a *testAPI) getAccount(id string) finance.Account {
 const testIssuer = "http://api.test"
 
 const missingID = "00000000-0000-0000-0000-000000000000"
+
+// newUser adds a user with their own workspace and returns a client signed
+// in as them, acting on that workspace.
+func (a *testAPI) newUser(email, workspaceName string) *testAPI {
+	a.t.Helper()
+	ctx := context.Background()
+	user, err := a.auth.AddUser(ctx, email, "")
+	if err != nil {
+		a.t.Fatal(err)
+	}
+	w, err := a.workspaces.Create(ctx, user.ID, workspaceName)
+	if err != nil {
+		a.t.Fatal(err)
+	}
+	session, err := a.auth.CreateSession(ctx, user.ID, auth.ClientWeb, time.Hour)
+	if err != nil {
+		a.t.Fatal(err)
+	}
+	c := a.as(session.Token)
+	c.workspace = w
+	c.ctx = db.WithWorkspace(ctx, w.ID)
+	return c
+}

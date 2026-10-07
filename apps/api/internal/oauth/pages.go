@@ -10,9 +10,10 @@ import (
 type step string
 
 const (
-	stepEmail step = "email"
-	stepCode  step = "code"
-	stepError step = "error"
+	stepEmail     step = "email"
+	stepCode      step = "code"
+	stepWorkspace step = "workspace"
+	stepError     step = "error"
 )
 
 // Message keys used for errors on the sign-in page.
@@ -24,6 +25,8 @@ const (
 	msgInvalidEmail    = "invalid_email"
 	msgSendFailed      = "send_failed"
 	msgInvalidCode     = "invalid_code"
+	msgNoWorkspace     = "no_workspace"
+	msgChooseWorkspace = "choose_workspace"
 )
 
 type pageData struct {
@@ -34,6 +37,13 @@ type pageData struct {
 	RedirectHost string
 	Email        string
 	Error        string
+	Workspaces   []workspaceOption
+}
+
+type workspaceOption struct {
+	ID       string
+	Name     string
+	Selected bool
 }
 
 var copies = map[string]map[string]string{
@@ -50,6 +60,8 @@ var copies = map[string]map[string]string{
 		"change_email":     "Use a different email",
 		"deny":             "Cancel",
 		"error_title":      "Something went wrong",
+		"workspace_intro":  "Choose the workspace %s will use. To use another one later, connect it again.",
+		"continue":         "Continue",
 		msgUnknownClient:   "This application is not registered. Try connecting again from the app.",
 		msgInvalidRedirect: "The application's redirect address is not valid.",
 		msgExpired:         "This sign-in request has expired. Start again from the app.",
@@ -57,6 +69,8 @@ var copies = map[string]map[string]string{
 		msgInvalidEmail:    "Enter a valid email address.",
 		msgSendFailed:      "We couldn't send the email. Please try again.",
 		msgInvalidCode:     "That code is invalid or has expired.",
+		msgNoWorkspace:     "Your account doesn't belong to any workspace yet. Create one in Finance Wingman, then connect again.",
+		msgChooseWorkspace: "Choose one of your workspaces.",
 	},
 	"es": {
 		"title":            "Conectar con Finance Wingman",
@@ -71,6 +85,8 @@ var copies = map[string]map[string]string{
 		"change_email":     "Usar otro correo",
 		"deny":             "Cancelar",
 		"error_title":      "Algo salió mal",
+		"workspace_intro":  "Elige el espacio que usará %s. Para usar otro más adelante, vuelve a conectarlo.",
+		"continue":         "Continuar",
 		msgUnknownClient:   "Esta aplicación no está registrada. Intenta conectarla de nuevo desde la app.",
 		msgInvalidRedirect: "La dirección de retorno de la aplicación no es válida.",
 		msgExpired:         "Esta solicitud expiró. Empieza de nuevo desde la app.",
@@ -78,6 +94,8 @@ var copies = map[string]map[string]string{
 		msgInvalidEmail:    "Escribe un correo electrónico válido.",
 		msgSendFailed:      "No pudimos enviar el correo. Inténtalo de nuevo.",
 		msgInvalidCode:     "El código no es válido o ya expiró.",
+		msgNoWorkspace:     "Tu cuenta todavía no pertenece a ningún espacio. Crea uno en Finance Wingman y vuelve a conectar.",
+		msgChooseWorkspace: "Elige uno de tus espacios.",
 	},
 }
 
@@ -129,6 +147,9 @@ input.code{font-size:24px;letter-spacing:8px;text-align:center;font-family:ui-mo
 button{width:100%;font-size:16px;font-weight:600;padding:12px;border-radius:10px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-text);cursor:pointer}
 button.secondary{background:transparent;color:var(--text);border-color:var(--border);margin-top:8px}
 form.inline{margin:0}
+fieldset{border:0;padding:0;margin:0 0 16px}
+label.option{display:flex;align-items:center;gap:10px;font-weight:500;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer}
+label.option input{width:auto;margin:0}
 </style>
 </head>
 <body>
@@ -149,6 +170,19 @@ form.inline{margin:0}
     <label for="email">{{t .Locale "email_label"}}</label>
     <input id="email" name="email" type="email" autocomplete="email" required autofocus value="{{.Email}}">
     <button type="submit">{{t .Locale "send_code"}}</button>
+  </form>
+  {{else if eq .Step "workspace"}}
+  <p>{{t .Locale "workspace_intro" .ClientName}}</p>
+  <form method="post" action="/oauth/authorize">
+    <input type="hidden" name="request_id" value="{{.RequestID}}">
+    <input type="hidden" name="locale" value="{{.Locale}}">
+    <input type="hidden" name="action" value="choose_workspace">
+    <fieldset>
+    {{range .Workspaces}}
+    <label class="option"><input type="radio" name="workspace_id" value="{{.ID}}" required{{if .Selected}} checked{{end}}> {{.Name}}</label>
+    {{end}}
+    </fieldset>
+    <button type="submit">{{t .Locale "continue"}}</button>
   </form>
   {{else}}
   <p class="muted">{{t .Locale "code_sent" .Email}}</p>

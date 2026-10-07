@@ -32,6 +32,7 @@ var (
 	ErrUnauthenticated    = errors.New("missing, invalid or expired session")
 	ErrInvalidEmail       = errors.New("invalid email address")
 	ErrUserNotFound       = errors.New("user not found")
+	ErrNotMember          = errors.New("not a member of this workspace")
 )
 
 const (
@@ -89,11 +90,20 @@ type User struct {
 }
 
 type Session struct {
-	ID        uuid.UUID `json:"-"`
-	Token     string    `json:"token,omitempty" doc:"Bearer token; only returned when the session is created"`
-	Client    string    `json:"-"`
-	ExpiresAt time.Time `json:"expires_at"`
-	User      User      `json:"user"`
+	ID        uuid.UUID         `json:"-"`
+	Token     string            `json:"token,omitempty" doc:"Bearer token; only returned when the session is created"`
+	Client    string            `json:"-"`
+	ExpiresAt time.Time         `json:"expires_at"`
+	User      User              `json:"user"`
+	Workspace *SessionWorkspace `json:"workspace,omitempty" doc:"The workspace the session acts on; omitted until the user joins or picks one"`
+}
+
+// SessionWorkspace is the workspace a session acts on, with the user's role
+// in it.
+type SessionWorkspace struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+	Role string    `json:"role" enum:"owner,member"`
 }
 
 func userFromModel(u store.User) User {
@@ -300,10 +310,36 @@ func (s *Service) consume(ctx context.Context, challenge store.LoginChallenge) e
 	return s.q.ConsumeOpenChallenges(ctx, challenge.UserID)
 }
 
-// CreateSession issues a new bearer token for a user.
+// CreateSession issues a new bearer token for a user, acting on the
+// workspace they used last (or none if they belong to no workspace).
 func (s *Service) CreateSession(ctx context.Context, userID uuid.UUID, client string, ttl time.Duration) (Session, error) {
+	workspaceID, err := s.q.GetDefaultWorkspaceID(ctx, userID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return s.CreateWorkspaceSession(ctx, userID, nil, client, ttl)
+	}
+	if err != nil {
+		return Session{}, err
+	}
+	return s.CreateWorkspaceSession(ctx, userID, &workspaceID, client, ttl)
+}
+
+// CreateWorkspaceSession issues a new bearer token acting on the given
+// workspace, which the user must belong to. A zero ttl uses the configured
+// session lifetime.
+func (s *Service) CreateWorkspaceSession(ctx context.Context, userID uuid.UUID, workspaceID *uuid.UUID, client string, ttl time.Duration) (Session, error) {
 	if client == "" {
 		client = ClientWeb
+	}
+	if ttl == 0 {
+		ttl = s.cfg.SessionTTL
+	}
+	var workspace *SessionWorkspace
+	if workspaceID != nil {
+		w, err := s.membership(ctx, *workspaceID, userID)
+		if err != nil {
+			return Session{}, err
+		}
+		workspace = &w
 	}
 	user, err := s.q.GetUser(ctx, userID)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -317,15 +353,41 @@ func (s *Service) CreateSession(ctx context.Context, userID uuid.UUID, client st
 		return Session{}, err
 	}
 	row, err := s.q.CreateSession(ctx, store.CreateSessionParams{
-		UserID:    userID,
-		TokenHash: HashToken(token),
-		Client:    client,
-		ExpiresAt: s.now().Add(ttl),
+		UserID:      userID,
+		TokenHash:   HashToken(token),
+		Client:      client,
+		ExpiresAt:   s.now().Add(ttl),
+		WorkspaceID: workspaceID,
 	})
 	if err != nil {
 		return Session{}, err
 	}
-	return Session{ID: row.ID, Token: token, Client: row.Client, ExpiresAt: row.ExpiresAt, User: userFromModel(user)}, nil
+	return Session{ID: row.ID, Token: token, Client: row.Client, ExpiresAt: row.ExpiresAt, User: userFromModel(user), Workspace: workspace}, nil
+}
+
+// SwitchWorkspace makes the session act on another workspace the user
+// belongs to.
+func (s *Service) SwitchWorkspace(ctx context.Context, session Session, workspaceID uuid.UUID) (Session, error) {
+	w, err := s.membership(ctx, workspaceID, session.User.ID)
+	if err != nil {
+		return Session{}, err
+	}
+	if err := s.q.SetSessionWorkspace(ctx, store.SetSessionWorkspaceParams{ID: session.ID, WorkspaceID: &workspaceID}); err != nil {
+		return Session{}, err
+	}
+	session.Workspace = &w
+	return session, nil
+}
+
+func (s *Service) membership(ctx context.Context, workspaceID, userID uuid.UUID) (SessionWorkspace, error) {
+	m, err := s.q.GetMembership(ctx, store.GetMembershipParams{WorkspaceID: workspaceID, UserID: userID})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return SessionWorkspace{}, ErrNotMember
+	}
+	if err != nil {
+		return SessionWorkspace{}, err
+	}
+	return SessionWorkspace{ID: m.ID, Name: m.Name, Role: m.Role}, nil
 }
 
 // Authenticate resolves a bearer token into its session.
@@ -350,12 +412,16 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 			s.logger.WarnContext(ctx, "touch session", "error", err)
 		}
 	}
-	return Session{
+	session := Session{
 		ID:        row.ID,
 		Client:    row.Client,
 		ExpiresAt: row.ExpiresAt,
 		User:      User{ID: row.UserID, Email: row.Email, Name: row.Name, Locale: row.Locale},
-	}, nil
+	}
+	if row.ActiveWorkspaceID != nil {
+		session.Workspace = &SessionWorkspace{ID: *row.ActiveWorkspaceID, Name: *row.WorkspaceName, Role: *row.WorkspaceRole}
+	}
+	return session, nil
 }
 
 func (s *Service) Logout(ctx context.Context, sessionID uuid.UUID) error {

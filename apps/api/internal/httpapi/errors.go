@@ -26,6 +26,8 @@ func toHTTPError(ctx context.Context, logger *slog.Logger, err error) error {
 			return huma.Error404NotFound(domainErr.Message)
 		case finance.KindConflict:
 			return huma.Error409Conflict(domainErr.Message)
+		case finance.KindForbidden:
+			return huma.Error403Forbidden(domainErr.Message)
 		}
 	}
 	logger.ErrorContext(ctx, "unexpected error", "error", err)
