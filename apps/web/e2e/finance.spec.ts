@@ -1,30 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { e2eUser } from "../playwright.config";
-import { codeFrom, linkFrom, navigate, openCategories, openNewTransaction, requestLogin, signIn } from "./helpers";
+import { navigate, openCategories, openNewTransaction } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
-
-test("protected pages redirect to sign-in", async ({ page }) => {
-  await page.goto("/transactions");
-  await expect(page).toHaveURL(/\/login/);
-});
-
-test("rejects a wrong code", async ({ page }) => {
-  const text = await requestLogin(page, e2eUser);
-  const wrong = codeFrom(text) === "000000" ? "111111" : "000000";
-  await page.getByLabel(/6-digit code/i).fill(wrong);
-  await page.getByRole("button", { name: /^sign in$/i }).click();
-  await expect(page.getByText(/that code is invalid or has expired/i)).toBeVisible();
-});
-
-test("signs in with the magic link", async ({ page }) => {
-  const text = await requestLogin(page, e2eUser);
-  await page.goto(linkFrom(text).replace(/^https?:\/\/[^/]+/, ""));
-  await page.getByRole("button", { name: /continue/i }).click();
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
-});
 
 test("manages accounts, categories and transactions", async ({ page }, testInfo) => {
   const suffix = `${testInfo.project.name}-${Date.now()}`;
@@ -32,7 +10,7 @@ test("manages accounts, categories and transactions", async ({ page }, testInfo)
   const categoryName = `Food ${suffix}`;
   const description = `Groceries ${suffix}`;
 
-  await signIn(page, e2eUser);
+  await page.goto("/");
 
   // Account
   await navigate(page, /accounts/i);
@@ -108,7 +86,7 @@ test("creates, edits and pauses a subscription", async ({ page }, testInfo) => {
   const accountName = `Cards ${suffix}`;
   const name = `Netflix ${suffix}`;
 
-  await signIn(page, e2eUser);
+  await page.goto("/");
 
   await navigate(page, /accounts/i);
   await page.getByRole("button", { name: "New account" }).click();
@@ -159,7 +137,7 @@ test("registers a subscription payment from the dashboard", async ({ page }, tes
   const accountName = `Pay ${suffix}`;
   const name = `Gym ${suffix}`;
 
-  await signIn(page, e2eUser);
+  await page.goto("/");
 
   await navigate(page, /accounts/i);
   await page.getByRole("button", { name: "New account" }).click();
@@ -222,7 +200,7 @@ test("accepts a detected subscription and sees its linked transactions", async (
   const description = `Streaming ${testInfo.project.name}`;
   const name = `Streaming plan ${suffix}`;
 
-  await signIn(page, e2eUser);
+  await page.goto("/");
 
   await navigate(page, /accounts/i);
   await page.getByRole("button", { name: "New account" }).click();
@@ -283,7 +261,7 @@ test("links and unlinks a transaction to a subscription", async ({ page }, testI
   const accountName = `Link ${suffix}`;
   const name = `Hulu ${suffix}`;
 
-  await signIn(page, e2eUser);
+  await page.goto("/");
 
   await navigate(page, /accounts/i);
   await page.getByRole("button", { name: "New account" }).click();
@@ -337,25 +315,4 @@ test("links and unlinks a transaction to a subscription", async ({ page }, testI
   await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
   await expect(listRow).toContainText("Cancelled");
-});
-
-test("switches language and signs out", async ({ page }) => {
-  await signIn(page, e2eUser);
-  await navigate(page, /settings/i);
-  await expect(page.getByTestId("mcp-url")).toHaveText("http://localhost:8081/mcp");
-
-  await page.locator("label", { hasText: "Español" }).click();
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Main" }).first()).toContainText("Movimientos");
-
-  // Restore English for other tests.
-  await page.locator("label", { hasText: "English" }).click();
-  await page.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-
-  await page.getByRole("main").getByRole("button", { name: "Sign out" }).click();
-  await expect(page).toHaveURL(/\/login/);
-  await page.goto("/");
-  await expect(page).toHaveURL(/\/login/);
 });

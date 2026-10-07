@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 
 // End-to-end tests run the real API (port 8081) and web app (port 3100)
@@ -9,6 +11,8 @@ const databaseUrl =
   process.env.E2E_DATABASE_URL ?? "postgres://finance:finance@localhost:5432/finance_test?sslmode=disable";
 
 export const e2eUser = "e2e@example.com";
+// Session saved by e2e/auth.setup.ts, so tests start signed in.
+export const authFile = path.join(__dirname, "playwright/.auth/user.json");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -24,8 +28,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile", use: { ...devices["Pixel 7"] } },
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    { name: "desktop", use: { ...devices["Desktop Chrome"], storageState: authFile }, dependencies: ["setup"] },
+    { name: "mobile", use: { ...devices["Pixel 7"], storageState: authFile }, dependencies: ["setup"] },
   ],
   webServer: [
     {
