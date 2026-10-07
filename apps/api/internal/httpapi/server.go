@@ -5,6 +5,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -125,18 +126,23 @@ func requestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				// Connectors configured with the bare URL retry constantly.
 				level = slog.LevelDebug
 			}
+			duration := time.Since(start).Milliseconds()
 			attrs := []any{
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", ww.Status(),
-				"duration_ms", time.Since(start).Milliseconds(),
+				"duration_ms", duration,
 				"request_id", middleware.GetReqID(r.Context()),
 			}
 			if sc := trace.SpanContextFromContext(r.Context()); sc.IsValid() {
 				// Links the log line to its trace in the telemetry backend.
 				attrs = append(attrs, "trace_id", sc.TraceID().String())
 			}
-			logger.Log(r.Context(), level, "request", attrs...)
+			// The message summarizes the request so log lists are readable in
+			// backends that show only the message (Loki); the attributes stay
+			// for filtering.
+			msg := fmt.Sprintf("%s %s %d %dms", r.Method, r.URL.Path, ww.Status(), duration)
+			logger.Log(r.Context(), level, msg, attrs...)
 		})
 	}
 }

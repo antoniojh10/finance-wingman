@@ -62,6 +62,10 @@ func TestTelemetryNamesSpansAfterRoute(t *testing.T) {
 		t.Fatalf("missing http.route attribute: %v", ended[0].Attributes())
 	}
 
+	if !strings.Contains(h.logs.String(), `"msg":"GET /api/v1/accounts/0b5d6c1e-8a4f-4a52-9a43-0d2f1f3a8c11 401 `) {
+		t.Fatalf("request log message does not summarize the request: %s", h.logs)
+	}
+
 	traceID := ended[0].SpanContext().TraceID().String()
 	if !strings.Contains(h.logs.String(), `"trace_id":"`+traceID+`"`) {
 		t.Fatalf("request log does not include trace_id %s: %s", traceID, h.logs)
