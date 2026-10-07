@@ -16,7 +16,7 @@ pnpm dev            # http://localhost:3000 (needs the API on :8080)
 | Command | Description |
 | --- | --- |
 | `pnpm test` | Unit and component tests (Vitest + Testing Library) |
-| `pnpm e2e` | End-to-end tests (Playwright); starts its own API on :8081 and web on :3100, needs `make up` |
+| `pnpm e2e` | End-to-end tests (Playwright); builds the app and starts its own API on :8081 and web on :3100, needs `make up`. `E2E_DEV=1 pnpm e2e` uses `next dev` instead of building |
 | `pnpm lint` / `pnpm typecheck` | ESLint and TypeScript |
 | `pnpm gen:api` | Regenerate API types from `openapi.json` (run `make api-openapi` from the repo root to export it first) |
 

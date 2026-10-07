@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 // End-to-end tests run the real API (port 8081) and web app (port 3100)
-// against the docker-compose Postgres and Mailpit (`make up`).
+// against the docker-compose Postgres and Mailpit (`make up`). The web app
+// is a production build unless E2E_DEV is set.
 const apiPort = 8081;
 const webPort = 3100;
 const databaseUrl =
@@ -47,11 +48,16 @@ export default defineConfig({
       },
     },
     {
-      command: `pnpm dev --port ${webPort}`,
+      // The standalone production build, as deployed: `next dev` compiles
+      // each route on its first visit, which makes every test slower.
+      // E2E_DEV=1 skips the build while iterating on a flow.
+      command: process.env.E2E_DEV ? `pnpm dev --port ${webPort}` : "pnpm build && pnpm start:standalone",
       url: `http://localhost:${webPort}/login`,
       reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      timeout: 300_000,
       env: {
+        PORT: String(webPort),
+        HOSTNAME: "localhost",
         API_URL: `http://localhost:${apiPort}`,
         API_PUBLIC_URL: `http://localhost:${apiPort}`,
         APP_TIMEZONE: "America/Mexico_City",
