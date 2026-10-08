@@ -67,6 +67,46 @@ export interface paths {
         patch: operations["update-account"];
         trace?: never;
     };
+    "/api/v1/auth/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List connected apps
+         * @description Apps (MCP clients such as Claude or ChatGPT) the user authorized through OAuth that can still act on their behalf, most recently used first.
+         */
+        get: operations["list-connections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect an app
+         * @description Revokes the app's refresh tokens and access tokens at once. The app has to be authorized again to regain access.
+         */
+        delete: operations["disconnect-connection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -154,6 +194,66 @@ export interface paths {
         put: operations["switch-workspace"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the user's active sessions
+         * @description Browser sessions where the user is signed in, most recently used first. Connected apps are listed separately.
+         */
+        get: operations["list-sessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions/revoke-others": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign out everywhere else
+         * @description Ends every session of the user except the current one. Connected apps stay connected.
+         */
+        post: operations["revoke-other-sessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign out a session
+         * @description Ends one of the user's sessions. Revoking the current session signs the user out.
+         */
+        delete: operations["revoke-session"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1160,6 +1260,24 @@ export interface components {
             /** Format: int64 */
             transaction_count: number;
         };
+        Connection: {
+            /** @description Name the app registered with; empty when it gave none */
+            client_name: string;
+            /** Format: date-time */
+            connected_at: string;
+            id: string;
+            /**
+             * Format: date-time
+             * @description Latest token refresh or request; request times are updated at most once an hour
+             */
+            last_used_at: string;
+            /** @description The workspace the app acts on; omitted when it acts on none */
+            workspace?: components["schemas"]["ConnectionWorkspace"];
+        };
+        ConnectionWorkspace: {
+            id: string;
+            name: string;
+        };
         CreateAccountInput: {
             /**
              * Format: uri
@@ -1460,6 +1578,15 @@ export interface components {
             readonly $schema?: string;
             items: components["schemas"]["Category"][];
         };
+        ListOutputConnectionBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputConnectionBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Connection"][];
+        };
         ListOutputCurrencyBody: {
             /**
              * Format: uri
@@ -1531,6 +1658,15 @@ export interface components {
              */
             readonly $schema?: string;
             items: components["schemas"]["UpcomingRecurring"][];
+        };
+        ListOutputWebSessionBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputWebSessionBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["WebSession"][];
         };
         LoginInputBody: {
             /**
@@ -1810,6 +1946,19 @@ export interface components {
              */
             readonly $schema?: string;
             currencies: components["schemas"]["RecurringCurrencySummary"][];
+        };
+        RevokeOtherSessionsOutputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/RevokeOtherSessionsOutputBody.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: int64
+             * @description Number of sessions signed out
+             */
+            revoked: number;
         };
         Session: {
             /**
@@ -2136,6 +2285,22 @@ export interface components {
             /** @description Token from the magic link */
             token?: string;
         };
+        WebSession: {
+            /** Format: date-time */
+            created_at: string;
+            /** @description Whether this is the session making the request */
+            current: boolean;
+            /** Format: date-time */
+            expires_at: string;
+            id: string;
+            /**
+             * Format: date-time
+             * @description Updated at most once an hour
+             */
+            last_used_at: string;
+            /** @description User-Agent of the browser that signed in; empty when unknown */
+            user_agent: string;
+        };
         Workspace: {
             /**
              * Format: uri
@@ -2361,6 +2526,64 @@ export interface operations {
             };
         };
     };
+    "list-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputConnectionBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "disconnect-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "request-login": {
         parameters: {
             query?: never;
@@ -2545,10 +2768,100 @@ export interface operations {
             };
         };
     };
-    "verify-login": {
+    "list-sessions": {
         parameters: {
             query?: never;
             header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputWebSessionBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "revoke-other-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevokeOtherSessionsOutputBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "revoke-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "verify-login": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Recorded with the session so the user can recognize it */
+                "User-Agent"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -2981,7 +3294,10 @@ export interface operations {
     "accept-invitation": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Recorded with the session so the user can recognize it */
+                "User-Agent"?: string;
+            };
             path?: never;
             cookie?: never;
         };

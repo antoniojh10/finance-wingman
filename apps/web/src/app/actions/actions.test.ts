@@ -68,6 +68,8 @@ describe("auth actions", () => {
       new RedirectError("/"),
     );
     expect(requests[0].body).toEqual({ email: "ana@example.com", code: "123456" });
+    // The API records the browser's user agent with the session.
+    expect(requests[0].userAgent).toBe("Mozilla/5.0 (Test Browser)");
     expect(cookieJar.get("fw_session")).toMatchObject({ value: "tok_123", options: { httpOnly: true, sameSite: "lax" } });
     expect(cookieJar.get("NEXT_LOCALE")?.value).toBe("es");
   });
@@ -89,8 +91,9 @@ describe("auth actions", () => {
       error: "This sign-in link is invalid or has expired. Request a new one.",
     });
 
-    mockApi([{ method: "POST", path: "/api/v1/auth/verify", status: 200, body: session }]);
+    const requests = mockApi([{ method: "POST", path: "/api/v1/auth/verify", status: 200, body: session }]);
     await expect(verifyLink({}, form({ token: "good" }))).rejects.toEqual(new RedirectError("/"));
+    expect(requests[0].userAgent).toBe("Mozilla/5.0 (Test Browser)");
     expect(cookieJar.get("fw_session")?.value).toBe("tok_123");
   });
 

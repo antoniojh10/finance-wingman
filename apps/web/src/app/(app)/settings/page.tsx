@@ -1,4 +1,4 @@
-import { ChevronRightIcon, LogOutIcon, RepeatIcon, TagIcon, UsersIcon, type LucideIcon } from "lucide-react";
+import { ChevronRightIcon, LogOutIcon, RepeatIcon, ShieldIcon, TagIcon, UsersIcon, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -113,6 +113,7 @@ export default async function SettingsPage() {
             </Link>
           )}
 
+          <SectionLink href="/settings/security" icon={ShieldIcon} title={t("security.title")} description={t("security.settingsDescription")} />
           <SectionLink href="/subscriptions" icon={RepeatIcon} title={t("nav.subscriptions")} description={t("settings.subscriptionsDescription")} />
           <SectionLink href="/categories" icon={TagIcon} title={t("nav.categories")} description={t("settings.categoriesDescription")} />
 
