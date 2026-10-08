@@ -49,6 +49,8 @@ export default defineConfig({
         WEB_BASE_URL: `http://localhost:${webPort}`,
         INITIAL_USERS: `${e2eUser}:E2E User`,
         LOGIN_EMAILS_PER_HOUR: "1000",
+        // Every run invites people into the same workspace.
+        INVITATIONS_PER_HOUR: "1000",
         EMAIL_PROVIDER: "smtp",
         SMTP_HOST: "localhost",
         SMTP_PORT: "1025",

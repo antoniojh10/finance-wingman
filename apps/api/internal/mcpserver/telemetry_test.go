@@ -3,6 +3,8 @@ package mcpserver
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -75,5 +77,35 @@ func TestTracingRecordsToolCalls(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("missing tool name attribute: %v", calls[0].Attributes())
+	}
+}
+
+// TestTracingDoesNotExportErrorMessages covers protocol errors, which can echo
+// tool arguments such as account names or descriptions.
+func TestTracingDoesNotExportErrorMessages(t *testing.T) {
+	spans := tracetest.NewSpanRecorder()
+	handler := tracing(sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spans)))(func(context.Context, string, mcp.Request) (mcp.Result, error) {
+		return nil, errors.New(`invalid params: no account matches "SECRET-ACCOUNT" (description "SECRET-DESCRIPTION")`)
+	})
+
+	req := &mcp.CallToolRequest{Params: &mcp.CallToolParamsRaw{Name: "add_expense"}}
+	if _, err := handler(context.Background(), "tools/call", req); err == nil {
+		t.Fatal("expected the handler error to be returned to the caller")
+	}
+
+	ended := spans.Ended()
+	if len(ended) != 1 {
+		t.Fatalf("expected 1 span, got %d", len(ended))
+	}
+	span := ended[0]
+	if span.Status().Code != codes.Error {
+		t.Fatalf("failed request not marked as error: %v", span.Status())
+	}
+	dump := fmt.Sprint(span.Name(), span.Status(), span.Attributes(), span.Events())
+	if strings.Contains(dump, "SECRET") {
+		t.Fatalf("span exports the error message: %s", dump)
+	}
+	if len(span.Events()) != 0 {
+		t.Fatalf("span records exception events: %v", span.Events())
 	}
 }

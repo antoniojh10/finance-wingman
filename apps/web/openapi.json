@@ -418,6 +418,149 @@
         ],
         "type": "object"
       },
+      "BudgetSuggestion": {
+        "additionalProperties": false,
+        "properties": {
+          "category_color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "current_amount": {
+            "description": "Budget in force for the month, in minor units; null when the category has none",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "current_amount_month": {
+            "description": "Month the current amount was set in",
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "median": {
+            "description": "Median monthly spending over months, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "months": {
+            "description": "Months the median was taken over, oldest first. Months before the first expense of the category in this currency are not included",
+            "items": {
+              "$ref": "#/components/schemas/SuggestionMonth"
+            },
+            "type": "array"
+          },
+          "recurring": {
+            "description": "Monthly amount of active recurring expenses of the category with no payment in these months yet (e.g. a subscription created recently), in minor units. Added on top of the median",
+            "format": "int64",
+            "type": "integer"
+          },
+          "suggested": {
+            "description": "median + recurring rounded up to a whole unit of the currency, in minor units",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category_id",
+          "category_name",
+          "category_color",
+          "months",
+          "median",
+          "recurring",
+          "suggested",
+          "current_amount",
+          "current_amount_month"
+        ],
+        "type": "object"
+      },
+      "BudgetSuggestionCurrency": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "suggestions": {
+            "description": "By category name",
+            "items": {
+              "$ref": "#/components/schemas/BudgetSuggestion"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "currency",
+          "minor_units",
+          "suggestions"
+        ],
+        "type": "object"
+      },
+      "BudgetSuggestions": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BudgetSuggestions.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetSuggestionCurrency"
+            },
+            "type": "array"
+          },
+          "from": {
+            "description": "First of the 3 complete months before the month that were considered",
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": "string"
+          },
+          "month": {
+            "examples": [
+              "2026-10"
+            ],
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": "string"
+          },
+          "to": {
+            "description": "Last of the 3 complete months before the month that were considered",
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "from",
+          "to",
+          "currencies"
+        ],
+        "type": "object"
+      },
       "Category": {
         "additionalProperties": false,
         "properties": {
@@ -2061,6 +2204,28 @@
         ],
         "type": "object"
       },
+      "SuggestionMonth": {
+        "additionalProperties": false,
+        "properties": {
+          "month": {
+            "examples": [
+              "2026-09"
+            ],
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": "string"
+          },
+          "spent": {
+            "description": "Expenses of the category in the month, in minor units (0 when there was none)",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "month",
+          "spent"
+        ],
+        "type": "object"
+      },
       "Summary": {
         "additionalProperties": false,
         "properties": {
@@ -3340,6 +3505,54 @@
           }
         },
         "summary": "Budget status of a month",
+        "tags": [
+          "Budgets"
+        ]
+      }
+    },
+    "/api/v1/budgets/suggestions": {
+      "get": {
+        "description": "Per currency and expense category with spending in the 3 complete months before the month: the median monthly spending (months before the category's first expense are skipped, later months without spending count as zero) plus the monthly amount of active recurring expenses with no payment in those months, rounded up to a whole currency unit. Includes the months used and the budget currently in force. Transfers, income and uncategorized expenses are ignored. No currency conversion.",
+        "operationId": "suggest-budgets",
+        "parameters": [
+          {
+            "description": "Month to suggest budgets for, as YYYY-MM; defaults to the current month",
+            "explode": false,
+            "in": "query",
+            "name": "month",
+            "schema": {
+              "description": "Month to suggest budgets for, as YYYY-MM; defaults to the current month",
+              "examples": [
+                "2026-10"
+              ],
+              "pattern": "^\\d{4}-\\d{2}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetSuggestions"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Suggest budget amounts from past spending",
         "tags": [
           "Budgets"
         ]

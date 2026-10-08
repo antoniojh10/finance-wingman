@@ -54,6 +54,22 @@ func TestHealthDatabaseDown(t *testing.T) {
 	}
 }
 
+func TestSecurityHeaders(t *testing.T) {
+	rec := get(t, newTestHandler(fakePinger{}), "/healthz")
+	if got := rec.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("expected nosniff, got %q", got)
+	}
+	if got := rec.Header().Get("Strict-Transport-Security"); got != "" {
+		t.Fatalf("HSTS must be off by default, got %q", got)
+	}
+
+	h := NewHandler(Deps{Logger: slog.New(slog.NewTextHandler(io.Discard, nil)), DB: fakePinger{}, HSTS: true})
+	rec = get(t, h, "/healthz")
+	if got := rec.Header().Get("Strict-Transport-Security"); got != "max-age=63072000; includeSubDomains" {
+		t.Fatalf("unexpected HSTS header %q", got)
+	}
+}
+
 func TestHealthWithRealDatabase(t *testing.T) {
 	pool := testutil.NewDatabase(t, false)
 	rec := get(t, newTestHandler(pool), "/healthz")

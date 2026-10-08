@@ -51,6 +51,7 @@ func TestLoadOverrides(t *testing.T) {
 		"EMAIL_FROM":             "hi@example.com",
 		"EMAIL_FROM_NAME":        "Wingman",
 		"PPROF_ADDR":             "localhost:6060",
+		"INVITATIONS_PER_HOUR":   "50",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -60,6 +61,9 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if cfg.PublicURL != "https://api.example.com" || cfg.WebBaseURL != "https://app.example.com" || cfg.Email.Provider != "resend" || cfg.Email.SMTPPort != 2525 || cfg.Email.From != `"Wingman" <hi@example.com>` {
 		t.Fatalf("overrides not applied: %+v", cfg)
+	}
+	if cfg.InvitationsPerHour != 50 {
+		t.Fatalf("unexpected invitation limit: %d", cfg.InvitationsPerHour)
 	}
 	if cfg.PprofAddr != "localhost:6060" {
 		t.Fatalf("unexpected pprof address: %q", cfg.PprofAddr)
@@ -75,22 +79,23 @@ func TestLoadOverrides(t *testing.T) {
 
 func TestLoadInvalid(t *testing.T) {
 	tests := map[string]map[string]string{
-		"missing database url": {},
-		"invalid port":         {"DATABASE_URL": "x", "PORT": "abc"},
-		"port out of range":    {"DATABASE_URL": "x", "PORT": "70000"},
-		"invalid migrate flag": {"DATABASE_URL": "x", "MIGRATE_ON_START": "maybe"},
-		"invalid time zone":    {"DATABASE_URL": "x", "APP_TIMEZONE": "Mars/Base"},
-		"unknown provider":     {"DATABASE_URL": "x", "EMAIL_PROVIDER": "carrier-pigeon"},
-		"resend without key":   {"DATABASE_URL": "x", "EMAIL_PROVIDER": "resend"},
-		"invalid smtp port":    {"DATABASE_URL": "x", "SMTP_PORT": "x"},
-		"invalid login limit":  {"DATABASE_URL": "x", "LOGIN_EMAILS_PER_HOUR": "0"},
-		"public url with path": {"DATABASE_URL": "x", "PUBLIC_URL": "https://api.example.com/v1"},
-		"public url no scheme": {"DATABASE_URL": "x", "PUBLIC_URL": "api.example.com"},
-		"pprof without port":   {"DATABASE_URL": "x", "PPROF_ADDR": "localhost"},
-		"pprof on public port": {"DATABASE_URL": "x", "PPROF_ADDR": ":8080"},
-		"production log email": {"DATABASE_URL": "x", "APP_ENV": "production", "PUBLIC_URL": "https://a.example", "WEB_BASE_URL": "https://w.example"},
-		"production http url":  {"DATABASE_URL": "x", "APP_ENV": "production", "EMAIL_PROVIDER": "smtp", "WEB_BASE_URL": "https://w.example"},
-		"production http web":  {"DATABASE_URL": "x", "APP_ENV": "production", "EMAIL_PROVIDER": "smtp", "PUBLIC_URL": "https://a.example"},
+		"missing database url":     {},
+		"invalid port":             {"DATABASE_URL": "x", "PORT": "abc"},
+		"port out of range":        {"DATABASE_URL": "x", "PORT": "70000"},
+		"invalid migrate flag":     {"DATABASE_URL": "x", "MIGRATE_ON_START": "maybe"},
+		"invalid time zone":        {"DATABASE_URL": "x", "APP_TIMEZONE": "Mars/Base"},
+		"unknown provider":         {"DATABASE_URL": "x", "EMAIL_PROVIDER": "carrier-pigeon"},
+		"resend without key":       {"DATABASE_URL": "x", "EMAIL_PROVIDER": "resend"},
+		"invalid smtp port":        {"DATABASE_URL": "x", "SMTP_PORT": "x"},
+		"invalid invitation limit": {"DATABASE_URL": "x", "INVITATIONS_PER_HOUR": "0"},
+		"invalid login limit":      {"DATABASE_URL": "x", "LOGIN_EMAILS_PER_HOUR": "0"},
+		"public url with path":     {"DATABASE_URL": "x", "PUBLIC_URL": "https://api.example.com/v1"},
+		"public url no scheme":     {"DATABASE_URL": "x", "PUBLIC_URL": "api.example.com"},
+		"pprof without port":       {"DATABASE_URL": "x", "PPROF_ADDR": "localhost"},
+		"pprof on public port":     {"DATABASE_URL": "x", "PPROF_ADDR": ":8080"},
+		"production log email":     {"DATABASE_URL": "x", "APP_ENV": "production", "PUBLIC_URL": "https://a.example", "WEB_BASE_URL": "https://w.example"},
+		"production http url":      {"DATABASE_URL": "x", "APP_ENV": "production", "EMAIL_PROVIDER": "smtp", "WEB_BASE_URL": "https://w.example"},
+		"production http web":      {"DATABASE_URL": "x", "APP_ENV": "production", "EMAIL_PROVIDER": "smtp", "PUBLIC_URL": "https://a.example"},
 	}
 	for name, env := range tests {
 		t.Run(name, func(t *testing.T) {

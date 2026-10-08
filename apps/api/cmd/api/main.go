@@ -116,7 +116,7 @@ func run(args []string, logger *slog.Logger) error {
 
 	switch command {
 	case "serve":
-		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL})
+		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL, MaxInvitationsPerHour: cfg.InvitationsPerHour})
 		var initialIDs []uuid.UUID
 		for _, u := range cfg.InitialUsers {
 			user, err := authSvc.AddUser(ctx, u.Email, u.Name)
@@ -130,7 +130,7 @@ func run(args []string, logger *slog.Logger) error {
 			return fmt.Errorf("create initial workspace: %w", err)
 		}
 		if created {
-			logger.Info("initial workspace created", "name", cfg.InitialWorkspaceName, "owners", len(initialIDs))
+			logger.Info("initial workspace created", "owners", len(initialIDs))
 		}
 		financeSvc := finance.NewService(pool, cfg.Location)
 		oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: cfg.PublicURL}, logger)
@@ -148,6 +148,7 @@ func run(args []string, logger *slog.Logger) error {
 			Workspaces: workspaceSvc,
 			OAuth:      oauthSrv,
 			MCP:        mcpHandler,
+			HSTS:       strings.HasPrefix(cfg.PublicURL, "https://"),
 		})
 		return serve(ctx, cfg, logger, handler)
 	case "users":
