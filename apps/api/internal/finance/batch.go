@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // MaxBatchSize is the maximum number of items accepted by a batch create.
@@ -146,6 +148,42 @@ func (s *Service) CreateTransactions(ctx context.Context, items []TransactionInp
 	err := s.withTx(ctx, func(tx *Service) error {
 		for i, in := range items {
 			t, err := tx.CreateTransaction(ctx, in)
+			if err != nil {
+				return itemError(i, err)
+			}
+			out = append(out, t)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TransactionUpdate fully replaces one existing transaction.
+type TransactionUpdate struct {
+	ID    uuid.UUID
+	Input TransactionInput
+}
+
+// UpdateTransactions updates all transactions atomically: if any item is
+// invalid or missing, nothing is changed. Each id may appear only once.
+func (s *Service) UpdateTransactions(ctx context.Context, items []TransactionUpdate) ([]Transaction, error) {
+	if err := checkBatchSize(len(items)); err != nil {
+		return nil, err
+	}
+	seen := map[uuid.UUID]int{}
+	for i, item := range items {
+		if first, dup := seen[item.ID]; dup {
+			return nil, Invalid(fmt.Sprintf("items[%d].id", i), fmt.Sprintf("duplicates items[%d].id in this batch", first))
+		}
+		seen[item.ID] = i
+	}
+	out := make([]Transaction, 0, len(items))
+	err := s.withTx(ctx, func(tx *Service) error {
+		for i, item := range items {
+			t, err := tx.UpdateTransaction(ctx, item.ID, item.Input)
 			if err != nil {
 				return itemError(i, err)
 			}

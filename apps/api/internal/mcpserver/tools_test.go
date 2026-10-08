@@ -128,7 +128,7 @@ func TestToolsAreListed(t *testing.T) {
 	for _, tool := range res.Tools {
 		got[tool.Name] = tool
 	}
-	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction", "create_account", "create_category", "create_categories", "create_accounts", "add_transactions", "update_account", "update_category", "list_recurring", "create_recurring", "update_recurring", "list_upcoming_recurring", "mark_recurring_paid", "list_recurring_suggestions", "accept_recurring_suggestion", "dismiss_recurring_suggestion", "link_transaction_to_recurring"} {
+	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction", "create_account", "create_category", "create_categories", "create_accounts", "add_transactions", "update_account", "update_category", "update_transaction", "update_transactions", "list_recurring", "create_recurring", "update_recurring", "list_upcoming_recurring", "mark_recurring_paid", "list_recurring_suggestions", "accept_recurring_suggestion", "dismiss_recurring_suggestion", "link_transaction_to_recurring"} {
 		if got[name] == nil {
 			t.Errorf("missing tool %s", name)
 		}
