@@ -25,6 +25,18 @@ type Account struct {
 	OwnerUserID    *uuid.UUID
 }
 
+type Budget struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	CategoryID  uuid.UUID
+	Currency    string
+	Month       time.Time
+	AmountMinor *int64
+	CreatedBy   *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type Category struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID
