@@ -116,7 +116,7 @@ func run(args []string, logger *slog.Logger) error {
 
 	switch command {
 	case "serve":
-		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL})
+		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL, MaxInvitationsPerHour: cfg.InvitationsPerHour})
 		var initialIDs []uuid.UUID
 		for _, u := range cfg.InitialUsers {
 			user, err := authSvc.AddUser(ctx, u.Email, u.Name)

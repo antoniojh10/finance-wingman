@@ -34,6 +34,9 @@ type Config struct {
 	InitialWorkspaceName string
 	// LoginEmailsPerHour caps sign-in emails per user (LOGIN_EMAILS_PER_HOUR).
 	LoginEmailsPerHour int
+	// InvitationsPerHour caps invitation emails per workspace
+	// (INVITATIONS_PER_HOUR); zero uses the service default.
+	InvitationsPerHour int
 	// PprofAddr, when set, serves net/http/pprof on a separate listener
 	// (PPROF_ADDR, e.g. "localhost:6060"). Never expose it publicly.
 	PprofAddr string
@@ -126,6 +129,15 @@ func load(getenv func(string) string) (Config, error) {
 			errs = append(errs, fmt.Errorf("LOGIN_EMAILS_PER_HOUR must be a positive integer, got %q", raw))
 		} else {
 			cfg.LoginEmailsPerHour = n
+		}
+	}
+
+	if raw := getenv("INVITATIONS_PER_HOUR"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 {
+			errs = append(errs, fmt.Errorf("INVITATIONS_PER_HOUR must be a positive integer, got %q", raw))
+		} else {
+			cfg.InvitationsPerHour = n
 		}
 	}
 
