@@ -103,17 +103,45 @@ attributes rather than by stack:
 ## Privacy
 
 This is a finance app, so telemetry must not contain amounts, descriptions,
-MCP tool arguments or search terms:
+account or category names, MCP tool arguments, search terms, emails or
+credentials. `TestTelemetryCarriesNoPersonalData` (`internal/httpapi`) drives
+REST, OAuth and MCP requests carrying known sensitive values and checks that
+none of them appears in the exported spans or logs.
 
-- API HTTP spans record the path and route, not the query string; request
-  logs record the path only.
-- The web app redacts the `q` search parameter in span names and string
-  attributes before export (`src/lib/telemetry-export.ts`); other query
-  parameters (date ranges, account IDs) are kept.
-- SQL spans contain the query text with `$n` placeholders, never parameter
-  values. MCP spans record the tool name only.
-- Emails printed by `EMAIL_PROVIDER=log` (magic links) are written to
-  stdout only, never exported.
+### Exported
+
+| Signal | Fields |
+| --- | --- |
+| API HTTP spans | Method, route (`/api/v1/accounts/{id}`), `url.path` (with resource IDs), status code, request and response body sizes, `server.address`/`server.port`, `network.protocol.version`, `user_agent.original`, `client.address` and `network.peer.address`/`network.peer.port` (client IP address) |
+| API HTTP metrics | Duration labelled with method, route and status code |
+| API request logs | Method, path (no query string), status, duration, request ID, trace ID |
+| API database spans | Query name and SQL text with `$n` placeholders, rows affected, SQLSTATE; no parameter values and no connection details. Error events carry the database error message (constraint names, not values) |
+| API MCP spans | Method name and tool name; failed requests carry the error type only |
+| API application logs | Error records with user and client IDs; no request bodies |
+| Web spans | Page renders, Server Actions and API `fetch` calls with URL, route and status |
+
+### Not exported
+
+- Request and response bodies, headers (including `Authorization`) and
+  cookies.
+- Query strings on API spans and logs.
+- SQL parameter values, MCP tool arguments and results.
+- Magic link emails: `EMAIL_PROVIDER=log` writes them to stdout only.
+- The startup log does not include the workspace name.
+
+### Redaction
+
+- Exported API log records (message and string or error attributes) have
+  email addresses, `Bearer`/`Basic` credentials and the values of `token`,
+  `code`, `state`, `code_challenge`, `code_verifier`, `access_token`,
+  `refresh_token`, `client_secret` and `q` parameters replaced with
+  `[redacted]` (`internal/telemetry/redact.go`). Mail provider and SMTP
+  errors echo the recipient address, which is why error text is covered.
+  Stdout keeps the original record.
+- The web app redacts span names, string attributes, status messages and
+  event attributes before export (`src/lib/telemetry-export.ts`): the `q`,
+  `token`, `code`, `state` and PKCE query parameters, and email addresses.
+  Other query parameters (date ranges, account IDs) are kept.
 
 ## Cost
 

@@ -2,6 +2,7 @@ package mcpserver
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"go.opentelemetry.io/otel/attribute"
@@ -31,8 +32,10 @@ func tracing(tp trace.TracerProvider) mcp.Middleware {
 			result, err := next(ctx, method, req)
 			switch {
 			case err != nil:
-				span.RecordError(err)
-				span.SetStatus(codes.Error, err.Error())
+				// Protocol errors can echo tool arguments (account names,
+				// descriptions), so only the error type is exported.
+				span.SetAttributes(attribute.String("error.type", fmt.Sprintf("%T", err)))
+				span.SetStatus(codes.Error, "request failed")
 			case isToolError(result):
 				span.SetStatus(codes.Error, "tool returned an error")
 			}

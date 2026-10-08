@@ -12,6 +12,17 @@ describe("redactSearch", () => {
     expect(redactSearch("fetch GET http://api/x?q=a b")).toBe("fetch GET http://api/x?q=REDACTED b");
   });
 
+  it("redacts magic link, invitation and OAuth credentials", () => {
+    expect(redactSearch("/auth/verify?token=abc123")).toBe("/auth/verify?token=REDACTED");
+    expect(redactSearch("http://web/invite?x=1&token=SECRET")).toBe("http://web/invite?x=1&token=REDACTED");
+    expect(redactSearch("/cb?code=C0DE&state=ST8")).toBe("/cb?code=REDACTED&state=REDACTED");
+  });
+
+  it("redacts email addresses", () => {
+    expect(redactSearch("sent to ana.perez@example.com failed")).toBe("sent to REDACTED failed");
+    expect(redactSearch("/login?email=ana%40example.com")).toBe("/login?email=REDACTED");
+  });
+
   it("leaves other parameters and plain text untouched", () => {
     expect(redactSearch("/transactions?account=abc&qty=2")).toBe("/transactions?account=abc&qty=2");
     expect(redactSearch("GET /transactions")).toBe("GET /transactions");
@@ -45,6 +56,31 @@ describe("RedactingSpanExporter", () => {
       "http.status_code": 200,
     });
     expect(exported[0].spanContext()).toBe(spanContext);
+  });
+
+  it("redacts tokens, status messages and event attributes", () => {
+    const exported: ReadableSpan[] = [];
+    const inner: SpanExporter = {
+      export: (spans, done) => {
+        exported.push(...spans);
+        done({ code: 0 });
+      },
+      shutdown: vi.fn(async () => {}),
+    };
+    const span = {
+      name: "GET /auth/verify",
+      attributes: { "http.target": "/auth/verify?token=SECRET", "next.route": "/auth/verify" },
+      status: { code: 2, message: "failed for ana@example.com" },
+      events: [{ name: "exception", time: [0, 0], attributes: { "exception.message": "bad /invite?token=SECRET" } }],
+      spanContext: () => ({ traceId: "t", spanId: "s", traceFlags: 1 }),
+    } as unknown as ReadableSpan;
+
+    new RedactingSpanExporter(inner).export([span], vi.fn());
+
+    const dump = JSON.stringify([exported[0].attributes, exported[0].status, exported[0].events]);
+    expect(dump).not.toContain("SECRET");
+    expect(dump).not.toContain("ana@example.com");
+    expect(exported[0].attributes["http.target"]).toBe("/auth/verify?token=REDACTED");
   });
 
   it("delegates shutdown and flush", async () => {
