@@ -46,6 +46,8 @@ type Deps struct {
 	// transport (at /mcp) are mounted.
 	OAuth *oauth.Server
 	MCP   http.Handler
+	// Limits is optional; when set, requests are rate limited.
+	Limits *Limits
 	// TracerProvider and MeterProvider are optional; nil uses the global
 	// OpenTelemetry providers.
 	TracerProvider trace.TracerProvider
@@ -76,10 +78,12 @@ func build(deps Deps) (chi.Router, huma.API) {
 	router := chi.NewRouter()
 	router.Use(instrument(deps.TracerProvider, deps.MeterProvider))
 	router.Use(middleware.RequestID)
-	router.Use(middleware.RealIP)
+	// No middleware.RealIP: it trusts client-supplied forwarding headers.
+	// Limits derives the client IP from the configured proxy hops instead.
 	router.Use(requestLogger(deps.Logger))
 	router.Use(middleware.Recoverer)
 	router.Use(securityHeaders(deps.HSTS))
+	router.Use(limitUnauthenticated(deps.Limits))
 
 	if deps.OAuth != nil {
 		deps.OAuth.Mount(router)
@@ -101,6 +105,9 @@ func build(deps Deps) (chi.Router, huma.API) {
 	registerHealth(api, deps.DB)
 	if deps.Auth != nil {
 		api.UseMiddleware(authMiddleware(api, deps.Auth, deps.Logger))
+		if deps.Limits != nil && deps.Limits.Authenticated != nil {
+			api.UseMiddleware(limitSessions(api, deps.Limits.Authenticated))
+		}
 		registerAuth(api, deps.Auth, deps.Logger)
 	}
 	if deps.Workspaces != nil && deps.Auth != nil {

@@ -5,6 +5,7 @@ package mcpserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -19,6 +20,7 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/ratelimit"
 )
 
 const instructions = `Finance Wingman tracks a shared household workspace: accounts in different currencies, categorized expenses and income, and transfers between accounts.
@@ -50,6 +52,8 @@ type Server struct {
 	// actorOf returns the user behind a tool call, replaced by tests for the
 	// same reason.
 	actorOf func(*mcp.CallToolRequest) (uuid.UUID, bool)
+	// limiter, when set, caps tool calls per user (see SetLimiter).
+	limiter *ratelimit.Limiter
 }
 
 // tokenWorkspaceKey is the TokenInfo.Extra key holding the workspace of the
@@ -71,7 +75,7 @@ func New(fin *finance.Service, version string) *Server {
 		}, &mcp.ServerOptions{Instructions: instructions}),
 	}
 	// The global provider forwards to the SDK once telemetry is set up.
-	s.mcp.AddReceivingMiddleware(tracing(otel.GetTracerProvider()), s.workspaceScope)
+	s.mcp.AddReceivingMiddleware(tracing(otel.GetTracerProvider()), s.rateLimit, s.workspaceScope)
 	s.registerTools()
 	s.registerUpdateTransactionTools()
 	s.registerRecurringTools()
@@ -150,6 +154,31 @@ func isLoopback(hostport string) bool {
 
 // MCP exposes the underlying server, e.g. for in-memory tests.
 func (s *Server) MCP() *mcp.Server { return s.mcp }
+
+// SetLimiter caps tool calls per user. Set it before serving requests.
+func (s *Server) SetLimiter(l *ratelimit.Limiter) { s.limiter = l }
+
+// rateLimit answers tool calls over the user's budget with a tool error that
+// tells the model to wait, so it can relay the delay instead of retrying.
+func (s *Server) rateLimit(next mcp.MethodHandler) mcp.MethodHandler {
+	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+		call, ok := req.(*mcp.CallToolRequest)
+		if !ok || s.limiter == nil {
+			return next(ctx, method, req)
+		}
+		user, ok := s.actorOf(call)
+		if !ok {
+			return next(ctx, method, req)
+		}
+		if allowed, wait := s.limiter.Allow(user.String()); !allowed {
+			return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: fmt.Sprintf(
+				"Rate limit reached: too many tool calls in a short time. Do not retry immediately; wait about %d seconds, "+
+					"and tell the user if the task cannot continue. Prefer batch tools (add_transactions, create_accounts, "+
+					"create_categories, update_transactions) over many single calls.", ratelimit.RetryAfterSeconds(wait))}}}, nil
+		}
+		return next(ctx, method, req)
+	}
+}
 
 // workspaceScope makes every tool call act on the workspace of its bearer
 // session, as its user, and refuses calls from sessions without one.

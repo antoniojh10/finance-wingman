@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 
 import { createApiClient } from "@/lib/api/client";
+import { clientIpHeaders } from "@/lib/client-ip";
 import { emailPattern, text } from "@/lib/forms";
 import { clearSession, getSessionToken, setSession } from "@/lib/session";
 import { LOCALE_COOKIE, isLocale } from "@/i18n/locales";
@@ -28,7 +29,7 @@ export async function requestLogin(_: LoginState, formData: FormData): Promise<L
     return { step: "email", email, error: t("invalidEmail") };
   }
   const locale = await getLocale();
-  const result = await createApiClient().POST("/api/v1/auth/login", {
+  const result = await createApiClient(undefined, await clientIpHeaders()).POST("/api/v1/auth/login", {
     body: { email, locale: isLocale(locale) ? locale : undefined },
   });
   if (result.response.status === 422) {
@@ -47,7 +48,7 @@ export async function verifyCode(_: LoginState, formData: FormData): Promise<Log
   if (!/^\d{6}$/.test(code)) {
     return { step: "code", email, error: t("invalidCode") };
   }
-  const { data, response } = await createApiClient().POST("/api/v1/auth/verify", { body: { email, code } });
+  const { data, response } = await createApiClient(undefined, await clientIpHeaders()).POST("/api/v1/auth/verify", { body: { email, code } });
   if (!response.ok || !data?.token) {
     return { step: "code", email, error: response.status === 401 || response.status === 422 ? t("invalidCode") : t("sendFailed") };
   }
@@ -64,7 +65,7 @@ export async function verifyLink(_: VerifyLinkState, formData: FormData): Promis
   if (!token) {
     return { error: t("linkInvalid") };
   }
-  const { data, response } = await createApiClient().POST("/api/v1/auth/verify", { body: { token } });
+  const { data, response } = await createApiClient(undefined, await clientIpHeaders()).POST("/api/v1/auth/verify", { body: { token } });
   if (!response.ok || !data?.token) {
     return { error: t("linkInvalid") };
   }
