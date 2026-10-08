@@ -20,7 +20,8 @@ func TestToolChangesAreLoggedAsMCP(t *testing.T) {
 	h.mustCall("delete_transaction", map[string]any{"id": created.ID}, nil)
 	h.mustFail("delete_transaction", map[string]any{"id": created.ID}, "not found")
 
-	page, err := h.svc.ListActivity(h.ctx, finance.ActivityFilter{})
+	entityType := finance.EntityTransaction
+	page, err := h.svc.ListActivity(h.ctx, finance.ActivityFilter{EntityType: &entityType})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -76,7 +76,7 @@ export interface paths {
         };
         /**
          * List workspace activity
-         * @description Who changed what in the workspace, newest first, with the channel it came from (web app or MCP client). Entries hold metadata only (ids, type and the names of changed fields), never amounts or descriptions. Paginated with an opaque cursor: pass next_cursor as cursor until it is null.
+         * @description Who changed what in the workspace, newest first, with the channel it came from (web app or MCP client). Entries hold metadata only (ids, kind and the names of changed fields), never amounts or descriptions. Paginated with an opaque cursor: pass next_cursor as cursor until it is null.
          */
         get: operations["list-activity"];
         put?: never;
@@ -1110,12 +1110,29 @@ export interface components {
         ActivityDetails: {
             /** Format: uuid */
             account_id?: string;
+            /**
+             * Format: uuid
+             * @description Category of a budget
+             */
+            category_id?: string;
             /** @description Fields modified by an update (names only, never values) */
             changed?: string[];
+            /**
+             * @description ISO 4217 currency of an account or budget
+             * @example MXN
+             */
+            currency?: string;
             /** Format: uuid */
             destination_account_id?: string;
             /**
-             * @description Transaction type
+             * @description File format of an export
+             * @enum {string}
+             */
+            format?: "json" | "csv";
+            /** @description Month (YYYY-MM) a budget applies from */
+            month?: string;
+            /**
+             * @description Kind of the record: transaction or recurring item type, account type or category kind
              * @example expense
              */
             type?: string;
@@ -2709,7 +2726,7 @@ export interface operations {
                 /** @description Only changes made from the web app or from MCP clients */
                 channel?: "web" | "mcp";
                 /** @description Only changes to this kind of record */
-                entity_type?: "transaction";
+                entity_type?: "transaction" | "account" | "category" | "budget" | "recurring_item" | "recurring_suggestion" | "workspace";
                 /** @description Only changes to this record */
                 entity_id?: string;
                 /** @description next_cursor of the previous page */

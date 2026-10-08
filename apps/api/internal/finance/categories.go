@@ -116,15 +116,23 @@ func (s *Service) CreateCategory(ctx context.Context, in CreateCategoryInput) (C
 	if err := validateColor(in.Color); err != nil {
 		return Category{}, err
 	}
-	c, err := s.q.CreateCategory(ctx, store.CreateCategoryParams{
-		Name:  name,
-		Kind:  in.Kind,
-		Color: emptyToNil(in.Color),
-		Icon:  emptyToNil(in.Icon),
+	var c store.Category
+	err = s.withTx(ctx, func(tx *Service) error {
+		var err error
+		c, err = tx.q.CreateCategory(ctx, store.CreateCategoryParams{
+			Name:  name,
+			Kind:  in.Kind,
+			Color: emptyToNil(in.Color),
+			Icon:  emptyToNil(in.Icon),
+		})
+		if pgErrorCode(err) == pgUniqueViolation {
+			return Conflict("an active " + in.Kind + " category with this name already exists")
+		}
+		if err != nil {
+			return err
+		}
+		return tx.record(ctx, ActionCategoryCreated, EntityCategory, c.ID, ActivityDetails{Type: c.Kind})
 	})
-	if pgErrorCode(err) == pgUniqueViolation {
-		return Category{}, Conflict("an active " + in.Kind + " category with this name already exists")
-	}
 	if err != nil {
 		return Category{}, err
 	}
@@ -142,21 +150,58 @@ func (s *Service) UpdateCategory(ctx context.Context, id uuid.UUID, in UpdateCat
 	if err := validateColor(in.Color); err != nil {
 		return Category{}, err
 	}
-	c, err := s.q.UpdateCategory(ctx, store.UpdateCategoryParams{
-		ID:       id,
-		Name:     in.Name,
-		SetColor: in.Color != nil,
-		Color:    emptyToNil(in.Color),
-		SetIcon:  in.Icon != nil,
-		Icon:     emptyToNil(in.Icon),
-		Archived: in.Archived,
+	cur, err := s.GetCategory(ctx, id)
+	if err != nil {
+		return Category{}, err
+	}
+	var changed []string
+	add := func(differs bool, field string) {
+		if differs {
+			changed = append(changed, field)
+		}
+	}
+	add(in.Name != nil && *in.Name != cur.Name, "name")
+	add(in.Color != nil && !equalPtr(emptyToNil(in.Color), cur.Color), "color")
+	add(in.Icon != nil && !equalPtr(emptyToNil(in.Icon), cur.Icon), "icon")
+
+	var c store.Category
+	err = s.withTx(ctx, func(tx *Service) error {
+		var err error
+		c, err = tx.q.UpdateCategory(ctx, store.UpdateCategoryParams{
+			ID:       id,
+			Name:     in.Name,
+			SetColor: in.Color != nil,
+			Color:    emptyToNil(in.Color),
+			SetIcon:  in.Icon != nil,
+			Icon:     emptyToNil(in.Icon),
+			Archived: in.Archived,
+		})
+		if isNoRows(err) {
+			return NotFound("category")
+		}
+		if pgErrorCode(err) == pgUniqueViolation {
+			return Conflict("an active category with this name already exists")
+		}
+		if err != nil {
+			return err
+		}
+		details := ActivityDetails{Type: c.Kind}
+		if len(changed) > 0 {
+			d := details
+			d.Changed = changed
+			if err := tx.record(ctx, ActionCategoryUpdated, EntityCategory, id, d); err != nil {
+				return err
+			}
+		}
+		if in.Archived != nil && *in.Archived != cur.Archived {
+			action := ActionCategoryUnarchived
+			if *in.Archived {
+				action = ActionCategoryArchived
+			}
+			return tx.record(ctx, action, EntityCategory, id, details)
+		}
+		return nil
 	})
-	if isNoRows(err) {
-		return Category{}, NotFound("category")
-	}
-	if pgErrorCode(err) == pgUniqueViolation {
-		return Category{}, Conflict("an active category with this name already exists")
-	}
 	if err != nil {
 		return Category{}, err
 	}
@@ -165,12 +210,18 @@ func (s *Service) UpdateCategory(ctx context.Context, id uuid.UUID, in UpdateCat
 
 // DeleteCategory removes a category; its transactions become uncategorized.
 func (s *Service) DeleteCategory(ctx context.Context, id uuid.UUID) error {
-	affected, err := s.q.DeleteCategory(ctx, id)
+	category, err := s.GetCategory(ctx, id)
 	if err != nil {
 		return err
 	}
-	if affected == 0 {
-		return NotFound("category")
-	}
-	return nil
+	return s.withTx(ctx, func(tx *Service) error {
+		affected, err := tx.q.DeleteCategory(ctx, id)
+		if err != nil {
+			return err
+		}
+		if affected == 0 {
+			return NotFound("category")
+		}
+		return tx.record(ctx, ActionCategoryDeleted, EntityCategory, id, ActivityDetails{Type: category.Kind})
+	})
 }

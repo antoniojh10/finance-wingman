@@ -12,6 +12,25 @@ import (
 	"github.com/google/uuid"
 )
 
+const getBudgetRow = `-- name: GetBudgetRow :one
+SELECT amount_minor FROM budgets WHERE category_id = $1 AND currency = $2 AND month = $3
+`
+
+type GetBudgetRowParams struct {
+	CategoryID uuid.UUID
+	Currency   string
+	Month      time.Time
+}
+
+// GetBudgetRow returns the row a month itself holds for a category and
+// currency, not the one it inherits. Not found when the month has none.
+func (q *Queries) GetBudgetRow(ctx context.Context, arg GetBudgetRowParams) (*int64, error) {
+	row := q.db.QueryRow(ctx, getBudgetRow, arg.CategoryID, arg.Currency, arg.Month)
+	var amount_minor *int64
+	err := row.Scan(&amount_minor)
+	return amount_minor, err
+}
+
 const listAllBudgets = `-- name: ListAllBudgets :many
 SELECT
     b.category_id,

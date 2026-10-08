@@ -106,6 +106,14 @@ func (h *exportHandlers) export(ctx context.Context, in *exportInput) (*exportOu
 		meta.members[i] = exportMember{Name: m.Name, Email: m.Email, Role: m.Role, JoinedAt: m.JoinedAt}
 	}
 
+	format := exportFormatJSON
+	if in.Format == exportFormatCSV {
+		format = exportFormatCSV
+	}
+	if err := h.svc.RecordExport(ctx, session.Workspace.ID, format); err != nil {
+		return nil, toHTTPError(ctx, h.logger, err)
+	}
+
 	date := h.svc.Today().Format(time.DateOnly)
 	out := &exportOutput{CacheControl: "no-store"}
 	var write func(w io.Writer, transactions transactionSource) error
