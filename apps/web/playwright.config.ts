@@ -8,8 +8,8 @@ import { defineConfig, devices } from "@playwright/test";
 // only apply when Playwright is started directly. The web app is a
 // production build unless E2E_DEV is set.
 export const apiPort = Number(process.env.E2E_API_PORT ?? 8081);
-const webPort = Number(process.env.E2E_WEB_PORT ?? 3100);
-const databaseUrl =
+export const webPort = Number(process.env.E2E_WEB_PORT ?? 3100);
+export const databaseUrl =
   process.env.E2E_RUN_DATABASE_URL ?? "postgres://finance:finance@localhost:5432/finance_test?sslmode=disable";
 
 // Mailpit is shared, so concurrent runs need distinct addresses.

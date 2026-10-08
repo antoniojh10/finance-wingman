@@ -8,11 +8,14 @@
 //	api users list                list users with access
 //	api users add EMAIL [NAME]    grant access to an email address
 //	api users remove EMAIL        revoke access
+//	api sessions create --email EMAIL [--name NAME] [--workspace NAME]
+//	                                  print a signed-in session cookie (for tests)
 package main
 
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log/slog"
@@ -162,6 +165,9 @@ func run(args []string, logger *slog.Logger) error {
 		return serve(ctx, cfg, logger, handler)
 	case "users":
 		return users(ctx, authSvc, args[1:])
+	case "sessions":
+		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL})
+		return sessions(ctx, authSvc, workspaceSvc, os.Stdout, args[1:])
 	default:
 		return fmt.Errorf("unknown command %q", command)
 	}
@@ -332,4 +338,62 @@ func users(ctx context.Context, svc *auth.Service, args []string) error {
 		return fmt.Errorf("unknown users command %q", args[0])
 	}
 	return nil
+}
+
+// sessionCookie is the cookie the web app keeps the session token in.
+const sessionCookie = "fw_session"
+
+// sessions runs the `sessions` subcommands. `create` opens a session for a
+// user without the email flow, so tests can start signed in. It needs shell
+// access to the server and its database, which already is full access; there
+// is deliberately no HTTP equivalent.
+func sessions(ctx context.Context, authSvc *auth.Service, workspaces *workspace.Service, out io.Writer, args []string) error {
+	const usage = "usage: api sessions create --email EMAIL [--name NAME] [--workspace NAME]"
+	if len(args) == 0 || args[0] != "create" {
+		return errors.New(usage)
+	}
+	flags := flag.NewFlagSet("sessions create", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	email := flags.String("email", "", "email address of the user")
+	name := flags.String("name", "", "display name for a new user")
+	workspaceName := flags.String("workspace", "", "workspace to act on, created with the user as owner if missing")
+	if err := flags.Parse(args[1:]); err != nil || flags.NArg() > 0 || *email == "" {
+		return errors.New(usage)
+	}
+
+	user, err := authSvc.AddUser(ctx, *email, *name)
+	if err != nil {
+		return err
+	}
+	var session auth.Session
+	if *workspaceName == "" {
+		session, err = authSvc.CreateSession(ctx, user.ID, auth.ClientWeb, 0)
+	} else {
+		var w workspace.Workspace
+		if w, err = ensureWorkspace(ctx, workspaces, user.ID, *workspaceName); err != nil {
+			return err
+		}
+		session, err = authSvc.CreateWorkspaceSession(ctx, user.ID, &w.ID, auth.ClientWeb, 0)
+	}
+	if err != nil {
+		return err
+	}
+	// Only the cookie goes to stdout, so scripts can parse it.
+	_, err = fmt.Fprintf(out, "%s=%s\n", sessionCookie, session.Token)
+	return err
+}
+
+// ensureWorkspace returns the user's workspace with that name, creating it
+// (owned by the user) when they have none.
+func ensureWorkspace(ctx context.Context, workspaces *workspace.Service, userID uuid.UUID, name string) (workspace.Workspace, error) {
+	list, err := workspaces.List(ctx, userID)
+	if err != nil {
+		return workspace.Workspace{}, err
+	}
+	for _, m := range list {
+		if m.Name == strings.TrimSpace(name) {
+			return m.Workspace, nil
+		}
+	}
+	return workspaces.Create(ctx, userID, name)
 }
