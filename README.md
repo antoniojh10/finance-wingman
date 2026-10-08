@@ -2,8 +2,8 @@
 
 Personal finance app organized in workspaces shared by invitation: multiple
 accounts in different currencies, categorized expenses/income, transfers,
-and an MCP server so transactions can be added from Claude or ChatGPT
-mobile.
+recurring transactions, and an MCP server (OAuth 2.1) so transactions can be
+added from Claude or ChatGPT mobile.
 
 ## Structure
 
@@ -77,9 +77,13 @@ stateless) protected by OAuth 2.1:
 - Dynamic client registration (`/oauth/register`), authorization code + PKCE (S256), rotating refresh tokens, revocation
 - During authorization the user receives a 6-digit code by email and types it on the consent page, which works inside mobile in-app browsers
 
-Tools: `add_expense`, `add_income`, `add_transfer`, `list_accounts`,
-`list_categories`, `create_account`, `create_category`, `get_summary`,
-`list_transactions`, `delete_transaction`.
+Tools:
+
+- Transactions: `add_expense`, `add_income`, `add_transfer`, `add_transactions`, `list_transactions`, `delete_transaction`, `get_summary`
+- Accounts: `list_accounts`, `create_account`, `create_accounts`, `update_account`
+- Categories: `list_categories`, `create_category`, `create_categories`, `update_category`
+- Recurring: `list_recurring`, `create_recurring`, `update_recurring`, `list_upcoming_recurring`, `mark_recurring_paid`, `link_transaction_to_recurring`, `list_recurring_suggestions`, `accept_recurring_suggestion`, `dismiss_recurring_suggestion`
+
 Amounts are decimals in the account currency; summaries never mix currencies.
 Accounts belong to a workspace member or are shared: a bare account name
 means the caller's own, and another member's is written as `BNP (Ana)`.
@@ -102,10 +106,18 @@ skipped it), run the **Deploy** workflow from the Actions tab and pick
 `RAILWAY_TOKEN` repository secret: a Railway project token for the
 `production` environment.
 
-See [docs/deploy-seenode.md](docs/deploy-seenode.md) for deploying the API,
-web app and PostgreSQL on Seenode (native runtimes or Docker images).
+See [docs/deploy-railway.md](docs/deploy-railway.md) for deploying the API,
+web app and PostgreSQL on Railway (the Dockerfiles also run on any
+container host).
 
 See [docs/observability.md](docs/observability.md) to send traces,
 metrics and logs to an OpenTelemetry backend.
 
-See [AGENTS.md](AGENTS.md) for contribution rules.
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) for the
+contribution rules, and [SECURITY.md](SECURITY.md) to report a vulnerability.
+
+## License
+
+[MIT](LICENSE) © 2026 Antonio Hernández
