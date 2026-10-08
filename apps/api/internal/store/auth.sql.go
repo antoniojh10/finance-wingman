@@ -297,9 +297,11 @@ func (q *Queries) GetMembership(ctx context.Context, arg GetMembershipParams) (G
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
 SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, s.workspace_id, s.user_agent, s.scope, u.email, u.name, u.locale,
-    w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role
+    w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role,
+    oc.name AS oauth_client_name
 FROM sessions s
 JOIN users u ON u.id = s.user_id
+LEFT JOIN oauth_clients oc ON oc.id = s.oauth_client_id
 LEFT JOIN workspace_members m ON m.workspace_id = s.workspace_id AND m.user_id = s.user_id
 LEFT JOIN workspaces w ON w.id = m.workspace_id
 WHERE s.token_hash = $1
@@ -324,6 +326,7 @@ type GetSessionByTokenHashRow struct {
 	ActiveWorkspaceID *uuid.UUID
 	WorkspaceName     *string
 	WorkspaceRole     *string
+	OauthClientName   *string
 }
 
 // The session's workspace is only reported while the user is still a
@@ -350,6 +353,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.ActiveWorkspaceID,
 		&i.WorkspaceName,
 		&i.WorkspaceRole,
+		&i.OauthClientName,
 	)
 	return i, err
 }

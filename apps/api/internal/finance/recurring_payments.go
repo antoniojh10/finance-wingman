@@ -276,6 +276,8 @@ func (s *Service) RegisterRecurringPayment(ctx context.Context, itemID uuid.UUID
 		if err != nil {
 			return err
 		}
+		// Not logged on its own: the transaction.created entry covers a
+		// transaction created already linked.
 		if err := tx.q.LinkTransactionToRecurring(ctx, store.LinkTransactionToRecurringParams{
 			ID: created.ID, RecurringID: &itemID, RecurringDueOn: &period,
 		}); err != nil {
@@ -317,9 +319,15 @@ func (s *Service) LinkTransactionToRecurring(ctx context.Context, txID uuid.UUID
 	if err != nil {
 		return Transaction{}, err
 	}
-	if err := s.q.LinkTransactionToRecurring(ctx, store.LinkTransactionToRecurringParams{
-		ID: txID, RecurringID: &in.RecurringID, RecurringDueOn: &period,
-	}); err != nil {
+	err = s.withTx(ctx, func(tx *Service) error {
+		if err := tx.q.LinkTransactionToRecurring(ctx, store.LinkTransactionToRecurringParams{
+			ID: txID, RecurringID: &in.RecurringID, RecurringDueOn: &period,
+		}); err != nil {
+			return err
+		}
+		return tx.recordRecurringLink(ctx, rec, &in.RecurringID, &period)
+	})
+	if err != nil {
 		return Transaction{}, err
 	}
 	return s.GetTransaction(ctx, txID)
@@ -328,10 +336,20 @@ func (s *Service) LinkTransactionToRecurring(ctx context.Context, txID uuid.UUID
 // UnlinkTransactionFromRecurring removes the link of a transaction. It is
 // a no-op for a transaction that is not linked.
 func (s *Service) UnlinkTransactionFromRecurring(ctx context.Context, txID uuid.UUID) (Transaction, error) {
-	if _, err := s.GetTransaction(ctx, txID); err != nil {
+	rec, err := s.q.GetTransactionRecord(ctx, txID)
+	if isNoRows(err) {
+		return Transaction{}, NotFound("transaction")
+	}
+	if err != nil {
 		return Transaction{}, err
 	}
-	if err := s.q.UnlinkTransactionFromRecurring(ctx, txID); err != nil {
+	err = s.withTx(ctx, func(tx *Service) error {
+		if err := tx.q.UnlinkTransactionFromRecurring(ctx, txID); err != nil {
+			return err
+		}
+		return tx.recordRecurringLink(ctx, rec, nil, nil)
+	})
+	if err != nil {
 		return Transaction{}, err
 	}
 	return s.GetTransaction(ctx, txID)

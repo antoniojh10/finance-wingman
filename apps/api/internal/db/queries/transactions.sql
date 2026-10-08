@@ -97,8 +97,9 @@ WHERE id = $1;
 -- name: GetTransactionRecord :one
 SELECT * FROM transactions WHERE id = $1;
 
--- name: DeleteTransaction :execrows
-DELETE FROM transactions WHERE id = $1;
+-- name: DeleteTransaction :one
+DELETE FROM transactions WHERE id = $1
+RETURNING type, account_id, destination_account_id;
 
 -- name: LinkTransactionToRecurring :exec
 UPDATE transactions SET recurring_id = $2, recurring_due_on = $3 WHERE id = $1;

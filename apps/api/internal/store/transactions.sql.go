@@ -51,16 +51,22 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 	return id, err
 }
 
-const deleteTransaction = `-- name: DeleteTransaction :execrows
+const deleteTransaction = `-- name: DeleteTransaction :one
 DELETE FROM transactions WHERE id = $1
+RETURNING type, account_id, destination_account_id
 `
 
-func (q *Queries) DeleteTransaction(ctx context.Context, id uuid.UUID) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteTransaction, id)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
+type DeleteTransactionRow struct {
+	Type                 string
+	AccountID            uuid.UUID
+	DestinationAccountID *uuid.UUID
+}
+
+func (q *Queries) DeleteTransaction(ctx context.Context, id uuid.UUID) (DeleteTransactionRow, error) {
+	row := q.db.QueryRow(ctx, deleteTransaction, id)
+	var i DeleteTransactionRow
+	err := row.Scan(&i.Type, &i.AccountID, &i.DestinationAccountID)
+	return i, err
 }
 
 const getTransaction = `-- name: GetTransaction :one
