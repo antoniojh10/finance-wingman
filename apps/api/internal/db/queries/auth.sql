@@ -63,7 +63,7 @@ RETURNING *;
 -- The session's workspace is only reported while the user is still a
 -- member of it.
 -- name: GetSessionByTokenHash :one
-SELECT s.*, u.email, u.name, u.locale,
+SELECT s.*, u.email, u.name, u.locale, u.deletion_scheduled_for AS user_deletion_scheduled_for,
     w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role
 FROM sessions s
 JOIN users u ON u.id = s.user_id

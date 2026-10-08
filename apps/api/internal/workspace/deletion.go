@@ -94,19 +94,22 @@ func (s *Service) CancelDeletion(ctx context.Context, actorID, workspaceID uuid.
 	return nil
 }
 
-// ExecuteScheduledDeletions carries out the deletions whose grace period is
-// over. It is meant to run periodically; several API instances can run it
-// at once. Each deletion commits on its own, so a failure leaves the others
-// done; email failures are reported after every deletion has run.
+// ExecuteScheduledDeletions carries out the workspace and account deletions
+// whose grace period is over. It is meant to run periodically; several API
+// instances can run it at once. Each deletion commits on its own, so a
+// failure leaves the others done; email failures are reported after every
+// deletion has run.
 func (s *Service) ExecuteScheduledDeletions(ctx context.Context) error {
 	var errs []error
-	for {
-		done, err := s.deleteNextDueWorkspace(ctx)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if !done {
-			break
+	for _, next := range []func(context.Context) (bool, error){s.deleteNextDueWorkspace, s.deleteNextDueAccount} {
+		for {
+			done, err := next(ctx)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			if !done {
+				break
+			}
 		}
 	}
 	return errors.Join(errs...)

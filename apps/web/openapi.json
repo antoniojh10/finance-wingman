@@ -132,6 +132,75 @@
         ],
         "type": "object"
       },
+      "AccountDeletion": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/AccountDeletion.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "scheduled_for": {
+            "description": "When the account will be deleted; omitted unless a deletion is scheduled",
+            "format": "date-time",
+            "type": "string"
+          },
+          "workspaces": {
+            "items": {
+              "$ref": "#/components/schemas/AccountDeletionImpact"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "workspaces"
+        ],
+        "type": "object"
+      },
+      "AccountDeletionImpact": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "members": {
+            "description": "Number of members, the user included",
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "outcome": {
+            "description": "leave: the user leaves and their accounts become shared; delete: the user is the only member, so the workspace and all its data are deleted; blocked: the user is the only owner of a workspace with other members, which prevents the deletion",
+            "enum": [
+              "leave",
+              "delete",
+              "blocked"
+            ],
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "owner",
+              "member"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "role",
+          "members",
+          "outcome"
+        ],
+        "type": "object"
+      },
       "BatchInputCreateAccountInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -2221,6 +2290,29 @@
         ],
         "type": "object"
       },
+      "Schedule-account-deletionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Schedule-account-deletionRequest.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "email": {
+            "description": "The user's email address, to confirm",
+            "maxLength": 254,
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "type": "object"
+      },
       "Session": {
         "additionalProperties": false,
         "properties": {
@@ -2920,6 +3012,11 @@
             "readOnly": true,
             "type": "string"
           },
+          "deletion_scheduled_for": {
+            "description": "When the account will be deleted; omitted unless a deletion is scheduled",
+            "format": "date-time",
+            "type": "string"
+          },
           "email": {
             "format": "email",
             "type": "string"
@@ -3566,6 +3663,101 @@
           }
         },
         "summary": "Update the signed-in user's profile",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me/deletion": {
+      "delete": {
+        "description": "From a signed-in browser session.",
+        "operationId": "cancel-account-deletion",
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Cancel the scheduled deletion of the user's account",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "get": {
+        "description": "Whether the account is scheduled for deletion, and what deleting it does to each of the user's workspaces.",
+        "operationId": "get-account-deletion",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletion"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Describe the deletion of the user's account",
+        "tags": [
+          "Auth"
+        ]
+      },
+      "post": {
+        "description": "From a signed-in browser session; the body repeats the user's email to confirm. Refused (409) while the user is the only owner of a workspace with other members. Once the grace period (7 days) is over, the user leaves every workspace (their accounts become shared), workspaces where they are the only member are deleted with all their data, and the user is deleted with their sessions and connected apps. Until then they can sign in and cancel. The user is emailed when it is scheduled and when it is carried out.",
+        "operationId": "schedule-account-deletion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Schedule-account-deletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDeletion"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Schedule the deletion of the user's account",
         "tags": [
           "Auth"
         ]

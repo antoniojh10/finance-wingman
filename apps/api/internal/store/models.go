@@ -187,12 +187,13 @@ type Transaction struct {
 }
 
 type User struct {
-	ID        uuid.UUID
-	Email     string
-	Name      string
-	Locale    string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID                   uuid.UUID
+	Email                string
+	Name                 string
+	Locale               string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	DeletionScheduledFor *time.Time
 }
 
 type Workspace struct {

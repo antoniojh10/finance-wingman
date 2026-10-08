@@ -295,7 +295,7 @@ func (q *Queries) GetMembership(ctx context.Context, arg GetMembershipParams) (G
 }
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
-SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, s.workspace_id, s.user_agent, u.email, u.name, u.locale,
+SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, s.workspace_id, s.user_agent, u.email, u.name, u.locale, u.deletion_scheduled_for AS user_deletion_scheduled_for,
     w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role
 FROM sessions s
 JOIN users u ON u.id = s.user_id
@@ -305,23 +305,24 @@ WHERE s.token_hash = $1
 `
 
 type GetSessionByTokenHashRow struct {
-	ID                uuid.UUID
-	UserID            uuid.UUID
-	TokenHash         []byte
-	Client            string
-	ExpiresAt         time.Time
-	LastUsedAt        time.Time
-	CreatedAt         time.Time
-	OauthClientID     *string
-	OauthFamilyID     *uuid.UUID
-	WorkspaceID       *uuid.UUID
-	UserAgent         string
-	Email             string
-	Name              string
-	Locale            string
-	ActiveWorkspaceID *uuid.UUID
-	WorkspaceName     *string
-	WorkspaceRole     *string
+	ID                       uuid.UUID
+	UserID                   uuid.UUID
+	TokenHash                []byte
+	Client                   string
+	ExpiresAt                time.Time
+	LastUsedAt               time.Time
+	CreatedAt                time.Time
+	OauthClientID            *string
+	OauthFamilyID            *uuid.UUID
+	WorkspaceID              *uuid.UUID
+	UserAgent                string
+	Email                    string
+	Name                     string
+	Locale                   string
+	UserDeletionScheduledFor *time.Time
+	ActiveWorkspaceID        *uuid.UUID
+	WorkspaceName            *string
+	WorkspaceRole            *string
 }
 
 // The session's workspace is only reported while the user is still a
@@ -344,6 +345,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.Email,
 		&i.Name,
 		&i.Locale,
+		&i.UserDeletionScheduledFor,
 		&i.ActiveWorkspaceID,
 		&i.WorkspaceName,
 		&i.WorkspaceRole,
@@ -352,7 +354,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, email, name, locale, created_at, updated_at FROM users WHERE id = $1
+SELECT id, email, name, locale, created_at, updated_at, deletion_scheduled_for FROM users WHERE id = $1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
@@ -365,12 +367,13 @@ func (q *Queries) GetUser(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, name, locale, created_at, updated_at FROM users WHERE email = $1
+SELECT id, email, name, locale, created_at, updated_at, deletion_scheduled_for FROM users WHERE email = $1
 `
 
 func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
@@ -383,6 +386,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
 	)
 	return i, err
 }
@@ -451,7 +455,7 @@ func (q *Queries) ListUserSessions(ctx context.Context, arg ListUserSessionsPara
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, email, name, locale, created_at, updated_at FROM users ORDER BY created_at
+SELECT id, email, name, locale, created_at, updated_at, deletion_scheduled_for FROM users ORDER BY created_at
 `
 
 func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
@@ -470,6 +474,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Locale,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DeletionScheduledFor,
 		); err != nil {
 			return nil, err
 		}
@@ -516,7 +521,7 @@ UPDATE users SET
     name = COALESCE($1, name),
     locale = COALESCE($2, locale)
 WHERE id = $3
-RETURNING id, email, name, locale, created_at, updated_at
+RETURNING id, email, name, locale, created_at, updated_at, deletion_scheduled_for
 `
 
 type UpdateUserParams struct {
@@ -535,6 +540,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, e
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
 	)
 	return i, err
 }
@@ -543,7 +549,7 @@ const upsertUser = `-- name: UpsertUser :one
 INSERT INTO users (email, name)
 VALUES ($1, $2)
 ON CONFLICT (email) DO UPDATE SET name = CASE WHEN EXCLUDED.name = '' THEN users.name ELSE EXCLUDED.name END
-RETURNING id, email, name, locale, created_at, updated_at
+RETURNING id, email, name, locale, created_at, updated_at, deletion_scheduled_for
 `
 
 type UpsertUserParams struct {
@@ -561,6 +567,7 @@ func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) (User, e
 		&i.Locale,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
 	)
 	return i, err
 }

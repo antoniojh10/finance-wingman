@@ -47,6 +47,7 @@ func registerWorkspaces(api huma.API, svc *workspace.Service, authSvc *auth.Serv
 	h.registerWorkspaces(api)
 	h.registerMembers(api)
 	h.registerInvitations(api)
+	h.registerAccountDeletion(api)
 }
 
 func (h *workspaceHandlers) fail(ctx context.Context, err error) error {

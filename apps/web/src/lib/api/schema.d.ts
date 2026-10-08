@@ -162,6 +162,34 @@ export interface paths {
         patch: operations["update-current-user"];
         trace?: never;
     };
+    "/api/v1/auth/me/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Describe the deletion of the user's account
+         * @description Whether the account is scheduled for deletion, and what deleting it does to each of the user's workspaces.
+         */
+        get: operations["get-account-deletion"];
+        put?: never;
+        /**
+         * Schedule the deletion of the user's account
+         * @description From a signed-in browser session; the body repeats the user's email to confirm. Refused (409) while the user is the only owner of a workspace with other members. Once the grace period (7 days) is over, the user leaves every workspace (their accounts become shared), workspaces where they are the only member are deleted with all their data, and the user is deleted with their sessions and connected apps. Until then they can sign in and cancel. The user is emailed when it is scheduled and when it is carried out.
+         */
+        post: operations["schedule-account-deletion"];
+        /**
+         * Cancel the scheduled deletion of the user's account
+         * @description From a signed-in browser session.
+         */
+        delete: operations["cancel-account-deletion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/session": {
         parameters: {
             query?: never;
@@ -1008,6 +1036,36 @@ export interface components {
             type: "checking" | "savings" | "credit_card" | "cash" | "investment" | "other";
             /** Format: date-time */
             updated_at: string;
+        };
+        AccountDeletion: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/AccountDeletion.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description When the account will be deleted; omitted unless a deletion is scheduled
+             */
+            scheduled_for?: string;
+            workspaces: components["schemas"]["AccountDeletionImpact"][];
+        };
+        AccountDeletionImpact: {
+            id: string;
+            /**
+             * Format: int64
+             * @description Number of members, the user included
+             */
+            members: number;
+            name: string;
+            /**
+             * @description leave: the user leaves and their accounts become shared; delete: the user is the only member, so the workspace and all its data are deleted; blocked: the user is the only owner of a workspace with other members, which prevents the deletion
+             * @enum {string}
+             */
+            outcome: "leave" | "delete" | "blocked";
+            /** @enum {string} */
+            role: "owner" | "member";
         };
         BatchInputCreateAccountInputBody: {
             /**
@@ -1931,6 +1989,16 @@ export interface components {
              */
             revoked: number;
         };
+        "Schedule-account-deletionRequest": {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Schedule-account-deletionRequest.json
+             */
+            readonly $schema?: string;
+            /** @description The user's email address, to confirm */
+            email: string;
+        };
         Session: {
             /**
              * Format: uri
@@ -2230,6 +2298,11 @@ export interface components {
              * @example https://example.com/schemas/User.json
              */
             readonly $schema?: string;
+            /**
+             * Format: date-time
+             * @description When the account will be deleted; omitted unless a deletion is scheduled
+             */
+            deletion_scheduled_for?: string;
             /** Format: email */
             email: string;
             id: string;
@@ -2670,6 +2743,95 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["User"];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-account-deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeletion"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "schedule-account-deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Schedule-account-deletionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeletion"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "cancel-account-deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {

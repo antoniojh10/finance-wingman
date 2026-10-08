@@ -108,6 +108,9 @@ type User struct {
 	Email  string    `json:"email" format:"email"`
 	Name   string    `json:"name"`
 	Locale string    `json:"locale" enum:"en,es"`
+	// DeletionScheduledFor is set while the account is scheduled for
+	// deletion.
+	DeletionScheduledFor *time.Time `json:"deletion_scheduled_for,omitempty" doc:"When the account will be deleted; omitted unless a deletion is scheduled"`
 }
 
 type Session struct {
@@ -128,7 +131,7 @@ type SessionWorkspace struct {
 }
 
 func userFromModel(u store.User) User {
-	return User{ID: u.ID, Email: u.Email, Name: u.Name, Locale: u.Locale}
+	return User{ID: u.ID, Email: u.Email, Name: u.Name, Locale: u.Locale, DeletionScheduledFor: u.DeletionScheduledFor}
 }
 
 // NormalizeEmail lowercases and validates an email address.
@@ -440,7 +443,7 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 		ID:        row.ID,
 		Client:    row.Client,
 		ExpiresAt: row.ExpiresAt,
-		User:      User{ID: row.UserID, Email: row.Email, Name: row.Name, Locale: row.Locale},
+		User:      User{ID: row.UserID, Email: row.Email, Name: row.Name, Locale: row.Locale, DeletionScheduledFor: row.UserDeletionScheduledFor},
 	}
 	if row.ActiveWorkspaceID != nil {
 		session.Workspace = &SessionWorkspace{ID: *row.ActiveWorkspaceID, Name: *row.WorkspaceName, Role: *row.WorkspaceRole}
