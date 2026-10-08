@@ -31,7 +31,7 @@ type updateTransactionsArgs struct {
 func (s *Server) registerUpdateTransactionTools() {
 	annotations := &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), IdempotentHint: true, OpenWorldHint: boolPtr(false)}
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:  "update_transaction",
 		Title: "Update transaction",
 		Description: "Edit an existing transaction: only the fields you pass change (amount, date, description, category, account, and for transfers to_account and destination_amount). " +
@@ -42,7 +42,7 @@ func (s *Server) registerUpdateTransactionTools() {
 		return s.updateTransaction(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:  "update_transactions",
 		Title: "Update several transactions",
 		Description: "Edit up to 100 existing transactions in one call, e.g. to re-categorize many of them. Each item has an id (from list_transactions) and only the fields to change, as in update_transaction. " +

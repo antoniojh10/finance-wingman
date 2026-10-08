@@ -23,8 +23,10 @@ WHERE r.id = $1;
 -- name: SetAuthorizationRequestEmail :exec
 UPDATE oauth_authorization_requests SET email = $2 WHERE id = $1;
 
+-- Records who signed in and the access they chose, while they pick the
+-- workspace.
 -- name: SetAuthorizationRequestUser :exec
-UPDATE oauth_authorization_requests SET user_id = $2 WHERE id = $1;
+UPDATE oauth_authorization_requests SET user_id = $2, scope = $3 WHERE id = $1;
 
 -- name: DeleteAuthorizationRequest :exec
 DELETE FROM oauth_authorization_requests WHERE id = $1;
@@ -96,8 +98,8 @@ WHERE family_id = $1 AND revoked_at IS NULL;
 DELETE FROM sessions WHERE oauth_family_id = $1;
 
 -- name: CreateOAuthSession :one
-INSERT INTO sessions (user_id, token_hash, client, expires_at, oauth_client_id, oauth_family_id, workspace_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO sessions (user_id, token_hash, client, expires_at, oauth_client_id, oauth_family_id, workspace_id, scope)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id;
 
 -- name: GetSessionFamily :one

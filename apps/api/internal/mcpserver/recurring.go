@@ -137,7 +137,7 @@ type listRecurringOut struct {
 }
 
 func (s *Server) registerRecurringTools() {
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "list_recurring",
 		Title:       "List recurring items",
 		Description: "List subscriptions, bills, installments and recurring income (users may call them subscriptions) with their next due date and status, plus the committed monthly cost per currency (active items only, normalized to an average month, estimates). Use it to answer what subscriptions exist or how much they cost per month.",
@@ -146,7 +146,7 @@ func (s *Server) registerRecurringTools() {
 		return s.listRecurring(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "list_upcoming_recurring",
 		Title:       "List upcoming recurring payments",
 		Description: "List what is due in the next days (default 30, today included) plus overdue unpaid items, ordered by due date, with status paid, pending or overdue. Use it for 'what is due this week?' or 'what is still pending this month?' (pending and overdue are unpaid).",
@@ -155,7 +155,7 @@ func (s *Server) registerRecurringTools() {
 		return s.listUpcomingRecurring(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "mark_recurring_paid",
 		Title:       "Mark recurring item as paid",
 		Description: "Record that a recurring item (subscription, bill, installment, salary) was paid or received: creates the linked expense or income transaction using the item's account, category and name, and marks the period paid. Use it instead of add_expense or add_income when the user paid something that matches a recurring item. Optional amount, date and period overrides. If the period is already paid it fails and explains how to proceed; ask the user before retrying with an explicit period.",
@@ -164,7 +164,7 @@ func (s *Server) registerRecurringTools() {
 		return s.markRecurringPaid(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "create_recurring",
 		Title:       "Create recurring item",
 		Description: "Track a new subscription, bill, installment plan or recurring income, e.g. 'Spotify, 99 a month starting on the 5th'. It only records the schedule and an estimated amount; it does not create transactions. Check list_recurring first to avoid duplicates.",
@@ -173,7 +173,7 @@ func (s *Server) registerRecurringTools() {
 		return s.createRecurring(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "update_recurring",
 		Title:       "Update recurring item",
 		Description: "Edit a recurring item found by name: change its amount, schedule, name, category or notes, or pause, resume or cancel it (status). Only the fields you pass change; the type and account cannot be changed (cancel it and create a new one instead). Cancelled items are kept for history and excluded from the committed monthly cost.",

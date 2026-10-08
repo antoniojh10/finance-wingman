@@ -109,7 +109,7 @@ func (w budgetWarningOut) message() string {
 }
 
 func (s *Server) registerBudgetTools() {
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:  "get_budget_status",
 		Title: "Budget status",
 		Description: "Monthly budgets per currency and expense category: the budget in force (set in the month or inherited from an earlier one), spent, committed (unpaid recurring expenses due in the month, not counted as spent), remaining and state (ok, near at 80% or more, over, none when the category has no budget). " +
@@ -119,7 +119,7 @@ func (s *Server) registerBudgetTools() {
 		return s.budgetStatus(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:  "set_budgets",
 		Title: "Set budgets",
 		Description: "Set or clear monthly budgets for expense categories, one amount per category and currency, starting in a month (later months inherit it). " +
@@ -129,7 +129,7 @@ func (s *Server) registerBudgetTools() {
 		return s.setBudgets(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:  "suggest_budgets",
 		Title: "Suggest budgets",
 		Description: "Suggest a monthly budget per currency and expense category from the 3 complete months before the month: the median monthly spending plus unpaid recurring expenses, rounded up to a whole currency unit. " +

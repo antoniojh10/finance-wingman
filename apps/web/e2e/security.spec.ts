@@ -19,13 +19,18 @@ async function invite(page: Page, email: string): Promise<string> {
   return invitationLinkFrom(await latestEmail(email, since));
 }
 
-type Tokens = { access_token: string; refresh_token: string };
+type Tokens = { access_token: string; refresh_token: string; scope: string };
 
 /**
  * Connects an app the way an MCP host does: dynamic registration, the
- * authorization page with an emailed code, and the token exchange.
+ * authorization page with an emailed code (choosing the access), and the
+ * token exchange.
  */
-async function connectApp(name: string, email: string): Promise<{ clientId: string; tokens: Tokens }> {
+async function connectApp(
+  name: string,
+  email: string,
+  access: "read_write" | "read_only",
+): Promise<{ clientId: string; tokens: Tokens }> {
   const redirectUri = "http://127.0.0.1:9/callback";
   const registered = await fetch(`${apiUrl}/oauth/register`, {
     method: "POST",
@@ -58,7 +63,7 @@ async function connectApp(name: string, email: string): Promise<{ clientId: stri
     });
   const since = new Date(Date.now() - 1000);
   expect((await submit({ action: "send_code", email })).status).toBe(200);
-  const approved = await submit({ action: "verify", code: codeFrom(await latestEmail(email, since)) });
+  const approved = await submit({ action: "verify", code: codeFrom(await latestEmail(email, since)), access });
   expect(approved.status).toBe(302);
   const code = new URL(approved.headers.get("location")!).searchParams.get("code")!;
 
@@ -129,12 +134,14 @@ test("signs out other sessions and disconnects apps", async ({ page, browser }, 
   await other.goto("/");
   await expect(other).toHaveURL(/\/login/);
 
-  // Connect an AI assistant, then disconnect it.
+  // Connect an AI assistant with read-only access, then disconnect it.
   const appName = `E2E Assistant ${suffix}`;
-  const { clientId, tokens } = await connectApp(appName, person);
+  const { clientId, tokens } = await connectApp(appName, person, "read_only");
+  expect(tokens.scope).toBe("finance:read");
   await laptop.reload();
   const connection = laptop.getByTestId("connection-row").filter({ hasText: appName });
   await expect(connection).toContainText(workspace);
+  await expect(connection).toContainText("Read only");
   await connection.getByRole("button", { name: `Disconnect ${appName}` }).click();
   await laptop.getByRole("alertdialog").getByRole("button", { name: "Disconnect" }).click();
   await expect(laptop.getByText("App disconnected")).toBeVisible();

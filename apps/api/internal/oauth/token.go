@@ -7,6 +7,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -23,7 +25,10 @@ type tokenResponse struct {
 	Scope        string `json:"scope"`
 }
 
-var errInvalidClient = errors.New("invalid client")
+var (
+	errInvalidClient = errors.New("invalid client")
+	errScopeExceeded = errors.New("requested scope exceeds the grant")
+)
 
 // authenticateClient identifies the client and verifies its secret when it
 // was registered as confidential.
@@ -110,6 +115,9 @@ func (s *Server) exchangeCode(w http.ResponseWriter, r *http.Request, client sto
 		return
 	}
 
+	// The scope the user approved; codes issued before scopes existed carry
+	// the legacy scope, which is read and write.
+	scope := auth.FormatScope(auth.ParseScope(record.Scope))
 	var resp tokenResponse
 	err = pgx.BeginFunc(r.Context(), s.pool, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
@@ -119,12 +127,12 @@ func (s *Server) exchangeCode(w http.ResponseWriter, r *http.Request, client sto
 			ClientID:    client.ID,
 			UserID:      record.UserID,
 			WorkspaceID: record.WorkspaceID,
-			Scope:       Scope,
+			Scope:       scope,
 		}); err != nil {
 			return err
 		}
 		var err error
-		resp, err = s.issueTokens(r.Context(), q, client.ID, record.UserID, record.WorkspaceID, grant)
+		resp, err = s.issueTokens(r.Context(), q, client.ID, record.UserID, record.WorkspaceID, grant, scope)
 		return err
 	})
 	if err != nil {
@@ -146,6 +154,7 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, client store.Oa
 		return
 	}
 	hash := auth.HashToken(token)
+	requested := strings.Fields(r.PostForm.Get("scope"))
 
 	old, err := s.q.GetRefreshToken(ctx, hash)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -190,12 +199,27 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, client store.Oa
 			failure = "refresh token expired"
 			return nil
 		}
+		// New tokens always carry the grant's scope (the one the user
+		// approved, read under the grant lock), never more. A client may
+		// not ask for write access on refresh if it was not granted (RFC
+		// 6749 §6); like at authorization, unknown scopes are ignored. The
+		// refusal rolls back the rotation, so the refresh token keeps
+		// working.
+		scopes := auth.ParseScope(grant.Scope)
+		asksWrite := slices.Contains(requested, auth.ScopeWrite) || slices.Contains(requested, "finance")
+		if asksWrite && !slices.Contains(scopes, auth.ScopeWrite) {
+			return errScopeExceeded
+		}
 		if err := q.TouchOAuthGrant(ctx, grant.ID); err != nil {
 			return err
 		}
-		resp, err = s.issueTokens(ctx, q, client.ID, record.UserID, record.WorkspaceID, grant.ID)
+		resp, err = s.issueTokens(ctx, q, client.ID, record.UserID, record.WorkspaceID, grant.ID, auth.FormatScope(scopes))
 		return err
 	})
+	if errors.Is(err, errScopeExceeded) {
+		oauthError(w, http.StatusBadRequest, "invalid_scope", "the requested scope exceeds the one granted")
+		return
+	}
 	if err != nil {
 		s.serverError(w, r, "refresh tokens", err)
 		return
@@ -209,7 +233,12 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, client store.Oa
 
 // issueTokens creates an access token (a session acting on workspaceID) and
 // a refresh token of the grant, which keeps the same workspace when rotated.
-func (s *Server) issueTokens(ctx context.Context, q *store.Queries, clientID string, userID uuid.UUID, workspaceID *uuid.UUID, grant uuid.UUID) (tokenResponse, error) {
+// Both carry scope, the grant's: an empty scope would mean full access, so
+// it is refused.
+func (s *Server) issueTokens(ctx context.Context, q *store.Queries, clientID string, userID uuid.UUID, workspaceID *uuid.UUID, grant uuid.UUID, scope string) (tokenResponse, error) {
+	if scope == "" {
+		return tokenResponse{}, errors.New("oauth: issuing tokens without a scope")
+	}
 	access, err := auth.RandomToken()
 	if err != nil {
 		return tokenResponse{}, err
@@ -227,6 +256,7 @@ func (s *Server) issueTokens(ctx context.Context, q *store.Queries, clientID str
 		OauthClientID: &clientID,
 		OauthFamilyID: &grant,
 		WorkspaceID:   workspaceID,
+		Scope:         scope,
 	}); err != nil {
 		return tokenResponse{}, err
 	}
@@ -235,7 +265,7 @@ func (s *Server) issueTokens(ctx context.Context, q *store.Queries, clientID str
 		FamilyID:    grant,
 		ClientID:    clientID,
 		UserID:      userID,
-		Scope:       Scope,
+		Scope:       scope,
 		WorkspaceID: workspaceID,
 		ExpiresAt:   now.Add(s.cfg.RefreshTokenTTL),
 	}); err != nil {
@@ -246,7 +276,7 @@ func (s *Server) issueTokens(ctx context.Context, q *store.Queries, clientID str
 		TokenType:    "Bearer",
 		ExpiresIn:    int64(s.cfg.AccessTokenTTL.Seconds()),
 		RefreshToken: refresh,
-		Scope:        Scope,
+		Scope:        scope,
 	}, nil
 }
 

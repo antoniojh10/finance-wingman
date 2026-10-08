@@ -83,7 +83,7 @@ func (q *Queries) CreateChallenge(ctx context.Context, arg CreateChallengeParams
 const createSession = `-- name: CreateSession :one
 INSERT INTO sessions (user_id, token_hash, client, expires_at, workspace_id, user_agent, last_used_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, user_id, token_hash, client, expires_at, last_used_at, created_at, oauth_client_id, oauth_family_id, workspace_id, user_agent
+RETURNING id, user_id, token_hash, client, expires_at, last_used_at, created_at, oauth_client_id, oauth_family_id, workspace_id, user_agent, scope
 `
 
 type CreateSessionParams struct {
@@ -119,6 +119,7 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		&i.OauthFamilyID,
 		&i.WorkspaceID,
 		&i.UserAgent,
+		&i.Scope,
 	)
 	return i, err
 }
@@ -295,7 +296,7 @@ func (q *Queries) GetMembership(ctx context.Context, arg GetMembershipParams) (G
 }
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
-SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, s.workspace_id, s.user_agent, u.email, u.name, u.locale, u.deletion_scheduled_for AS user_deletion_scheduled_for,
+SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, s.workspace_id, s.user_agent, s.scope, u.email, u.name, u.locale, u.deletion_scheduled_for AS user_deletion_scheduled_for,
     w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role,
     oc.name AS oauth_client_name
 FROM sessions s
@@ -318,6 +319,7 @@ type GetSessionByTokenHashRow struct {
 	OauthFamilyID            *uuid.UUID
 	WorkspaceID              *uuid.UUID
 	UserAgent                string
+	Scope                    string
 	Email                    string
 	Name                     string
 	Locale                   string
@@ -345,6 +347,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.OauthFamilyID,
 		&i.WorkspaceID,
 		&i.UserAgent,
+		&i.Scope,
 		&i.Email,
 		&i.Name,
 		&i.Locale,

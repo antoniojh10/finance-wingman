@@ -180,6 +180,7 @@ type Session struct {
 	OauthFamilyID *uuid.UUID
 	WorkspaceID   *uuid.UUID
 	UserAgent     string
+	Scope         string
 }
 
 type Transaction struct {

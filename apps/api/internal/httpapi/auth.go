@@ -50,6 +50,12 @@ func authMiddleware(api huma.API, svc *auth.Service, logger *slog.Logger) func(h
 			_ = huma.WriteErr(api, ctx, http.StatusInternalServerError, "internal server error")
 			return
 		}
+		if !session.CanWrite() && !safeMethod(ctx.Method()) {
+			// A read-only OAuth token (finance:read) cannot change anything,
+			// whichever endpoint it calls.
+			_ = huma.WriteErr(api, ctx, http.StatusForbidden, errReadOnly)
+			return
+		}
 		ctx = huma.WithValue(ctx, sessionKey{}, session)
 		reqCtx := finance.WithActor(ctx.Context(), session.User.ID)
 		reqCtx = finance.WithChannel(reqCtx, sessionChannel(session))
@@ -70,6 +76,13 @@ func sessionChannel(session auth.Session) finance.Channel {
 		return finance.Channel{Kind: finance.ChannelMCP}
 	}
 	return finance.Channel{Kind: finance.ChannelWeb}
+}
+
+// errReadOnly is returned when a read-only connection tries to change data.
+const errReadOnly = "this connection is read-only: it was granted finance:read without finance:write"
+
+func safeMethod(method string) bool {
+	return method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions
 }
 
 // errNoWorkspace is returned by workspace-scoped operations when the session

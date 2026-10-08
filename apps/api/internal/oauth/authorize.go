@@ -67,7 +67,7 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		RedirectUri:   redirectURI,
 		CodeChallenge: q.Get("code_challenge"),
 		State:         state,
-		Scope:         Scope,
+		Scope:         requestedScope(q.Get("scope")),
 		Resource:      s.ResourceURL(),
 		ExpiresAt:     s.now().Add(s.cfg.AuthorizationRequestTTL),
 	})
@@ -83,6 +83,7 @@ func (s *Server) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		RequestID:    req.ID.String(),
 		ClientName:   displayName(client.Name),
 		RedirectHost: hostOf(redirectURI),
+		OfferWrite:   canOfferWrite(req.Scope),
 	})
 }
 
@@ -115,6 +116,8 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 		RequestID:    req.ID.String(),
 		ClientName:   displayName(req.ClientName),
 		RedirectHost: hostOf(req.RedirectUri),
+		OfferWrite:   canOfferWrite(req.Scope),
+		Access:       accessReadWrite,
 	}
 
 	switch r.PostForm.Get("action") {
@@ -145,6 +148,12 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 			s.renderPage(w, r, http.StatusBadRequest, page)
 			return
 		}
+		// The access the user chose next to the code; it can only narrow
+		// what the client asked for.
+		scope := grantedScope(req.Scope, r.PostForm.Get("access"))
+		if scope != auth.FullScope {
+			page.Access = accessReadOnly
+		}
 		user, err := s.auth.AuthenticateCode(r.Context(), *req.Email, r.PostForm.Get("code"))
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			page.Step, page.Email, page.Error = stepCode, *req.Email, msgInvalidCode
@@ -166,10 +175,10 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 		case 0:
 			s.renderError(w, r, locale, http.StatusForbidden, msgNoWorkspace)
 		case 1:
-			s.approve(w, r, locale, req, user.ID, workspaces[0].ID)
+			s.approve(w, r, locale, req, user.ID, workspaces[0].ID, scope)
 		default:
 			// The client acts on a single workspace: let the user pick it.
-			if err := s.q.SetAuthorizationRequestUser(r.Context(), store.SetAuthorizationRequestUserParams{ID: req.ID, UserID: &user.ID}); err != nil {
+			if err := s.q.SetAuthorizationRequestUser(r.Context(), store.SetAuthorizationRequestUserParams{ID: req.ID, UserID: &user.ID, Scope: scope}); err != nil {
 				s.logger.ErrorContext(r.Context(), "oauth: set request user", "error", err)
 				s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
 				return
@@ -203,7 +212,8 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 			s.renderPage(w, r, http.StatusUnprocessableEntity, page)
 			return
 		}
-		s.approve(w, r, locale, req, *req.UserID, workspaceID)
+		// The scope was narrowed to the user's choice when they signed in.
+		s.approve(w, r, locale, req, *req.UserID, workspaceID, req.Scope)
 
 	case "change_email":
 		page.Step = stepEmail
@@ -220,10 +230,10 @@ func (s *Server) handleAuthorizeSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// approve issues the authorization code for the chosen workspace and sends
-// the user back to the client.
-func (s *Server) approve(w http.ResponseWriter, r *http.Request, locale string, req store.GetAuthorizationRequestRow, userID, workspaceID uuid.UUID) {
-	code, err := s.issueAuthorizationCode(r, req, userID, &workspaceID)
+// approve issues the authorization code for the chosen workspace and scope
+// and sends the user back to the client.
+func (s *Server) approve(w http.ResponseWriter, r *http.Request, locale string, req store.GetAuthorizationRequestRow, userID, workspaceID uuid.UUID, scope string) {
+	code, err := s.issueAuthorizationCode(r, req, userID, &workspaceID, scope)
 	if err != nil {
 		s.logger.ErrorContext(r.Context(), "oauth: issue authorization code", "error", err)
 		s.renderError(w, r, locale, http.StatusInternalServerError, msgServerError)
@@ -240,7 +250,7 @@ func workspaceOptions(rows []store.ListUserWorkspacesRow, selected uuid.UUID) []
 	return options
 }
 
-func (s *Server) issueAuthorizationCode(r *http.Request, req store.GetAuthorizationRequestRow, userID uuid.UUID, workspaceID *uuid.UUID) (string, error) {
+func (s *Server) issueAuthorizationCode(r *http.Request, req store.GetAuthorizationRequestRow, userID uuid.UUID, workspaceID *uuid.UUID, scope string) (string, error) {
 	code, err := auth.RandomToken()
 	if err != nil {
 		return "", err
@@ -251,7 +261,7 @@ func (s *Server) issueAuthorizationCode(r *http.Request, req store.GetAuthorizat
 		UserID:        userID,
 		RedirectUri:   req.RedirectUri,
 		CodeChallenge: req.CodeChallenge,
-		Scope:         req.Scope,
+		Scope:         scope,
 		WorkspaceID:   workspaceID,
 		ExpiresAt:     s.now().Add(s.cfg.AuthorizationCodeTTL),
 	}); err != nil {

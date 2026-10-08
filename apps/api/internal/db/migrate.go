@@ -84,6 +84,15 @@ func (m *Migrator) Down(ctx context.Context) error {
 	return nil
 }
 
+// DownTo rolls back the migrations applied after version, e.g. to test how
+// a migration's Down section treats existing data.
+func (m *Migrator) DownTo(ctx context.Context, version int64) error {
+	if _, err := m.provider.DownTo(ctx, version); err != nil {
+		return fmt.Errorf("migrate down to %d: %w", version, err)
+	}
+	return nil
+}
+
 // Reset rolls back every applied migration.
 func (m *Migrator) Reset(ctx context.Context) error {
 	if _, err := m.provider.DownTo(ctx, 0); err != nil {
