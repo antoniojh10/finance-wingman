@@ -2,10 +2,11 @@ import { createHash, randomBytes } from "node:crypto";
 
 import { devices, type Page } from "@playwright/test";
 
+import { apiPort } from "../playwright.config";
 import { expect, test } from "./fixtures";
 import { codeFrom, invitationLinkFrom, latestEmail, signIn } from "./helpers";
 
-const apiUrl = "http://localhost:8081";
+const apiUrl = `http://localhost:${apiPort}`;
 
 /** Invites a new person to the owner's workspace and returns the invitation link. */
 async function invite(page: Page, email: string): Promise<string> {
