@@ -258,9 +258,16 @@ func (s *Service) AcceptRecurringSuggestion(ctx context.Context, in AcceptSugges
 		sched := created.schedule()
 		for _, c := range found.Chain {
 			period := sched.ClosestDueOn(c.OccurredOn)
+			rec, err := tx.q.GetTransactionRecord(ctx, c.ID)
+			if err != nil {
+				return err
+			}
 			if err := tx.q.LinkTransactionToRecurring(ctx, store.LinkTransactionToRecurringParams{
 				ID: c.ID, RecurringID: &created.ID, RecurringDueOn: &period,
 			}); err != nil {
+				return err
+			}
+			if err := tx.recordRecurringLink(ctx, rec, &created.ID, &period); err != nil {
 				return err
 			}
 		}
