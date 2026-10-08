@@ -43,3 +43,33 @@ test("an owner schedules and cancels the deletion of a workspace", async ({ brow
   await expect(page.getByRole("status").filter({ hasText: "will be deleted" })).toHaveCount(0);
   await context.close();
 });
+
+test("a user schedules and cancels the deletion of their account", async ({ browser }) => {
+  const email = uniqueEmail("delete-account");
+  const context = await signedInContext(browser, email, { workspace: "Solo" });
+  const page = await context.newPage();
+
+  await page.goto("/settings/security");
+  await expect(page.getByRole("heading", { name: "Delete my account" })).toBeVisible();
+  await expect(page.getByTestId("deletion-impact")).toContainText("it will be deleted with all its data");
+  await page.getByRole("button", { name: "Delete my account" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(/stays in our backups/)).toBeVisible();
+  const confirm = dialog.getByRole("button", { name: "Delete my account" });
+  await expect(confirm).toBeDisabled();
+  await dialog.getByLabel(`Type your email (${email}) to confirm`).fill(email);
+  const since = new Date(Date.now() - 1000);
+  await confirm.click();
+
+  await expect(page.getByText("Account deletion scheduled")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your account will be deleted" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "Your account will be deleted on" })).toBeVisible();
+  expect(await latestEmail(email, since)).toContain("You're the only member of “Solo”");
+
+  await page.getByRole("button", { name: "Cancel deletion" }).click();
+  await expect(page.getByText("Account deletion cancelled")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete my account" })).toBeEnabled();
+  await expect(page.getByRole("status").filter({ hasText: "will be deleted" })).toHaveCount(0);
+  await context.close();
+});

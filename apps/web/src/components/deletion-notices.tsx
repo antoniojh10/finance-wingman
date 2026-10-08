@@ -6,11 +6,26 @@ import { useFormatter, useTranslations } from "next-intl";
  * Banners shown on every page while a deletion is scheduled, linking to
  * where it can be cancelled.
  */
-export function DeletionNotices({ workspace }: { workspace?: { name: string; deletion_scheduled_for?: string } }) {
+export function DeletionNotices({
+  accountDeletion,
+  workspace,
+}: {
+  /** When the user's account will be deleted, if scheduled. */
+  accountDeletion?: string;
+  workspace?: { name: string; deletion_scheduled_for?: string };
+}) {
   const t = useTranslations();
   const format = useFormatter();
   const date = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "long" });
   const notices: { key: string; text: string; href: string; link: string }[] = [];
+  if (accountDeletion) {
+    notices.push({
+      key: "account",
+      text: t("account.banner", { date: date(accountDeletion) }),
+      href: "/settings/security",
+      link: t("account.bannerLink"),
+    });
+  }
   if (workspace?.deletion_scheduled_for) {
     notices.push({
       key: "workspace",

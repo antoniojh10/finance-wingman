@@ -495,5 +495,30 @@
     "useSuggestionFor": "Usar la sugerencia de {name}",
     "noCategories": "Crea una cuenta y una categoría de gasto para definir presupuestos.",
     "saved": "Presupuestos guardados"
+  },
+  "account": {
+    "title": "Eliminar mi cuenta",
+    "description": "Elimina tu cuenta pasados 7 días: sales de todos tus espacios, tus sesiones se cierran y las aplicaciones conectadas se desconectan. Puedes cancelarlo hasta entonces.",
+    "leave": "Saldrás de él; tus cuentas pasan a ser compartidas.",
+    "deleteWorkspace": "Eres su único miembro: se eliminará con todos sus datos. Cámbiate a él y exporta sus datos desde Configuración antes si quieres una copia.",
+    "blocked": "Eres su único propietario y tiene otros miembros. Haz propietario a otro miembro, o elimina el espacio, primero.",
+    "blockedSummary": "No puedes eliminar tu cuenta mientras seas el único propietario de un espacio con otros miembros.",
+    "backups": "Los datos eliminados permanecen en nuestras copias de seguridad hasta que estas caducan.",
+    "delete": "Eliminar mi cuenta",
+    "confirmTitle": "¿Eliminar tu cuenta?",
+    "confirmDescription": "Te enviaremos un correo ahora y eliminaremos tu cuenta el {date}. Entra antes de esa fecha para cancelarlo.",
+    "confirmLabel": "Escribe tu correo ({email}) para confirmar",
+    "confirm": "Eliminar mi cuenta",
+    "emailMismatch": "Escribe tu correo exactamente.",
+    "scheduled": "Eliminación de la cuenta programada",
+    "blockedError": "Eres el único propietario de un espacio con otros miembros. Haz propietario a otro miembro, o elimínalo, primero.",
+    "alreadyScheduled": "Tu cuenta ya está programada para eliminarse.",
+    "scheduledTitle": "Tu cuenta se eliminará",
+    "scheduledDescription": "Tu cuenta se eliminará el {date}.",
+    "cancel": "Cancelar eliminación",
+    "cancelled": "Eliminación de la cuenta cancelada",
+    "banner": "Tu cuenta se eliminará el {date}.",
+    "bannerLink": "Revisar",
+    "workspaces": "Tus espacios"
   }
 }

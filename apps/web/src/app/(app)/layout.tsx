@@ -9,7 +9,7 @@ export default async function AuthenticatedLayout({ children }: { children: Reac
   const membership = workspaces.find((w) => w.id === workspace?.id);
   return (
     <AppShell userName={user.name || user.email} workspace={workspace} workspaces={workspaces}>
-      <DeletionNotices workspace={membership} />
+      <DeletionNotices accountDeletion={user.deletion_scheduled_for} workspace={membership} />
       {/* Every page shows workspace data, which needs a workspace. */}
       {workspace ? children : <NoWorkspace />}
     </AppShell>
