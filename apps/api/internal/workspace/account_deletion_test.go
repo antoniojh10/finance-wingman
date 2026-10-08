@@ -233,6 +233,9 @@ func TestExecuteAccountDeletion(t *testing.T) {
 	if err := f.pool.QueryRow(homeCtx, `SELECT count(*) FROM transactions WHERE created_by IS NULL`).Scan(&unattributed); err != nil || unattributed != 2 {
 		t.Errorf("transactions created by ana should be kept without attribution: %d %v", unattributed, err)
 	}
+	if err := f.pool.QueryRow(homeCtx, `SELECT count(*) FROM activity_log WHERE actor_id IS NULL`).Scan(&unattributed); err != nil || unattributed != 1 {
+		t.Errorf("ana's activity should be kept without attribution: %d %v", unattributed, err)
+	}
 
 	deleted := f.mail.Messages()[sent:]
 	if len(deleted) != 1 || deleted[0].To != "ana@example.com" || !strings.Contains(deleted[0].Subject, "was deleted") || !strings.Contains(deleted[0].Text, "“Solo”") {

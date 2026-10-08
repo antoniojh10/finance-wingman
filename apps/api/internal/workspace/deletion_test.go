@@ -28,7 +28,7 @@ func frozenClock(svc *workspace.Service) func(time.Duration) time.Time {
 }
 
 // financeTables are every table holding workspace finance data.
-var financeTables = []string{"accounts", "categories", "recurring_items", "transactions", "recurring_dismissed_suggestions", "budgets"}
+var financeTables = []string{"accounts", "categories", "recurring_items", "transactions", "recurring_dismissed_suggestions", "budgets", "activity_log"}
 
 // seedFinance fills the workspace with one row of every kind of finance
 // data, including rows that reference each other.
@@ -64,6 +64,7 @@ func seedFinance(t *testing.T, pool *pgxpool.Pool, workspaceID, ownerID uuid.UUI
 			VALUES ('transfer', $1, 500, $2, 500, '2026-01-02')`, []any{checking, savings}},
 		{`INSERT INTO budgets (category_id, currency, month, amount_minor) VALUES ($1, 'EUR', '2026-01-01', 10000)`, []any{category}},
 		{`INSERT INTO recurring_dismissed_suggestions (account_id, type, description) VALUES ($1, 'expense', 'netflix')`, []any{checking}},
+		{`INSERT INTO activity_log (actor_id, channel, action, entity_type, entity_id) VALUES ($1, 'web', 'created', 'account', $2)`, []any{ownerID, checking}},
 	}
 	for _, e := range execs {
 		if _, err := pool.Exec(ctx, e.sql, e.args...); err != nil {
