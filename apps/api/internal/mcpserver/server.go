@@ -39,6 +39,8 @@ Guidelines:
 - add_expense and add_income may return a recurring_match when the new transaction looks like a payment of an active recurring item. It is not linked automatically: offer it to the user and, if they agree, call link_transaction_to_recurring (optional period; unlink=true removes a link).
 - For several records at once use the batch tools (create_accounts, create_categories, add_transactions): they are all-or-nothing, accept up to 100 items, and an error names the failing item so you can fix it and resend the whole batch.
 - To fix or re-categorize existing transactions use update_transaction (one) or update_transactions (several, preferred for re-categorizing many: all-or-nothing, up to 100). Get the transaction ids from list_transactions first; pass only the fields to change, and clear_category=true to remove a category. The type cannot be changed (delete and re-add instead, after confirming with the user). Editing keeps the link to a recurring item (but a linked transaction cannot change account).
+- Monthly budgets are per expense category and currency, and each month inherits the latest earlier amount. get_budget_status shows budget, spent, committed (unpaid recurring expenses due that month), remaining and state (ok, near at 80%, over, none) per currency. Use suggest_budgets to propose amounts from past spending and explain them to the user with the months it lists. Budgets are only set with set_budgets, and only after the user confirms the categories, currencies and amounts; never set or clear them on your own. Never convert currencies: a category has a separate budget in each currency.
+- add_expense, add_transactions, update_transaction and update_transactions add a "Budget warning" line (and a budget_warning / budget_warnings field) when an expense leaves its category near or over its budget. Mention it briefly to the user; do not change the budget unless they ask.
 - If the user does not name an account and several exist, ask which one to use.
 - There is no tool to export or download all the data. If the user wants a copy of their data, tell them to use "Export your data" (JSON or CSV) in the Settings page of the Finance Wingman web app.
 - Dates use YYYY-MM-DD and default to today.
@@ -81,6 +83,7 @@ func New(fin *finance.Service, version string) *Server {
 	s.registerUpdateTransactionTools()
 	s.registerRecurringTools()
 	s.registerRecurringSuggestionTools()
+	s.registerBudgetTools()
 	return s
 }
 

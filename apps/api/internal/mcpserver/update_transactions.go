@@ -63,7 +63,15 @@ func (s *Server) updateTransaction(ctx context.Context, args updateTransactionAr
 		return nil, transactionOut{}, friendly(err)
 	}
 	out := transactionToOut(tx)
-	return text(fmt.Sprintf("Updated %s", describeTransaction(out))), out, nil
+	msg := fmt.Sprintf("Updated %s", describeTransaction(out))
+	// Only edits that can move spending between budgets are checked.
+	if args.Amount != nil || args.Date != nil || args.Category != nil || args.Account != nil {
+		if w := s.budgetWarnings(ctx, []finance.Transaction{tx}); len(w) > 0 {
+			out.BudgetWarning = &w[0]
+			msg += "\n" + w[0].message()
+		}
+	}
+	return text(msg), out, nil
 }
 
 func (s *Server) updateTransactions(ctx context.Context, args updateTransactionsArgs) (*mcp.CallToolResult, transactionsOut, error) {
@@ -88,7 +96,8 @@ func (s *Server) updateTransactions(ctx context.Context, args updateTransactions
 		out.Transactions[i] = transactionToOut(tx)
 		lines[i] = "- " + describeTransaction(out.Transactions[i])
 	}
-	return text(fmt.Sprintf("Updated %d transactions:\n%s", len(updated), strings.Join(lines, "\n"))), out, nil
+	out.BudgetWarnings = s.budgetWarnings(ctx, updated)
+	return text(fmt.Sprintf("Updated %d transactions:\n%s%s", len(updated), strings.Join(lines, "\n"), warningText(out.BudgetWarnings))), out, nil
 }
 
 // updateBatchFailure explains that a failed batch changed nothing.
