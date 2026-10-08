@@ -1,10 +1,12 @@
 import { test as setup } from "@playwright/test";
 
 import { authFile, e2eUser } from "../playwright.config";
-import { signIn } from "./helpers";
+import { mintSession } from "./helpers";
 
-// Signs in once and saves the session for the tests that start signed in.
-setup("sign in", async ({ page }) => {
-  await signIn(page, e2eUser);
-  await page.context().storageState({ path: authFile });
+// Opens a session straight in the database (no email flow, so no Mailpit) and
+// saves it for the tests that start signed in. Sign-in by email is covered by
+// auth.spec.ts.
+setup("sign in", async ({ context }) => {
+  await context.addCookies([mintSession(e2eUser)]);
+  await context.storageState({ path: authFile });
 });

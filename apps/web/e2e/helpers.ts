@@ -1,4 +1,9 @@
-import { expect, type Page } from "@playwright/test";
+import { execFileSync } from "node:child_process";
+import path from "node:path";
+
+import { expect, type Browser, type BrowserContext, type Cookie, type Page } from "@playwright/test";
+
+import { apiPort, databaseUrl, webPort } from "../playwright.config";
 
 const mailpitUrl = process.env.MAILPIT_URL ?? "http://localhost:8025";
 
@@ -47,6 +52,45 @@ export async function signIn(page: Page, email: string): Promise<void> {
   await page.getByLabel(/6-digit code|código de 6 dígitos/i).fill(codeFrom(text));
   await page.getByRole("button", { name: /^(sign in|entrar)$/i }).click();
   await expect(page).toHaveURL(/\/$/);
+}
+
+type SessionOptions = { name?: string; workspace?: string };
+
+/**
+ * Opens a session for `email` straight in the e2e database, with the API's
+ * `sessions create` command (no email, no Mailpit), and returns the session
+ * cookie. The user is created if needed. Pass `workspace` to act on a
+ * workspace owned by the user (created if missing).
+ */
+export function mintSession(email: string, options: SessionOptions = {}): Cookie {
+  const args = ["run", "./cmd/api", "sessions", "create", "--email", email];
+  if (options.name) args.push("--name", options.name);
+  if (options.workspace) args.push("--workspace", options.workspace);
+  const output = execFileSync("go", args, {
+    cwd: path.join(__dirname, "../../api"),
+    env: { ...process.env, DATABASE_URL: databaseUrl, PORT: String(apiPort) },
+    encoding: "utf8",
+  });
+  const [name, value] = output.trim().split("=");
+  if (!name || !value) throw new Error(`unexpected sessions create output: ${output}`);
+  return {
+    name,
+    value,
+    domain: "localhost",
+    path: "/",
+    // The API session lasts longer; this only has to outlive the run.
+    expires: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+    httpOnly: true,
+    secure: false,
+    sameSite: "Lax",
+  };
+}
+
+/** A browser context already signed in as `email`, for tests that need another user. */
+export async function signedInContext(browser: Browser, email: string, options: SessionOptions = {}): Promise<BrowserContext> {
+  const context = await browser.newContext({ baseURL: `http://localhost:${webPort}` });
+  await context.addCookies([mintSession(email, options)]);
+  return context;
 }
 
 /**
