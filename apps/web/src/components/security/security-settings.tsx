@@ -22,6 +22,8 @@ export type ConnectedApp = {
   id: string;
   client_name: string;
   workspace?: { id: string; name: string };
+  /** finance:read alone is a read-only connection. */
+  scopes: ("finance:read" | "finance:write")[];
   connected_at: string;
   last_used_at: string;
 };
@@ -146,9 +148,11 @@ function ConnectionList({ connections }: { connections: ConnectedApp[] }) {
           <ul className="grid gap-2" aria-label={t("connections")}>
             {connections.map((connection) => {
               const name = connection.client_name || t("unnamedApp");
-              // Each detail is one "·"-separated item under the app's name.
+              // Each detail is one "·"-separated item under the app's name:
+              // workspace, access, connection and last use.
               const details = [
                 connection.workspace?.name ?? t("noWorkspace"),
+                connection.scopes.includes("finance:write") ? t("readWrite") : t("readOnly"),
                 t("connectedAt", { date: format.dateTime(new Date(connection.connected_at), { dateStyle: "medium" }) }),
                 t("lastActive", { date: format.dateTime(new Date(connection.last_used_at), { dateStyle: "medium", timeStyle: "short" }) }),
               ];

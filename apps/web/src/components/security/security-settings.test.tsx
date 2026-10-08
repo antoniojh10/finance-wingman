@@ -32,10 +32,11 @@ const props: SecuritySettingsProps = {
       id: "c1",
       client_name: "Claude",
       workspace: { id: "w1", name: "Home" },
+      scopes: ["finance:read", "finance:write"],
       connected_at: "2026-09-10T10:00:00Z",
       last_used_at: "2026-10-08T07:15:00Z",
     },
-    { id: "c2", client_name: "", connected_at: "2026-08-01T10:00:00Z", last_used_at: "2026-08-02T10:00:00Z" },
+    { id: "c2", client_name: "", scopes: ["finance:read"], connected_at: "2026-08-01T10:00:00Z", last_used_at: "2026-08-02T10:00:00Z" },
   ],
 };
 
@@ -87,13 +88,13 @@ describe("SecuritySettings", () => {
     expect(screen.queryByRole("button", { name: "Sign out everywhere else" })).not.toBeInTheDocument();
   });
 
-  it("lists connected apps with their workspace", () => {
+  it("lists connected apps with their workspace and access", () => {
     renderWithIntl(<SecuritySettings {...props} />);
     const rows = card("Connected apps").getAllByTestId("connection-row");
     expect(rows[0]).toHaveTextContent("Claude");
-    expect(rows[0]).toHaveTextContent("Home · Connected Sep 10, 2026 · Last active Oct 8, 2026, 7:15 AM");
+    expect(rows[0]).toHaveTextContent("Home · Read and write · Connected Sep 10, 2026 · Last active Oct 8, 2026, 7:15 AM");
     expect(rows[1]).toHaveTextContent("Unnamed app");
-    expect(rows[1]).toHaveTextContent("No workspace");
+    expect(rows[1]).toHaveTextContent("No workspace · Read only");
   });
 
   it("disconnects an app after confirming", async () => {
@@ -115,6 +116,9 @@ describe("SecuritySettings", () => {
     renderWithIntl(<SecuritySettings {...props} />, { locale: "es" });
     expect(screen.getByRole("heading", { name: "Apps conectadas" })).toBeInTheDocument();
     expect(screen.getByText("Firefox en Linux")).toBeInTheDocument();
+    const rows = card("Apps conectadas").getAllByTestId("connection-row");
+    expect(rows[0]).toHaveTextContent("Lectura y escritura");
+    expect(rows[1]).toHaveTextContent("Solo lectura");
     expect(screen.getByRole("button", { name: "Cerrar las demás sesiones" })).toBeInTheDocument();
   });
 });
