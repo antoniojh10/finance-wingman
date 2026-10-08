@@ -145,18 +145,32 @@ func (s *Service) CreateAccount(ctx context.Context, in CreateAccountInput) (Acc
 		}
 	}
 
-	id, err := s.q.CreateAccount(ctx, store.CreateAccountParams{
-		Name:           name,
-		Type:           in.Type,
-		Currency:       currency,
-		InitialBalance: in.InitialBalance,
-		BalanceAsOf:    balanceAsOf,
-		OwnerUserID:    owner,
+	var id uuid.UUID
+	err = s.withTx(ctx, func(tx *Service) error {
+		var err error
+		id, err = tx.q.CreateAccount(ctx, store.CreateAccountParams{
+			Name:           name,
+			Type:           in.Type,
+			Currency:       currency,
+			InitialBalance: in.InitialBalance,
+			BalanceAsOf:    balanceAsOf,
+			OwnerUserID:    owner,
+		})
+		if err := accountWriteError(err); err != nil {
+			return err
+		}
+		return tx.record(ctx, ActionAccountCreated, EntityAccount, id, accountDetails(in.Type, currency))
 	})
-	if err := accountWriteError(err); err != nil {
+	if err != nil {
 		return Account{}, err
 	}
 	return s.GetAccount(ctx, id)
+}
+
+// accountDetails are the facts logged about an account: its type and
+// currency, never its name or balance.
+func accountDetails(typ, currency string) ActivityDetails {
+	return ActivityDetails{Type: typ, Currency: currency}
 }
 
 func (s *Service) UpdateAccount(ctx context.Context, id uuid.UUID, in UpdateAccountInput) (Account, error) {
@@ -187,21 +201,64 @@ func (s *Service) UpdateAccount(ctx context.Context, id uuid.UUID, in UpdateAcco
 			return Account{}, err
 		}
 	}
-	if _, err := s.GetAccount(ctx, id); err != nil {
+	cur, err := s.GetAccount(ctx, id)
+	if err != nil {
 		return Account{}, err
 	}
 
-	err := s.q.UpdateAccount(ctx, store.UpdateAccountParams{
-		ID:             id,
-		Name:           in.Name,
-		Type:           in.Type,
-		InitialBalance: in.InitialBalance,
-		BalanceAsOf:    balanceAsOf,
-		SetOwner:       in.Owner != nil,
-		OwnerUserID:    owner,
-		Archived:       in.Archived,
+	var changed []string
+	add := func(differs bool, field string) {
+		if differs {
+			changed = append(changed, field)
+		}
+	}
+	add(in.Name != nil && *in.Name != cur.Name, "name")
+	add(in.Type != nil && *in.Type != cur.Type, "type")
+	add(in.InitialBalance != nil && *in.InitialBalance != cur.InitialBalance, "initial_balance")
+	add(balanceAsOf != nil && formatDate(*balanceAsOf) != cur.BalanceAsOf, "balance_as_of")
+	if in.Owner != nil {
+		var curOwner *uuid.UUID
+		if cur.Owner != nil {
+			curOwner = &cur.Owner.ID
+		}
+		add(!equalPtr(owner, curOwner), "owner")
+	}
+	details := accountDetails(cur.Type, cur.Currency)
+	if in.Type != nil {
+		details.Type = *in.Type
+	}
+
+	err = s.withTx(ctx, func(tx *Service) error {
+		err := tx.q.UpdateAccount(ctx, store.UpdateAccountParams{
+			ID:             id,
+			Name:           in.Name,
+			Type:           in.Type,
+			InitialBalance: in.InitialBalance,
+			BalanceAsOf:    balanceAsOf,
+			SetOwner:       in.Owner != nil,
+			OwnerUserID:    owner,
+			Archived:       in.Archived,
+		})
+		if err := accountWriteError(err); err != nil {
+			return err
+		}
+		if len(changed) > 0 {
+			d := details
+			d.Changed = changed
+			if err := tx.record(ctx, ActionAccountUpdated, EntityAccount, id, d); err != nil {
+				return err
+			}
+		}
+		if in.Archived != nil && *in.Archived != cur.Archived {
+			action := ActionAccountUnarchived
+			if *in.Archived {
+				action = ActionAccountArchived
+			}
+			return tx.record(ctx, action, EntityAccount, id, details)
+		}
+		return nil
 	})
-	if err := accountWriteError(err); err != nil {
+	if err != nil {
 		return Account{}, err
 	}
 	return s.GetAccount(ctx, id)
@@ -224,6 +281,10 @@ func accountWriteError(err error) error {
 // DeleteAccount permanently removes an account. Accounts with transactions
 // cannot be deleted; archive them instead.
 func (s *Service) DeleteAccount(ctx context.Context, id uuid.UUID) error {
+	account, err := s.GetAccount(ctx, id)
+	if err != nil {
+		return err
+	}
 	count, err := s.q.CountAccountTransactions(ctx, id)
 	if err != nil {
 		return err
@@ -231,15 +292,17 @@ func (s *Service) DeleteAccount(ctx context.Context, id uuid.UUID) error {
 	if count > 0 {
 		return Conflict("account has transactions; archive it instead")
 	}
-	affected, err := s.q.DeleteAccount(ctx, id)
-	if pgErrorCode(err) == pgForeignKeyViolation {
-		return Conflict("account has transactions; archive it instead")
-	}
-	if err != nil {
-		return err
-	}
-	if affected == 0 {
-		return NotFound("account")
-	}
-	return nil
+	return s.withTx(ctx, func(tx *Service) error {
+		affected, err := tx.q.DeleteAccount(ctx, id)
+		if pgErrorCode(err) == pgForeignKeyViolation {
+			return Conflict("account has transactions; archive it instead")
+		}
+		if err != nil {
+			return err
+		}
+		if affected == 0 {
+			return NotFound("account")
+		}
+		return tx.record(ctx, ActionAccountDeleted, EntityAccount, id, accountDetails(account.Type, account.Currency))
+	})
 }

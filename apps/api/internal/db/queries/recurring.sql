@@ -95,7 +95,7 @@ ORDER BY t.account_id, t.occurred_on, t.id;
 -- name: ListDismissedSuggestions :many
 SELECT account_id, type, description FROM recurring_dismissed_suggestions;
 
--- name: DismissSuggestion :exec
+-- name: DismissSuggestion :execrows
 INSERT INTO recurring_dismissed_suggestions (account_id, type, description, dismissed_by)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT DO NOTHING;

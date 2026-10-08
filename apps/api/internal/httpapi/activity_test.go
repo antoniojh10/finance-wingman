@@ -51,7 +51,7 @@ func TestActivityRecordsTransactionChanges(t *testing.T) {
 		"type": "transfer", "account_id": account.ID, "destination_account_id": savings.ID, "amount": 777,
 	})
 
-	res := api.do(http.MethodGet, "/api/v1/activity", nil).expect(http.StatusOK)
+	res := api.do(http.MethodGet, "/api/v1/activity?entity_type=transaction", nil).expect(http.StatusOK)
 	// Metadata only: no descriptions, account names or amounts.
 	for _, secret := range []string{"Secret", "Checking", "Savings", `"amount":`, `"destination_amount":`} {
 		if strings.Contains(string(res.Body), secret) {
@@ -98,7 +98,7 @@ func TestActivityIgnoresFailedChanges(t *testing.T) {
 	}).expectError(http.StatusUnprocessableEntity)
 	api.do(http.MethodDelete, "/api/v1/transactions/"+missingID, nil).expectError(http.StatusNotFound)
 
-	if page := api.activity(""); len(page.Items) != 1 {
+	if page := api.activity("?entity_type=transaction"); len(page.Items) != 1 {
 		t.Fatalf("failed changes must not be logged: %v", actions(page))
 	}
 }
@@ -111,7 +111,7 @@ func TestActivityBatchIsAtomic(t *testing.T) {
 	valid := map[string]any{"type": "expense", "account_id": account.ID, "amount": 100}
 	api.do(http.MethodPost, "/api/v1/transactions/batch", map[string]any{"items": []any{valid, valid, map[string]any{"type": "bogus"}}}).
 		expectError(http.StatusUnprocessableEntity)
-	if page := api.activity(""); len(page.Items) != 0 {
+	if page := api.activity("?entity_type=transaction"); len(page.Items) != 0 {
 		t.Fatalf("a rolled back batch must leave no entries: %v", actions(page))
 	}
 
@@ -120,7 +120,7 @@ func TestActivityBatchIsAtomic(t *testing.T) {
 	}
 	api.do(http.MethodPost, "/api/v1/transactions/batch", map[string]any{"items": []any{valid, valid}}).
 		expect(http.StatusCreated).decode(&created)
-	page := api.activity("")
+	page := api.activity("?entity_type=transaction")
 	if len(page.Items) != 2 || len(created.Items) != 2 {
 		t.Fatalf("expected one entry per item: %v", actions(page))
 	}
@@ -145,7 +145,7 @@ func TestActivityRecordsRecurringLinks(t *testing.T) {
 	// Paying the item creates a transaction already linked: one entry.
 	api.do(http.MethodPost, "/api/v1/recurring/"+item.ID.String()+"/payments", map[string]any{}).expect(http.StatusCreated)
 
-	page := api.activity("")
+	page := api.activity("?entity_type=transaction")
 	want := []string{"transaction.created", "transaction.updated", "transaction.updated", "transaction.created"}
 	if got := actions(page); !slices.Equal(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)
@@ -208,7 +208,7 @@ func TestActivityRecordsMCPClient(t *testing.T) {
 			t.Fatalf("entry should name the OAuth client and the owner: %+v", e)
 		}
 	}
-	if web := api.activity("?channel=web"); len(web.Items) != 0 {
+	if web := api.activity("?channel=web&entity_type=transaction"); len(web.Items) != 0 {
 		t.Fatalf("MCP changes must not be listed as web: %v", actions(web))
 	}
 }
@@ -239,7 +239,7 @@ func TestListActivityFilters(t *testing.T) {
 		t.Fatalf("channel filter: %+v", page)
 	}
 
-	for _, query := range []string{"?channel=carrier-pigeon", "?entity_type=account", "?actor_id=nope", "?entity_id=nope", "?limit=0", "?limit=201", "?cursor=nope"} {
+	for _, query := range []string{"?channel=carrier-pigeon", "?entity_type=invoice", "?actor_id=nope", "?entity_id=nope", "?limit=0", "?limit=201", "?cursor=nope"} {
 		api.do(http.MethodGet, "/api/v1/activity"+query, nil).expectError(http.StatusUnprocessableEntity)
 	}
 	api.as("").do(http.MethodGet, "/api/v1/activity", nil).expectError(http.StatusUnauthorized)
@@ -256,7 +256,7 @@ func TestListActivityPaginatesWithCursor(t *testing.T) {
 	slices.Reverse(ids)
 
 	var seen []uuid.UUID
-	query := "?limit=2"
+	query := "?limit=2&entity_type=transaction"
 	for pages := 0; ; pages++ {
 		if pages > 3 {
 			t.Fatal("pagination does not end")
@@ -271,7 +271,7 @@ func TestListActivityPaginatesWithCursor(t *testing.T) {
 		if page.NextCursor == nil {
 			break
 		}
-		query = "?limit=2&cursor=" + *page.NextCursor
+		query = "?limit=2&entity_type=transaction&cursor=" + *page.NextCursor
 	}
 	if !slices.Equal(seen, ids) {
 		t.Fatalf("pages should list every entry once, newest first: got %v, want %v", seen, ids)
@@ -306,7 +306,7 @@ func TestActivityIsIsolatedPerWorkspace(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "row-level security") {
 		t.Fatalf("writing into another workspace should be rejected, got %v", err)
 	}
-	if mine := api.activity(""); len(mine.Items) != 1 {
+	if mine := api.activity("?entity_type=transaction"); len(mine.Items) != 1 {
 		t.Fatalf("the owner should still see their entry: %+v", mine)
 	}
 }
@@ -326,7 +326,7 @@ func TestActivityLogIsAppendOnly(t *testing.T) {
 			t.Fatalf("%q should be denied to the API role, got %v", stmt, err)
 		}
 	}
-	if page := api.activity(""); len(page.Items) != 1 || page.Items[0].Action != "transaction.created" {
+	if page := api.activity("?entity_type=transaction"); len(page.Items) != 1 || page.Items[0].Action != "transaction.created" {
 		t.Fatalf("the entry should be intact: %+v", page)
 	}
 }
@@ -343,7 +343,7 @@ func TestActivityKeepsEntriesOfErasedUsers(t *testing.T) {
 	if err := api.auth.RemoveUser(context.Background(), "ana@example.com"); err != nil {
 		t.Fatal(err)
 	}
-	page := api.activity("")
+	page := api.activity("?entity_type=transaction")
 	if len(page.Items) != 1 || page.Items[0].Actor != nil || page.Items[0].Action != "transaction.created" {
 		t.Fatalf("the entry should stay without its actor: %+v", page)
 	}

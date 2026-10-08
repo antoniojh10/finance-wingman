@@ -170,7 +170,26 @@ func (s *Service) SetBudgets(ctx context.Context, month string, items []BudgetIt
 			if actor, ok := ActorFrom(ctx); ok {
 				params.CreatedBy = &actor
 			}
+			// Setting a month to what it already holds changes nothing.
+			current, err := tx.q.GetBudgetRow(ctx, store.GetBudgetRowParams{CategoryID: w.category, Currency: w.currency, Month: first})
+			if err != nil && !isNoRows(err) {
+				return err
+			}
+			unchanged := err == nil && equalPtr(current, w.amount)
 			if err := tx.q.UpsertBudget(ctx, params); err != nil {
+				return err
+			}
+			if unchanged {
+				continue
+			}
+			action := ActionBudgetSet
+			if w.amount == nil {
+				action = ActionBudgetCleared
+			}
+			// The amount is not logged, only which budget changed.
+			if err := tx.record(ctx, action, EntityBudget, w.category, ActivityDetails{
+				CategoryID: &w.category, Currency: w.currency, Month: first.Format(monthLayout),
+			}); err != nil {
 				return err
 			}
 		}
