@@ -52,8 +52,8 @@ export function NewTransactionView({
           accounts={accounts}
           categories={categories}
           defaultDate={defaultDate}
-          onSaved={({ transactionId }) => {
-            void announceSaved(transactionId);
+          onSaved={({ transactionId, budgetWarning }) => {
+            void announceSaved(transactionId, budgetWarning);
             router.push(returnTo);
           }}
           onCancel={() => router.push(returnTo)}

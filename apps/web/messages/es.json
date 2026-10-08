@@ -77,7 +77,12 @@
     "subscriptionsUpcoming": "Vencidas y próximas 7 días",
     "subscriptionsNothingDue": "Nada vence en los próximos 7 días.",
     "subscriptionsCommitted": "Comprometido al mes",
-    "subscriptionsSuggestions": "{count, plural, one {# sugerencia} other {# sugerencias}}"
+    "subscriptionsSuggestions": "{count, plural, one {# sugerencia} other {# sugerencias}}",
+    "budgets": "Presupuestos",
+    "budgetsAttention": "Cerca o por encima del presupuesto",
+    "budgetsAllGood": "Todos tus presupuestos van bien este mes.",
+    "budgetsSetUp": "Define un monto mensual por categoría para ver cómo vas.",
+    "budgetsSetUpAction": "Configurar presupuestos"
   },
   "transactions": {
     "title": "Movimientos",
@@ -110,6 +115,8 @@
     "deleteDescription": "Esta acción no se puede deshacer.",
     "deleted": "Movimiento eliminado",
     "saved": "Movimiento guardado",
+    "budgetHintNear": "{category}: esto deja {remaining} del presupuesto.",
+    "budgetHintOver": "{category}: esto excede el presupuesto por {over}.",
     "recordedBy": "Registrado por {name}",
     "showing": "Mostrando {from}–{to} de {total}",
     "needAccount": "Crea una cuenta antes de agregar movimientos.",

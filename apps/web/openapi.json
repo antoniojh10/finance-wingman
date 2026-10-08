@@ -406,6 +406,86 @@
         ],
         "type": "object"
       },
+      "BudgetImpactResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BudgetImpactResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "amount": {
+            "description": "Budget in force, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "committed": {
+            "description": "Committed recurring expenses not paid yet",
+            "format": "int64",
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "has_budget": {
+            "description": "False when the category has no budget in force that month; the other figures are then zero",
+            "type": "boolean"
+          },
+          "month": {
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": "string"
+          },
+          "remaining": {
+            "description": "Remaining after the expense; negative when over",
+            "format": "int64",
+            "type": "integer"
+          },
+          "spent": {
+            "description": "Already spent in the month, before the expense",
+            "format": "int64",
+            "type": "integer"
+          },
+          "state_after": {
+            "enum": [
+              "ok",
+              "near",
+              "over",
+              "none"
+            ],
+            "type": "string"
+          },
+          "state_before": {
+            "enum": [
+              "ok",
+              "near",
+              "over",
+              "none"
+            ],
+            "type": "string"
+          },
+          "warning": {
+            "description": "True when the category is near or over its budget after the expense",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "month",
+          "currency",
+          "has_budget",
+          "amount",
+          "spent",
+          "committed",
+          "remaining",
+          "state_before",
+          "state_after",
+          "warning"
+        ],
+        "type": "object"
+      },
       "BudgetItemInput": {
         "additionalProperties": false,
         "properties": {
@@ -4080,6 +4160,96 @@
           }
         },
         "summary": "Budget status of a month",
+        "tags": [
+          "Budgets"
+        ]
+      }
+    },
+    "/api/v1/budgets/impact": {
+      "get": {
+        "description": "Tells whether adding an expense to a category would leave its budget near or over the limit in the month of the date, counting spent and committed recurring expenses of the whole workspace. Never pass an expense that is already recorded: it would be counted twice. Without a budget in force for the category, currency and month, has_budget is false and there is no warning.",
+        "operationId": "get-budget-impact",
+        "parameters": [
+          {
+            "description": "Expense category of the expense",
+            "explode": false,
+            "in": "query",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "description": "Expense category of the expense",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "ISO 4217 code of the expense's account",
+            "explode": false,
+            "in": "query",
+            "name": "currency",
+            "required": true,
+            "schema": {
+              "description": "ISO 4217 code of the expense's account",
+              "examples": [
+                "MXN"
+              ],
+              "maxLength": 3,
+              "minLength": 3,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Date of the expense as YYYY-MM-DD; its month decides the budget",
+            "explode": false,
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "description": "Date of the expense as YYYY-MM-DD; its month decides the budget",
+              "examples": [
+                "2026-10-08"
+              ],
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Amount of the expense in minor units",
+            "explode": false,
+            "in": "query",
+            "name": "amount",
+            "required": true,
+            "schema": {
+              "description": "Amount of the expense in minor units",
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetImpactResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Budget impact of an expense not recorded yet",
         "tags": [
           "Budgets"
         ]

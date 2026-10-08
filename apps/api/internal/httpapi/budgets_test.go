@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -351,6 +352,51 @@ func TestBudgetImpact(t *testing.T) {
 	if _, err := api.svc.BudgetImpact(api.ctx, food.ID, "MXN", sept, -1); err == nil {
 		t.Fatal("expected an error for a negative amount")
 	}
+}
+
+func TestBudgetImpactEndpoint(t *testing.T) {
+	t.Parallel()
+	api := newTestAPI(t)
+	account := api.createAccount("Card", "MXN", 0)
+	food := api.createCategory("Food", "expense")
+	other := api.createCategory("Other", "expense")
+	api.setBudgets("2026-09", budgetItem(food, "MXN", 10000))
+	api.createTransaction(map[string]any{"type": "expense", "account_id": account.ID, "amount": 5000, "category_id": food.ID, "occurred_on": "2026-09-02"})
+
+	impact := func(category finance.Category, currency, date string, amount int) finance.BudgetImpactResult {
+		var got finance.BudgetImpactResult
+		query := "?category_id=" + category.ID.String() + "&currency=" + currency + "&date=" + date + "&amount=" + strconv.Itoa(amount)
+		api.do(http.MethodGet, "/api/v1/budgets/impact"+query, nil).expect(http.StatusOK).decode(&got)
+		return got
+	}
+
+	if got := impact(food, "MXN", "2026-09-15", 1000); !got.HasBudget || got.Warning || got.StateAfter != "ok" || got.Remaining != 4000 {
+		t.Fatalf("expected an ok impact, got %+v", got)
+	}
+	if got := impact(food, "MXN", "2026-09-15", 3000); !got.Warning || got.StateAfter != "near" || got.StateBefore != "ok" {
+		t.Fatalf("expected a near warning, got %+v", got)
+	}
+	if got := impact(food, "MXN", "2026-09-15", 6000); !got.Warning || got.StateAfter != "over" || got.Remaining != -1000 {
+		t.Fatalf("expected an over warning, got %+v", got)
+	}
+	if got := impact(other, "MXN", "2026-09-15", 6000); got.HasBudget || got.Warning {
+		t.Fatalf("a category without budget must not warn, got %+v", got)
+	}
+
+	base := "/api/v1/budgets/impact?category_id=" + food.ID.String() + "&currency=MXN&date=2026-09-15&amount=1"
+	api.do(http.MethodGet, base, nil).expect(http.StatusOK)
+	for name, query := range map[string]string{
+		"bad date":         "?category_id=" + food.ID.String() + "&currency=MXN&date=2026-02-31&amount=1",
+		"bad category":     "?category_id=nope&currency=MXN&date=2026-09-15&amount=1",
+		"missing category": "?currency=MXN&date=2026-09-15&amount=1",
+		"negative amount":  "?category_id=" + food.ID.String() + "&currency=MXN&date=2026-09-15&amount=-1",
+		"bad currency":     "?category_id=" + food.ID.String() + "&currency=PESOS&date=2026-09-15&amount=1",
+	} {
+		if res := api.do(http.MethodGet, "/api/v1/budgets/impact"+query, nil); res.Status != http.StatusUnprocessableEntity && res.Status != http.StatusBadRequest {
+			t.Fatalf("%s: expected a client error, got %d: %s", name, res.Status, res.Body)
+		}
+	}
+	api.as("").do(http.MethodGet, base, nil).expect(http.StatusUnauthorized)
 }
 
 func TestSetBudgetsErrors(t *testing.T) {

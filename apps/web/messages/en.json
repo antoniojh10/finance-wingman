@@ -77,7 +77,12 @@
     "subscriptionsUpcoming": "Overdue and due in the next 7 days",
     "subscriptionsNothingDue": "Nothing due in the next 7 days.",
     "subscriptionsCommitted": "Committed per month",
-    "subscriptionsSuggestions": "{count, plural, one {# suggestion} other {# suggestions}}"
+    "subscriptionsSuggestions": "{count, plural, one {# suggestion} other {# suggestions}}",
+    "budgets": "Budgets",
+    "budgetsAttention": "Near or over budget",
+    "budgetsAllGood": "All your budgets are on track this month.",
+    "budgetsSetUp": "Set a monthly amount per category to see where you are heading.",
+    "budgetsSetUpAction": "Set up budgets"
   },
   "transactions": {
     "title": "Transactions",
@@ -110,6 +115,8 @@
     "deleteDescription": "This cannot be undone.",
     "deleted": "Transaction deleted",
     "saved": "Transaction saved",
+    "budgetHintNear": "{category}: this leaves {remaining} of the budget.",
+    "budgetHintOver": "{category}: this goes over budget by {over}.",
     "recordedBy": "Recorded by {name}",
     "showing": "Showing {from}–{to} of {total}",
     "needAccount": "Create an account before adding transactions.",

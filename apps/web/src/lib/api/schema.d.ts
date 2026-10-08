@@ -319,6 +319,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/budgets/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Budget impact of an expense not recorded yet
+         * @description Tells whether adding an expense to a category would leave its budget near or over the limit in the month of the date, counting spent and committed recurring expenses of the whole workspace. Never pass an expense that is already recorded: it would be counted twice. Without a budget in force for the category, currency and month, has_budget is false and there is no warning.
+         */
+        get: operations["get-budget-impact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/budgets/suggestions": {
         parameters: {
             query?: never;
@@ -1113,6 +1133,44 @@ export interface components {
             spent: number;
             /** @description Expenses without a category; null when there are none */
             uncategorized: components["schemas"]["BudgetLine"];
+        };
+        BudgetImpactResult: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/BudgetImpactResult.json
+             */
+            readonly $schema?: string;
+            /**
+             * Format: int64
+             * @description Budget in force, in minor units
+             */
+            amount: number;
+            /**
+             * Format: int64
+             * @description Committed recurring expenses not paid yet
+             */
+            committed: number;
+            currency: string;
+            /** @description False when the category has no budget in force that month; the other figures are then zero */
+            has_budget: boolean;
+            month: string;
+            /**
+             * Format: int64
+             * @description Remaining after the expense; negative when over
+             */
+            remaining: number;
+            /**
+             * Format: int64
+             * @description Already spent in the month, before the expense
+             */
+            spent: number;
+            /** @enum {string} */
+            state_after: "ok" | "near" | "over" | "none";
+            /** @enum {string} */
+            state_before: "ok" | "near" | "over" | "none";
+            /** @description True when the category is near or over its budget after the expense */
+            warning: boolean;
         };
         BudgetItemInput: {
             /**
@@ -2961,6 +3019,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BudgetStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-budget-impact": {
+        parameters: {
+            query: {
+                /** @description Expense category of the expense */
+                category_id: string;
+                /** @description ISO 4217 code of the expense's account */
+                currency: string;
+                /** @description Date of the expense as YYYY-MM-DD; its month decides the budget */
+                date: string;
+                /** @description Amount of the expense in minor units */
+                amount: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetImpactResult"];
                 };
             };
             /** @description Error */

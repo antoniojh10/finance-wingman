@@ -1,6 +1,74 @@
 import { describe, expect, it } from "vitest";
 
-import { amountField, barSegments, budgetState, buildBudgetItems, buildEditCurrencies, initialField, parseBudgetInput, type BudgetCurrencyData } from "./budgets";
+import {
+  amountField,
+  attentionLines,
+  barSegments,
+  budgetState,
+  buildBudgetItems,
+  buildEditCurrencies,
+  hasBudgets,
+  initialField,
+  parseBudgetInput,
+  type BudgetCurrencyData,
+  type BudgetLineData,
+} from "./budgets";
+
+function statusOf(categories: Partial<BudgetLineData>[]): BudgetCurrencyData[] {
+  return [
+    {
+      currency: "MXN",
+      minor_units: 2,
+      budgeted: 0,
+      spent: 0,
+      committed: 0,
+      remaining: 0,
+      uncategorized: null,
+      categories: categories.map(
+        (c) =>
+          ({
+            category_color: null,
+            amount_month: null,
+            committed: 0,
+            remaining: null,
+            category_id: c.category_name ?? null,
+            amount: null,
+            spent: 0,
+            state: "none",
+            ...c,
+          }) as BudgetLineData,
+      ),
+    },
+  ];
+}
+
+describe("attentionLines", () => {
+  it("keeps near and over lines, over first and then the most used", () => {
+    const result = attentionLines(
+      statusOf([
+        { category_name: "a", amount: 1000, spent: 800, state: "near" },
+        { category_name: "b", amount: 1000, spent: 950, state: "near" },
+        { category_name: "c", amount: 1000, spent: 1100, state: "over" },
+        { category_name: "d", amount: 1000, spent: 100, state: "ok" },
+        { category_name: "e", state: "none" },
+      ]),
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].lines.map((l) => l.category_name)).toEqual(["c", "b", "a"]);
+  });
+
+  it("drops currencies with nothing to report", () => {
+    expect(attentionLines(statusOf([{ category_name: "d", amount: 1000, spent: 100, state: "ok" }]))).toEqual([]);
+  });
+});
+
+describe("hasBudgets", () => {
+  it("is true only when a category has a budget", () => {
+    expect(hasBudgets([])).toBe(false);
+    expect(hasBudgets(statusOf([{ category_name: "a", spent: 5 }]))).toBe(false);
+    expect(hasBudgets(statusOf([{ category_name: "a", amount: 1, state: "ok" }]))).toBe(true);
+  });
+});
 
 describe("budgetState", () => {
   it("matches the API thresholds", () => {
