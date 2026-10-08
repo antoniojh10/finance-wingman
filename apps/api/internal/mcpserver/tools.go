@@ -167,11 +167,17 @@ type transactionOut struct {
 	// RecurringMatch is set by add_expense and add_income when the new
 	// transaction looks like a payment of an active recurring item.
 	RecurringMatch *recurringMatchOut `json:"recurring_match,omitempty"`
+	// BudgetWarning is set when this expense leaves its category near or
+	// over its monthly budget.
+	BudgetWarning *budgetWarningOut `json:"budget_warning,omitempty"`
 }
 
 type transactionsOut struct {
 	Transactions []transactionOut `json:"transactions"`
 	Total        int64            `json:"total"`
+	// BudgetWarnings lists the categories left near or over budget by the
+	// expenses of add_transactions and update_transactions.
+	BudgetWarnings []budgetWarningOut `json:"budget_warnings,omitempty"`
 }
 
 type categoryTotalOut struct {
@@ -374,6 +380,10 @@ func (s *Server) record(ctx context.Context, typ string, args recordArgs) (*mcp.
 	if m := s.matchHint(ctx, tx.ID); m != nil {
 		out.RecurringMatch = m
 		msg += fmt.Sprintf(" This looks like a payment of the recurring item %s (due %s, estimated %s %s) but it is NOT linked. Ask the user whether to link it with link_transaction_to_recurring.", m.Recurring, m.Period, m.EstimatedAmount, out.Currency)
+	}
+	if w := s.budgetWarnings(ctx, []finance.Transaction{tx}); len(w) > 0 {
+		out.BudgetWarning = &w[0]
+		msg += "\n" + w[0].message()
 	}
 	return text(msg), out, nil
 }
@@ -654,7 +664,8 @@ func (s *Server) addTransactions(ctx context.Context, args addTransactionsArgs) 
 		}
 		lines[i] = fmt.Sprintf("- %s %s %s %s · %s%s%s [id %s]", t.Date, t.Type, t.Amount, t.Currency, target, categorySuffix(t.Category), descriptionSuffix(t.Description), t.ID)
 	}
-	return text(fmt.Sprintf("Recorded %d transactions:\n%s", len(created), strings.Join(lines, "\n"))), out, nil
+	out.BudgetWarnings = s.budgetWarnings(ctx, created)
+	return text(fmt.Sprintf("Recorded %d transactions:\n%s%s", len(created), strings.Join(lines, "\n"), warningText(out.BudgetWarnings))), out, nil
 }
 
 // batchTransactionInput resolves account and category names and converts
