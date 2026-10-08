@@ -68,7 +68,7 @@ export default defineConfig({
       // The standalone production build, as deployed: `next dev` compiles
       // each route on its first visit, which makes every test slower.
       // E2E_DEV=1 skips the build while iterating on a flow.
-      command: process.env.E2E_DEV ? `pnpm dev --port ${webPort}` : "pnpm build && pnpm start:standalone",
+      command: process.env.E2E_DEV ? `pnpm dev --port ${webPort}` : "node scripts/e2e-build.mjs && pnpm start:standalone",
       url: `http://localhost:${webPort}/login`,
       reuseExistingServer: false,
       timeout: 300_000,

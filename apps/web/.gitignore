@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.e2e-build-hash
 /out/
 
 # production

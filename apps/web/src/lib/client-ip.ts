@@ -30,3 +30,13 @@ export async function clientIpHeaders(): Promise<Record<string, string>> {
   const ip = clientIpFrom((await headers()).get("x-forwarded-for"), hops);
   return ip ? { "X-Client-IP": ip, "X-Client-IP-Secret": secret } : {};
 }
+
+/**
+ * Headers for API calls that open a session: the client address (see
+ * clientIpHeaders) and the browser's User-Agent, which the API records so the
+ * user can recognize the session in their security settings.
+ */
+export async function sessionClientHeaders(): Promise<Record<string, string>> {
+  const userAgent = (await headers()).get("user-agent");
+  return { ...(await clientIpHeaders()), ...(userAgent ? { "User-Agent": userAgent } : {}) };
+}

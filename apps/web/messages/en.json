@@ -28,7 +28,8 @@
     "categories": "Categories",
     "settings": "Settings",
     "signOut": "Sign out",
-    "subscriptions": "Subscriptions"
+    "subscriptions": "Subscriptions",
+    "budgets": "Budgets"
   },
   "auth": {
     "title": "Sign in",
@@ -226,7 +227,8 @@
     "exportTitle": "Export your data",
     "exportDescription": "Download everything in this workspace: accounts, categories, transactions, recurring items, budgets and members.",
     "exportJson": "Download JSON",
-    "exportCsv": "Download CSV (zip)"
+    "exportCsv": "Download CSV (zip)",
+    "subscriptionsDescription": "Recurring payments and detected suggestions."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -240,7 +242,8 @@
     "pageTitle": "Something went wrong",
     "retry": "Try again",
     "invalidWholeNumber": "Enter a whole number of 1 or more.",
-    "forbidden": "You don't have permission to do that."
+    "forbidden": "You don't have permission to do that.",
+    "invalidBudgetAmount": "Enter an amount with at most the currency decimals, or leave it empty for no budget."
   },
   "subscriptions": {
     "title": "Subscriptions",
@@ -408,5 +411,69 @@
     "ownerHint": "Who the account belongs to. Every member can still see and use it.",
     "sharedOption": "Shared (joint account)",
     "you": "{name} (you)"
+  },
+  "security": {
+    "title": "Security",
+    "settingsDescription": "Where you're signed in and which apps are connected.",
+    "sessions": "Where you're signed in",
+    "sessionsDescription": "Browsers signed in to your account. Sign out any you don't recognize.",
+    "thisDevice": "This device",
+    "device": "{browser} on {os}",
+    "unknownBrowser": "Unknown browser",
+    "unknownDevice": "Unknown device",
+    "lastActive": "Last active {date}",
+    "signedIn": "Signed in {date}",
+    "signOut": "Sign out",
+    "signOutLabel": "Sign out {device}",
+    "signOutTitle": "Sign out {device}?",
+    "signOutDescription": "That browser will need a new sign-in link or code to get back in.",
+    "signedOut": "Session signed out",
+    "signOutOthers": "Sign out everywhere else",
+    "signOutOthersTitle": "Sign out everywhere else?",
+    "signOutOthersDescription": "Every other browser will be signed out. Connected apps stay connected.",
+    "signedOutOthers": "Signed out everywhere else",
+    "connections": "Connected apps",
+    "connectionsDescription": "AI assistants you allowed to read and change your data. Disconnect any you no longer use.",
+    "noConnections": "No apps are connected.",
+    "unnamedApp": "Unnamed app",
+    "noWorkspace": "No workspace",
+    "connectedAt": "Connected {date}",
+    "disconnect": "Disconnect",
+    "disconnectLabel": "Disconnect {name}",
+    "disconnectTitle": "Disconnect {name}?",
+    "disconnectDescription": "{name} loses access right away. To use it again, you'll need to connect it again.",
+    "disconnected": "App disconnected"
+  },
+  "budgets": {
+    "title": "Budgets",
+    "edit": "Edit budgets",
+    "setBudgets": "Set budgets",
+    "emptyTitle": "No budgets yet",
+    "emptyDescription": "Set a monthly amount per category to see how much you have spent and still have left.",
+    "ownerHint": "Budgets are shared by the workspace; spent and committed only count this view's accounts.",
+    "budget": "Budget",
+    "budgeted": "Budgeted",
+    "spent": "Spent",
+    "committed": "Committed",
+    "remaining": "Remaining",
+    "overBy": "Over by",
+    "noBudget": "No budget",
+    "uncategorized": "Uncategorized",
+    "inheritedFrom": "from {month}",
+    "progress": "Budget used",
+    "used": "{percent}% used",
+    "state": {
+      "ok": "On track",
+      "near": "Near limit",
+      "over": "Over budget"
+    },
+    "editHint": "Amounts you set apply from {month} on, until a later month sets another. Clear a field to remove the budget from this month on.",
+    "applyAllSuggestions": "Apply all suggestions",
+    "suggestionsHint": "Based on the median of the last 3 months. Nothing is saved until you save.",
+    "suggested": "Suggested",
+    "useSuggestion": "Use",
+    "useSuggestionFor": "Use the suggestion for {name}",
+    "noCategories": "Create an account and an expense category to set budgets.",
+    "saved": "Budgets saved"
   }
 }

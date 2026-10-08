@@ -317,12 +317,15 @@ func (h *workspaceHandlers) registerInvitations(api huma.API) {
 		Tags:        tags,
 		Security:    public,
 		Metadata:    publicMetadata,
-	}, func(ctx context.Context, in *struct{ Body invitationTokenBody }) (*bodyOutput[auth.Session], error) {
+	}, func(ctx context.Context, in *struct {
+		ClientInfo
+		Body invitationTokenBody
+	}) (*bodyOutput[auth.Session], error) {
 		accepted, err := h.svc.AcceptInvitation(ctx, in.Body.Token)
 		if err != nil {
 			return nil, h.fail(ctx, err)
 		}
-		session, err := h.auth.CreateWorkspaceSession(ctx, accepted.UserID, &accepted.WorkspaceID, auth.ClientWeb, 0)
+		session, err := h.auth.CreateWorkspaceSession(auth.WithUserAgent(ctx, in.UserAgent), accepted.UserID, &accepted.WorkspaceID, auth.ClientWeb, 0)
 		if err != nil {
 			return nil, h.fail(ctx, err)
 		}

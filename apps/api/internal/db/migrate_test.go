@@ -64,6 +64,58 @@ func TestMigrationsRoundTrip(t *testing.T) {
 	}
 }
 
+// Authorizations made before OAuth grants existed become grants, so
+// connected apps keep refreshing their tokens after the upgrade.
+func TestOAuthGrantsBackfill(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	pool := testutil.NewDatabase(t, false)
+	m, err := db.NewMigrator(pool)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	if err := m.UpTo(ctx, 20261008083443); err != nil {
+		t.Fatal(err)
+	}
+
+	var userID, workspaceID string
+	mustScan(t, ctx, pool, &userID, `INSERT INTO users (email) VALUES ('ana@example.com') RETURNING id`)
+	mustScan(t, ctx, pool, &workspaceID, `INSERT INTO workspaces (name) VALUES ('Home') RETURNING id`)
+	if _, err := pool.Exec(ctx, `INSERT INTO oauth_clients (id, name, redirect_uris, token_endpoint_auth_method)
+		VALUES ('fw_claude', 'Claude', '{https://claude.ai/cb}', 'none')`); err != nil {
+		t.Fatal(err)
+	}
+	const active, revoked = "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"
+	if _, err := pool.Exec(ctx, `INSERT INTO oauth_refresh_tokens (token_hash, family_id, client_id, user_id, scope, workspace_id, expires_at, revoked_at, created_at) VALUES
+		('a1', $1, 'fw_claude', $3, 'finance', $4, now() + interval '80 days', now() - interval '10 days', now() - interval '20 days'),
+		('a2', $1, 'fw_claude', $3, 'finance', $4, now() + interval '89 days', NULL, now() - interval '10 days'),
+		('r1', $2, 'fw_claude', $3, 'finance', NULL, now() + interval '50 days', now() - interval '1 day', now() - interval '40 days')`,
+		active, revoked, userID, workspaceID); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := m.Up(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var (
+		count                      int
+		activeOK, revokedOK, ageOK bool
+	)
+	mustScan(t, ctx, pool, &count, `SELECT count(*) FROM oauth_grants`)
+	if count != 2 {
+		t.Fatalf("expected 2 grants, got %d", count)
+	}
+	mustScan(t, ctx, pool, &activeOK, `SELECT revoked_at IS NULL AND client_id = 'fw_claude' AND user_id = $2 AND workspace_id = $3 AND scope = 'finance'
+		FROM oauth_grants WHERE id = $1`, active, userID, workspaceID)
+	mustScan(t, ctx, pool, &ageOK, `SELECT created_at < now() - interval '19 days' AND last_used_at > now() - interval '11 days'
+		FROM oauth_grants WHERE id = $1`, active)
+	mustScan(t, ctx, pool, &revokedOK, `SELECT revoked_at IS NOT NULL AND workspace_id IS NULL FROM oauth_grants WHERE id = $1`, revoked)
+	if !activeOK || !ageOK || !revokedOK {
+		t.Fatalf("unexpected backfill: active=%v age=%v revoked=%v", activeOK, ageOK, revokedOK)
+	}
+}
+
 // schemaFixture holds ids of rows created for constraint tests.
 type schemaFixture struct {
 	ctx      context.Context // acts on the fixture's workspace

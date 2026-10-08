@@ -165,6 +165,15 @@ jobs:
           cache-dependency-path: apps/web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
         working-directory: apps/web
+      # Next's build cache (.next/cache). The e2e web server builds the
+      # standalone app on every run, so a warm cache speeds up the build. The
+      # restore key falls back to the same lockfile with other sources.
+      - uses: actions/cache@v6
+        with:
+          path: apps/web/.next/cache
+          key: next-build-${{ hashFiles('apps/web/pnpm-lock.yaml') }}-${{ hashFiles('apps/web/src/**', 'apps/web/public/**', 'apps/web/messages/**', 'apps/web/next.config.ts', 'apps/web/package.json', 'apps/web/tsconfig.json', 'apps/web/postcss.config.mjs') }}
+          restore-keys: |
+            next-build-${{ hashFiles('apps/web/pnpm-lock.yaml') }}-
       # The runner image already has Chrome's system libraries; --with-deps
       # only added fonts through an apt mirror that can stall for minutes.
       # Tests run headless, which only needs the headless shell.

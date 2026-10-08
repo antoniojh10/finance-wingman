@@ -5,6 +5,9 @@ import en from "../../messages/en.json";
 /** In-memory cookie jar standing in for next/headers cookies(). */
 export const cookieJar = new Map<string, { value: string; options?: Record<string, unknown> }>();
 
+/** Headers of the incoming browser request, standing in for next/headers headers(). */
+export const incomingHeaders = new Headers({ "user-agent": "Mozilla/5.0 (Test Browser)" });
+
 export class RedirectError extends Error {
   constructor(readonly url: string) {
     super(`NEXT_REDIRECT ${url}`);
@@ -27,7 +30,7 @@ vi.mock("next/headers", () => ({
     set: (name: string, value: string, options?: Record<string, unknown>) => cookieJar.set(name, { value, options }),
     delete: (name: string) => cookieJar.delete(name),
   }),
-  headers: async () => new Headers(),
+  headers: async () => incomingHeaders,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -47,7 +50,7 @@ type Route = { method: string; path: string; status: number; body?: unknown };
 
 /** Stubs fetch with canned API responses and records the requests made. */
 export function mockApi(routes: Route[]) {
-  const requests: { method: string; path: string; body: unknown; auth: string | null }[] = [];
+  const requests: { method: string; path: string; body: unknown; auth: string | null; userAgent: string | null }[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: Request) => {
@@ -58,6 +61,7 @@ export function mockApi(routes: Route[]) {
         path: url.pathname + url.search,
         body: text ? JSON.parse(text) : undefined,
         auth: input.headers.get("Authorization"),
+        userAgent: input.headers.get("User-Agent"),
       });
       const route = routes.find((r) => r.method === input.method && (url.pathname + url.search).startsWith(r.path));
       if (!route) {
