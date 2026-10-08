@@ -115,6 +115,8 @@
     "deleteDescription": "Esta acción no se puede deshacer.",
     "deleted": "Movimiento eliminado",
     "saved": "Movimiento guardado",
+    "budgetHintNear": "{category}: esto deja {remaining} del presupuesto.",
+    "budgetHintOver": "{category}: esto excede el presupuesto por {over}.",
     "recordedBy": "Registrado por {name}",
     "showing": "Mostrando {from}–{to} de {total}",
     "needAccount": "Crea una cuenta antes de agregar movimientos.",

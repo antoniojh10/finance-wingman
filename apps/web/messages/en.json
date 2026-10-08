@@ -115,6 +115,8 @@
     "deleteDescription": "This cannot be undone.",
     "deleted": "Transaction deleted",
     "saved": "Transaction saved",
+    "budgetHintNear": "{category}: this leaves {remaining} of the budget.",
+    "budgetHintOver": "{category}: this goes over budget by {over}.",
     "recordedBy": "Recorded by {name}",
     "showing": "Showing {from}–{to} of {total}",
     "needAccount": "Create an account before adding transactions.",

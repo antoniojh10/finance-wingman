@@ -41,8 +41,19 @@ test("sets a budget and sees an expense consume it", { tag: "@mobile" }, async (
   await txForm.locator("label", { hasText: accountName }).click();
   await txForm.getByLabel(/^Amount/).fill("450");
   await txForm.locator("label", { hasText: categoryName }).click();
+
+  // The form warns, without blocking, that the expense leaves the budget nearly spent...
+  const hint = txForm.getByTestId("budget-hint");
+  await expect(hint).toContainText("this leaves MX$50.00 of the budget");
+  // ...or over it, and the warning follows the amount.
+  await txForm.getByLabel(/^Amount/).fill("600");
+  await expect(hint).toContainText("this goes over budget by MX$100.00");
+  await txForm.getByLabel(/^Amount/).fill("450");
+  await expect(hint).toContainText("this leaves MX$50.00 of the budget");
+
   await txForm.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Transaction saved")).toBeVisible();
+  await expect(page.getByText(/this leaves MX\$50\.00 of the budget/)).toBeVisible();
 
   await navigate(page, /budgets/i);
   const consumed = page.getByTestId("budget-MXN").getByTestId("budget-row").filter({ hasText: categoryName });
