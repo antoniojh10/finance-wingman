@@ -86,6 +86,16 @@ func WithWorkspace(ctx context.Context, id uuid.UUID) context.Context {
 	return context.WithValue(ctx, workspaceKey{}, id)
 }
 
+// ActOnWorkspace makes the rest of the transaction act on the given
+// workspace, for transactions that change several workspaces. The setting
+// ends with the transaction.
+func ActOnWorkspace(ctx context.Context, tx pgx.Tx, id uuid.UUID) error {
+	if _, err := tx.Exec(ctx, "SELECT set_config('app.workspace_id', $1, true)", id.String()); err != nil {
+		return fmt.Errorf("set workspace: %w", err)
+	}
+	return nil
+}
+
 // WorkspaceFrom returns the workspace set with WithWorkspace, if any.
 func WorkspaceFrom(ctx context.Context) (uuid.UUID, bool) {
 	id, ok := ctx.Value(workspaceKey{}).(uuid.UUID)

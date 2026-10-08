@@ -10,7 +10,7 @@ VALUES ($1, $2, $3)
 ON CONFLICT (workspace_id, user_id) DO NOTHING;
 
 -- name: ListUserWorkspaces :many
-SELECT w.id, w.name, w.created_at, m.role
+SELECT w.id, w.name, w.created_at, w.deletion_scheduled_for, m.role
 FROM workspace_members m
 JOIN workspaces w ON w.id = m.workspace_id
 WHERE m.user_id = $1
@@ -26,7 +26,7 @@ SELECT * FROM workspaces WHERE id = $1;
 UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING *;
 
 -- name: ListWorkspaceMembers :many
-SELECT u.id, u.email, u.name, m.role, m.created_at
+SELECT u.id, u.email, u.name, u.locale, m.role, m.created_at
 FROM workspace_members m
 JOIN users u ON u.id = m.user_id
 WHERE m.workspace_id = $1
@@ -108,3 +108,35 @@ RETURNING *;
 
 -- name: DeleteExpiredInvitations :exec
 DELETE FROM workspace_invitations WHERE expires_at < $1 AND accepted_at IS NULL;
+
+-- Schedules the workspace for deletion unless it already is.
+-- name: ScheduleWorkspaceDeletion :one
+UPDATE workspaces SET deletion_scheduled_for = $2, deletion_requested_by = $3
+WHERE id = $1 AND deletion_scheduled_for IS NULL
+RETURNING *;
+
+-- name: CancelWorkspaceDeletion :execrows
+UPDATE workspaces SET deletion_scheduled_for = NULL, deletion_requested_by = NULL
+WHERE id = $1 AND deletion_scheduled_for IS NOT NULL;
+
+-- Picks one workspace whose grace period is over and locks it, skipping
+-- workspaces another API instance is already deleting. A cancellation
+-- waits for the lock and then finds nothing to cancel.
+-- name: ClaimDueWorkspaceDeletion :one
+SELECT * FROM workspaces
+WHERE deletion_scheduled_for <= $1
+ORDER BY deletion_scheduled_for
+LIMIT 1
+FOR UPDATE SKIP LOCKED;
+
+-- Access tokens of apps connected to the workspace. Their grants go with
+-- the workspace (ON DELETE CASCADE), but sessions only lose their workspace,
+-- so they are deleted first. Browser sessions are kept: they just stop
+-- acting on the workspace.
+-- name: DeleteWorkspaceAppSessions :exec
+DELETE FROM sessions WHERE workspace_id = $1 AND oauth_family_id IS NOT NULL;
+
+-- Deletes the workspace with all its finance data, members, invitations
+-- and connected apps (ON DELETE CASCADE).
+-- name: DeleteWorkspace :execrows
+DELETE FROM workspaces WHERE id = $1;

@@ -29,6 +29,9 @@ type Workspace struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
+	// DeletionScheduledFor is set while the workspace is scheduled for
+	// deletion.
+	DeletionScheduledFor *time.Time `json:"deletion_scheduled_for,omitempty" doc:"When the workspace will be deleted; omitted unless a deletion is scheduled"`
 }
 
 // Membership is a workspace seen by one of its members.
@@ -44,6 +47,11 @@ type Config struct {
 	InvitationTTL time.Duration
 	// MaxInvitationsPerHour caps invitation emails per workspace.
 	MaxInvitationsPerHour int
+	// DeletionGracePeriod is how long a scheduled workspace or account
+	// deletion can be cancelled before it is carried out.
+	DeletionGracePeriod time.Duration
+	// Location is the time zone of the dates in deletion emails.
+	Location *time.Location
 }
 
 func (c Config) withDefaults() Config {
@@ -52,6 +60,12 @@ func (c Config) withDefaults() Config {
 	}
 	if c.MaxInvitationsPerHour == 0 {
 		c.MaxInvitationsPerHour = 20
+	}
+	if c.DeletionGracePeriod == 0 {
+		c.DeletionGracePeriod = DefaultDeletionGracePeriod
+	}
+	if c.Location == nil {
+		c.Location = time.UTC
 	}
 	return c
 }
@@ -79,7 +93,7 @@ func (s *Service) List(ctx context.Context, userID uuid.UUID) ([]Membership, err
 	}
 	out := make([]Membership, len(rows))
 	for i, r := range rows {
-		out[i] = Membership{Workspace: Workspace{ID: r.ID, Name: r.Name, CreatedAt: r.CreatedAt}, Role: r.Role}
+		out[i] = Membership{Workspace: Workspace{ID: r.ID, Name: r.Name, CreatedAt: r.CreatedAt, DeletionScheduledFor: r.DeletionScheduledFor}, Role: r.Role}
 	}
 	return out, nil
 }
@@ -192,5 +206,5 @@ func validName(name string) (string, error) {
 }
 
 func fromModel(w store.Workspace) Workspace {
-	return Workspace{ID: w.ID, Name: w.Name, CreatedAt: w.CreatedAt}
+	return Workspace{ID: w.ID, Name: w.Name, CreatedAt: w.CreatedAt, DeletionScheduledFor: w.DeletionScheduledFor}
 }

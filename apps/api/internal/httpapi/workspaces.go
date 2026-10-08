@@ -47,6 +47,7 @@ func registerWorkspaces(api huma.API, svc *workspace.Service, authSvc *auth.Serv
 	h.registerWorkspaces(api)
 	h.registerMembers(api)
 	h.registerInvitations(api)
+	h.registerAccountDeletion(api)
 }
 
 func (h *workspaceHandlers) fail(ctx context.Context, err error) error {
@@ -147,6 +148,57 @@ func (h *workspaceHandlers) registerWorkspaces(api huma.API) {
 			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[workspace.Workspace]{Body: w}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "schedule-workspace-deletion",
+		Method:      http.MethodPost,
+		Path:        apiPrefix + "/workspaces/{id}/deletion",
+		Summary:     "Schedule a workspace for deletion",
+		Description: "Owners only, from a signed-in browser session. The body repeats the workspace's exact name to confirm. " +
+			"The workspace and all its data (accounts, transactions, categories, budgets, subscriptions, invitations and connected apps) " +
+			"are deleted once the grace period (7 days) is over; until then it stays usable and any owner can cancel. Every member is emailed.",
+		Tags: tags,
+	}, func(ctx context.Context, in *struct {
+		ID   string `path:"id" format:"uuid"`
+		Body workspaceNameBody
+	}) (*bodyOutput[workspace.Workspace], error) {
+		session, err := browserSession(ctx, errDeletionWebSessionOnly)
+		if err != nil {
+			return nil, err
+		}
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		w, err := h.svc.ScheduleDeletion(ctx, session.User.ID, id, in.Body.Name)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		return &bodyOutput[workspace.Workspace]{Body: w}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID:   "cancel-workspace-deletion",
+		Method:        http.MethodDelete,
+		Path:          apiPrefix + "/workspaces/{id}/deletion",
+		Summary:       "Cancel a workspace's scheduled deletion",
+		Description:   "Owners only, from a signed-in browser session.",
+		Tags:          tags,
+		DefaultStatus: http.StatusNoContent,
+	}, func(ctx context.Context, in *workspaceIDInput) (*struct{}, error) {
+		session, err := browserSession(ctx, errDeletionWebSessionOnly)
+		if err != nil {
+			return nil, err
+		}
+		id, err := parseID(in.ID)
+		if err != nil {
+			return nil, err
+		}
+		if err := h.svc.CancelDeletion(ctx, session.User.ID, id); err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		return nil, nil
 	})
 }
 

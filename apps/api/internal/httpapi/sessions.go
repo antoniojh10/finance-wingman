@@ -20,9 +20,19 @@ const errWebSessionOnly = "sessions and connected apps can only be managed from 
 // access token of a connected app: apps must not see where the user is
 // signed in nor disconnect each other.
 func webSession(ctx context.Context) (auth.Session, error) {
+	return browserSession(ctx, errWebSessionOnly)
+}
+
+// errDeletionWebSessionOnly is returned when a connected app's access token
+// tries to schedule or cancel a deletion.
+const errDeletionWebSessionOnly = "workspaces and accounts can only be deleted from a signed-in browser session"
+
+// browserSession returns the request's session, or a 403 with the given
+// message when it is the access token of a connected app.
+func browserSession(ctx context.Context, message string) (auth.Session, error) {
 	session, _ := sessionFrom(ctx)
 	if session.Client != auth.ClientWeb {
-		return auth.Session{}, huma.Error403Forbidden(errWebSessionOnly)
+		return auth.Session{}, huma.Error403Forbidden(message)
 	}
 	return session, nil
 }

@@ -120,7 +120,7 @@ func run(args []string, logger *slog.Logger) error {
 
 	switch command {
 	case "serve":
-		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL, MaxInvitationsPerHour: cfg.InvitationsPerHour})
+		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL, MaxInvitationsPerHour: cfg.InvitationsPerHour, Location: cfg.Location})
 		var initialIDs []uuid.UUID
 		for _, u := range cfg.InitialUsers {
 			user, err := authSvc.AddUser(ctx, u.Email, u.Name)
@@ -141,7 +141,7 @@ func run(args []string, logger *slog.Logger) error {
 		mcpSrv := mcpserver.New(financeSvc, httpapi.Version)
 		mcpSrv.SetLimiter(newLimiter(cfg.RateLimitMCPPerMinute))
 		mcpHandler := mcpSrv.Handler(authSvc, cfg.PublicURL, oauthSrv.ResourceMetadataURL(), logger)
-		go purgeExpiredPeriodically(ctx, logger, authSvc.PurgeExpired, oauthSrv.PurgeExpired, workspaceSvc.PurgeExpired)
+		go purgeExpiredPeriodically(ctx, logger, authSvc.PurgeExpired, oauthSrv.PurgeExpired, workspaceSvc.PurgeExpired, workspaceSvc.ExecuteScheduledDeletions)
 		if cfg.PprofAddr != "" {
 			go servePprof(ctx, cfg.PprofAddr, logger)
 		}
@@ -252,13 +252,16 @@ func servePprof(ctx context.Context, addr string, logger *slog.Logger) {
 	}
 }
 
+// purgeExpiredPeriodically runs maintenance tasks at startup and then every
+// hour: purging expired records and carrying out scheduled deletions once
+// their grace period is over (at most an hour late).
 func purgeExpiredPeriodically(ctx context.Context, logger *slog.Logger, purgers ...func(context.Context) error) {
-	ticker := time.NewTicker(6 * time.Hour)
+	ticker := time.NewTicker(time.Hour)
 	defer ticker.Stop()
 	for {
 		for _, purge := range purgers {
 			if err := purge(ctx); err != nil && ctx.Err() == nil {
-				logger.Warn("purge expired auth records", "error", err)
+				logger.Warn("periodic maintenance task", "error", err)
 			}
 		}
 		select {
