@@ -49,4 +49,9 @@ test("sets a budget and sees an expense consume it", { tag: "@mobile" }, async (
   await expect(consumed.getByText("Spent").locator("xpath=following-sibling::dd")).toHaveText("MX$450.00");
   await expect(consumed.getByText("Remaining").locator("xpath=following-sibling::dd")).toHaveText("MX$50.00");
   await expect(consumed).toContainText("Near limit");
+
+  // The dashboard card points at the category that is near its budget.
+  await navigate(page, /dashboard/i);
+  const attention = page.getByTestId("budgets-card").getByTestId("budget-attention-row").filter({ hasText: categoryName });
+  await expect(attention).toContainText("Near limit");
 });
