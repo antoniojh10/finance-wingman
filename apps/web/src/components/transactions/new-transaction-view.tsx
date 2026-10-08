@@ -10,6 +10,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { TransactionForm } from "./transaction-dialog";
 import type { AccountOption, CategoryOption } from "./types";
 import { useSavedToast } from "./use-saved-toast";
+import { NEW_ACCOUNT_HREF } from "@/components/accounts/new-account-dialog";
 
 /** Full-page form for adding a transaction, returning to `returnTo` when done. */
 export function NewTransactionView({
@@ -42,7 +43,7 @@ export function NewTransactionView({
       {accounts.length === 0 ? (
         <p className="rounded-2xl bg-card px-5 py-4 text-sm">
           {t("transactions.needAccount")}{" "}
-          <Link href="/accounts" className="font-semibold text-primary underline underline-offset-4">
+          <Link href={NEW_ACCOUNT_HREF} className="font-semibold text-primary underline underline-offset-4">
             {t("accounts.add")}
           </Link>
         </p>

@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { AccountDialog } from "@/components/accounts/account-dialog";
 import { AccountList } from "@/components/accounts/account-list";
+import { NewAccountDialog } from "@/components/accounts/new-account-dialog";
 import { OwnerFilter } from "@/components/owner-filter";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export default async function AccountsPage({ searchParams }: { searchParams: Pro
       <PageHeader
         title={t("accounts.title")}
         actions={
-          <AccountDialog
+          <NewAccountDialog
             currencies={currencies}
             defaultCurrency={defaultCurrency}
             defaultDate={defaultDate}

@@ -15,6 +15,7 @@ import { monthOf, monthRange, parseMonth, today } from "@/lib/dates";
 import { accountLabel, parseOwner } from "@/lib/owners";
 import { authedApi, expectData, getAccountOwners, getCurrentUser } from "@/lib/session";
 import { toAccountOption, toCategoryOption, toRecurringNames, toRecurringOption, toTransactionRow } from "@/lib/view-models";
+import { NEW_ACCOUNT_HREF } from "@/components/accounts/new-account-dialog";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("dashboard");
@@ -70,7 +71,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             <CardDescription>{t("dashboard.emptyDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button nativeButton={false} render={<Link href="/accounts" />}>
+            <Button nativeButton={false} render={<Link href={NEW_ACCOUNT_HREF} />}>
               {t("dashboard.createAccount")}
             </Button>
           </CardContent>
