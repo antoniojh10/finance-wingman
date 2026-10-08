@@ -2,6 +2,9 @@ services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
+    # Room for parallel `go test` packages and e2e runs across several
+    # worktrees (the default 100 ran out).
+    command: ["postgres", "-c", "max_connections=500"]
     environment:
       POSTGRES_USER: finance
       POSTGRES_PASSWORD: finance
