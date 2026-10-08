@@ -155,8 +155,8 @@ func (q *Queries) CreateOAuthGrant(ctx context.Context, arg CreateOAuthGrantPara
 }
 
 const createOAuthSession = `-- name: CreateOAuthSession :one
-INSERT INTO sessions (user_id, token_hash, client, expires_at, oauth_client_id, oauth_family_id, workspace_id)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO sessions (user_id, token_hash, client, expires_at, oauth_client_id, oauth_family_id, workspace_id, scope)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING id
 `
 
@@ -168,6 +168,7 @@ type CreateOAuthSessionParams struct {
 	OauthClientID *string
 	OauthFamilyID *uuid.UUID
 	WorkspaceID   *uuid.UUID
+	Scope         string
 }
 
 func (q *Queries) CreateOAuthSession(ctx context.Context, arg CreateOAuthSessionParams) (uuid.UUID, error) {
@@ -179,6 +180,7 @@ func (q *Queries) CreateOAuthSession(ctx context.Context, arg CreateOAuthSession
 		arg.OauthClientID,
 		arg.OauthFamilyID,
 		arg.WorkspaceID,
+		arg.Scope,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
@@ -513,16 +515,19 @@ func (q *Queries) SetAuthorizationRequestEmail(ctx context.Context, arg SetAutho
 }
 
 const setAuthorizationRequestUser = `-- name: SetAuthorizationRequestUser :exec
-UPDATE oauth_authorization_requests SET user_id = $2 WHERE id = $1
+UPDATE oauth_authorization_requests SET user_id = $2, scope = $3 WHERE id = $1
 `
 
 type SetAuthorizationRequestUserParams struct {
 	ID     uuid.UUID
 	UserID *uuid.UUID
+	Scope  string
 }
 
+// Records who signed in and the access they chose, while they pick the
+// workspace.
 func (q *Queries) SetAuthorizationRequestUser(ctx context.Context, arg SetAuthorizationRequestUserParams) error {
-	_, err := q.db.Exec(ctx, setAuthorizationRequestUser, arg.ID, arg.UserID)
+	_, err := q.db.Exec(ctx, setAuthorizationRequestUser, arg.ID, arg.UserID, arg.Scope)
 	return err
 }
 

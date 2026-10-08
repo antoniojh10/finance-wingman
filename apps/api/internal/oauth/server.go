@@ -24,8 +24,6 @@ import (
 )
 
 const (
-	// Scope is the single scope granted to OAuth clients.
-	Scope = "finance"
 	// SessionClient labels sessions created through OAuth.
 	SessionClient = "mcp"
 )
@@ -95,7 +93,7 @@ func (s *Server) Mount(r chi.Router) {
 	resourceMeta := mcpauth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
 		Resource:               s.ResourceURL(),
 		AuthorizationServers:   []string{s.cfg.Issuer},
-		ScopesSupported:        []string{Scope},
+		ScopesSupported:        auth.SupportedScopes,
 		BearerMethodsSupported: []string{"header"},
 		ResourceName:           "Finance Wingman",
 	})
@@ -126,7 +124,7 @@ func (s *Server) handleAuthServerMetadata(w http.ResponseWriter, _ *http.Request
 		"token_endpoint":                                 s.cfg.Issuer + "/oauth/token",
 		"registration_endpoint":                          s.cfg.Issuer + "/oauth/register",
 		"revocation_endpoint":                            s.cfg.Issuer + "/oauth/revoke",
-		"scopes_supported":                               []string{Scope},
+		"scopes_supported":                               auth.SupportedScopes,
 		"response_types_supported":                       []string{"code"},
 		"response_modes_supported":                       []string{"query"},
 		"grant_types_supported":                          []string{"authorization_code", "refresh_token"},

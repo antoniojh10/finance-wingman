@@ -21,6 +21,8 @@ type oauthClient struct {
 	clientID     string
 	clientSecret string
 	verifier     string
+	// scope is sent in authorization requests; empty sends none.
+	scope string
 }
 
 type tokenResult struct {
@@ -69,7 +71,7 @@ func newOAuthClient(t *testing.T, api *testAPI, authMethod string) *oauthClient 
 	if status != http.StatusCreated {
 		t.Fatalf("register: %d %v", status, resp)
 	}
-	c := &oauthClient{api: api, clientID: resp["client_id"].(string), verifier: strings.Repeat("v", 50)}
+	c := &oauthClient{api: api, clientID: resp["client_id"].(string), verifier: strings.Repeat("v", 50), scope: "finance:read finance:write"}
 	if secret, ok := resp["client_secret"].(string); ok {
 		c.clientSecret = secret
 	}
@@ -89,7 +91,7 @@ func (c *oauthClient) authorizeURL(overrides map[string]string) string {
 		"code_challenge":        {c.challenge()},
 		"code_challenge_method": {"S256"},
 		"state":                 {"xyz"},
-		"scope":                 {"finance"},
+		"scope":                 {c.scope},
 		"resource":              {testIssuer + "/mcp"},
 	}
 	for k, v := range overrides {
@@ -129,15 +131,27 @@ func (c *oauthClient) submit(requestID string, fields map[string]string) *httpte
 	return c.api.postForm("/oauth/authorize", form, "", "")
 }
 
-// authorize runs the whole browser flow and returns the authorization code.
+// authorize runs the whole browser flow, keeping the default access, and
+// returns the authorization code.
 func (c *oauthClient) authorize(t *testing.T, email string) string {
+	t.Helper()
+	return c.authorizeAccess(t, email, "")
+}
+
+// authorizeAccess runs the whole browser flow choosing access ("read_write",
+// "read_only", or "" to submit no choice) on the consent page.
+func (c *oauthClient) authorizeAccess(t *testing.T, email, access string) string {
 	t.Helper()
 	requestID := c.startAuthorization(t)
 	if rec := c.submit(requestID, map[string]string{"action": "send_code", "email": email}); rec.Code != http.StatusOK {
 		t.Fatalf("send code: %d %s", rec.Code, rec.Body)
 	}
 	code := c.api.mail.LastCode(t)
-	rec := c.submit(requestID, map[string]string{"action": "verify", "code": code})
+	fields := map[string]string{"action": "verify", "code": code}
+	if access != "" {
+		fields["access"] = access
+	}
+	rec := c.submit(requestID, fields)
 	if rec.Code != http.StatusFound {
 		t.Fatalf("verify: %d %s", rec.Code, rec.Body)
 	}
@@ -185,7 +199,7 @@ func TestOAuthMetadata(t *testing.T) {
 		ScopesSupported      []string `json:"scopes_supported"`
 	}
 	api.do(http.MethodGet, "/.well-known/oauth-protected-resource/mcp", nil).expect(http.StatusOK).decode(&meta)
-	if meta.Resource != testIssuer+"/mcp" || meta.AuthorizationServers[0] != testIssuer || meta.ScopesSupported[0] != "finance" {
+	if meta.Resource != testIssuer+"/mcp" || meta.AuthorizationServers[0] != testIssuer || strings.Join(meta.ScopesSupported, " ") != "finance:read finance:write" {
 		t.Fatalf("unexpected metadata %+v", meta)
 	}
 
@@ -201,6 +215,9 @@ func TestOAuthMetadata(t *testing.T) {
 		if as[key] != want {
 			t.Errorf("%s = %v, want %s", key, as[key], want)
 		}
+	}
+	if scopes := as["scopes_supported"].([]any); len(scopes) != 2 || scopes[0] != "finance:read" || scopes[1] != "finance:write" {
+		t.Errorf("unexpected scopes %v", scopes)
 	}
 	if methods := as["code_challenge_methods_supported"].([]any); len(methods) != 1 || methods[0] != "S256" {
 		t.Errorf("unexpected PKCE methods %v", methods)
@@ -252,7 +269,7 @@ func TestOAuthAuthorizationCodeFlow(t *testing.T) {
 	}
 
 	tokens := client.exchange(code)
-	if tokens.Status != http.StatusOK || tokens.AccessToken == "" || tokens.RefreshToken == "" || tokens.TokenType != "Bearer" || tokens.ExpiresIn != 3600 || tokens.Scope != "finance" {
+	if tokens.Status != http.StatusOK || tokens.AccessToken == "" || tokens.RefreshToken == "" || tokens.TokenType != "Bearer" || tokens.ExpiresIn != 3600 || tokens.Scope != "finance:read finance:write" {
 		t.Fatalf("unexpected token response: %+v", tokens)
 	}
 
@@ -501,6 +518,7 @@ func TestOAuthPurgeExpired(t *testing.T) {
 type connectionBody struct {
 	ID          string    `json:"id"`
 	ClientName  string    `json:"client_name"`
+	Scopes      []string  `json:"scopes"`
 	ConnectedAt time.Time `json:"connected_at"`
 	LastUsedAt  time.Time `json:"last_used_at"`
 	Workspace   *struct {

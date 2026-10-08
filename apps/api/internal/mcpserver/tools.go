@@ -209,7 +209,7 @@ type deleteOut struct {
 func boolPtr(b bool) *bool { return &b }
 
 func (s *Server) registerTools() {
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "add_expense",
 		Title:       "Add expense",
 		Description: "Record an expense (money spent) in an account, optionally with a category.",
@@ -218,7 +218,7 @@ func (s *Server) registerTools() {
 		return s.record(ctx, finance.TypeExpense, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "add_income",
 		Title:       "Add income",
 		Description: "Record income (money received, e.g. salary) in an account, optionally with a category.",
@@ -227,7 +227,7 @@ func (s *Server) registerTools() {
 		return s.record(ctx, finance.TypeIncome, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "add_transfer",
 		Title:       "Transfer between accounts",
 		Description: "Move money between two of the workspace's accounts. Transfers are not counted as income or expenses.",
@@ -236,7 +236,7 @@ func (s *Server) registerTools() {
 		return s.transfer(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "list_accounts",
 		Title:       "List accounts",
 		Description: "List active accounts with their owner (a workspace member, or shared), currency and current balance (initial balance plus transactions dated after balance_as_of).",
@@ -245,7 +245,7 @@ func (s *Server) registerTools() {
 		return s.listAccounts(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "list_categories",
 		Title:       "List categories",
 		Description: "List active expense and income categories.",
@@ -254,7 +254,7 @@ func (s *Server) registerTools() {
 		return s.listCategories(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "create_account",
 		Title:       "Create account",
 		Description: "Create a new account (bank account, card, cash, ...) with its currency and initial_balance, the balance it holds on balance_as_of (default today): transactions dated on or before that date are already included in it and do not change the balance, so past transactions can be added later for history. Only create accounts the user asked for; check list_accounts first to avoid duplicates.",
@@ -263,7 +263,7 @@ func (s *Server) registerTools() {
 		return s.createAccount(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "update_account",
 		Title:       "Update account",
 		Description: "Edit an existing account in place, keeping its transactions: rename it, change its type, fix its initial_balance and/or the balance_as_of date it refers to, or archive/unarchive it. Only the fields you pass change; the currency can never be changed. Editing initial_balance alone keeps balance_as_of; to set the balance as of today pass both. Archived accounts disappear from list_accounts and cannot receive new transactions. Confirm with the user before changing a balance or archiving.",
@@ -272,7 +272,7 @@ func (s *Server) registerTools() {
 		return s.updateAccount(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "create_category",
 		Title:       "Create category",
 		Description: "Create a new expense or income category. Only create categories the user asked for; check list_categories first to avoid duplicates.",
@@ -281,7 +281,7 @@ func (s *Server) registerTools() {
 		return s.createCategory(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "update_category",
 		Title:       "Update category",
 		Description: "Edit an existing category in place: rename it, change its color or icon, or archive/unarchive it. Only the fields you pass change; the kind (expense or income) cannot be changed. Archived categories disappear from list_categories but their transactions stay categorized. Confirm with the user before archiving.",
@@ -290,7 +290,7 @@ func (s *Server) registerTools() {
 		return s.updateCategory(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "create_categories",
 		Title:       "Create several categories",
 		Description: "Create up to 100 expense or income categories at once. All-or-nothing: if any item is invalid nothing is created. Check list_categories first to avoid duplicates.",
@@ -299,7 +299,7 @@ func (s *Server) registerTools() {
 		return s.createCategories(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "create_accounts",
 		Title:       "Create several accounts",
 		Description: "Create up to 100 accounts at once. All-or-nothing: if any item is invalid nothing is created. Check list_accounts first to avoid duplicates.",
@@ -308,7 +308,7 @@ func (s *Server) registerTools() {
 		return s.createAccounts(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "add_transactions",
 		Title:       "Add several transactions",
 		Description: "Record up to 100 expenses, incomes or transfers at once; each item has its own type. All-or-nothing: if any item is invalid nothing is recorded, and the error names the failing item.",
@@ -317,7 +317,7 @@ func (s *Server) registerTools() {
 		return s.addTransactions(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "get_summary",
 		Title:       "Get summary",
 		Description: "Income, expenses and net per currency for a period, broken down by category, plus current balances.",
@@ -326,7 +326,7 @@ func (s *Server) registerTools() {
 		return s.summary(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "list_transactions",
 		Title:       "List transactions",
 		Description: "List recent transactions, newest first, with optional filters.",
@@ -335,7 +335,7 @@ func (s *Server) registerTools() {
 		return s.listTransactions(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "delete_transaction",
 		Title:       "Delete transaction",
 		Description: "Permanently delete a transaction, e.g. to undo a mistake. Confirm with the user before deleting.",

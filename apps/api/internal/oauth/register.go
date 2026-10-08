@@ -108,7 +108,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		"grant_types":                []string{"authorization_code", "refresh_token"},
 		"response_types":             []string{"code"},
 		"token_endpoint_auth_method": client.TokenEndpointAuthMethod,
-		"scope":                      Scope,
+		"scope":                      auth.FullScope,
 	}
 	if secret != "" {
 		resp["client_secret"] = secret
