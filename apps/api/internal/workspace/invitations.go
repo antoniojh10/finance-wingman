@@ -209,7 +209,14 @@ func (s *Service) AcceptInvitation(ctx context.Context, token string) (Accepted,
 	if token == "" {
 		return Accepted{}, errInvalidInvitation
 	}
-	var out Accepted
+	var (
+		out      Accepted
+		joined   store.User
+		role     string
+		wsName   string
+		owners   []store.ListWorkspaceMembersRow
+		isNewMem bool
+	)
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		q := s.q.WithTx(tx)
 		inv, err := q.AcceptInvitation(ctx, store.AcceptInvitationParams{TokenHash: auth.HashToken(token), ExpiresAt: s.now()})
@@ -224,13 +231,61 @@ func (s *Service) AcceptInvitation(ctx context.Context, token string) (Accepted,
 			return err
 		}
 		// Someone who already belongs keeps their current role.
+		_, err = q.GetMemberRole(ctx, store.GetMemberRoleParams{WorkspaceID: inv.WorkspaceID, UserID: user.ID})
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		isNewMem = errors.Is(err, pgx.ErrNoRows)
 		if err := q.AddWorkspaceMember(ctx, store.AddWorkspaceMemberParams{WorkspaceID: inv.WorkspaceID, UserID: user.ID, Role: inv.Role}); err != nil {
 			return err
 		}
 		out = Accepted{UserID: user.ID, WorkspaceID: inv.WorkspaceID}
+		if !isNewMem {
+			return nil
+		}
+		joined, role = user, inv.Role
+		w, err := q.GetWorkspace(ctx, inv.WorkspaceID)
+		if err != nil {
+			return err
+		}
+		wsName = w.Name
+		members, err := q.ListWorkspaceMembers(ctx, inv.WorkspaceID)
+		if err != nil {
+			return err
+		}
+		for _, m := range members {
+			if m.Role == RoleOwner && m.ID != user.ID {
+				owners = append(owners, m)
+			}
+		}
 		return nil
 	})
-	return out, err
+	if err != nil {
+		return out, err
+	}
+	// Sent after the commit: the invitee has joined whether or not the
+	// notification goes out.
+	s.notifyMemberJoined(ctx, owners, joined, role, wsName)
+	return out, nil
+}
+
+// notifyMemberJoined tells the workspace owners (other than the person who
+// joined) about the new member. Failures are logged, never returned.
+func (s *Service) notifyMemberJoined(ctx context.Context, owners []store.ListWorkspaceMembersRow, joined store.User, role, workspaceName string) {
+	for _, o := range owners {
+		msg, err := mailer.RenderMemberJoined(mailer.MemberJoinedEmail{
+			To: o.Email, Name: o.Name, Locale: o.Locale,
+			Member: displayName(&joined.Name, &joined.Email), MemberEmail: joined.Email,
+			Role: role, WorkspaceName: workspaceName,
+			Link: s.link("/settings/workspace"),
+		})
+		if err == nil {
+			err = s.mail.Send(ctx, msg)
+		}
+		if err != nil {
+			s.logger.WarnContext(ctx, "workspace: send member joined email", "error", err, "workspace_id", joined.ID)
+		}
+	}
 }
 
 // PurgeExpired deletes invitations that can no longer be accepted.

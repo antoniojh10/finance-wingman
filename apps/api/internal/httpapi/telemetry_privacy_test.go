@@ -91,7 +91,7 @@ func TestTelemetryCarriesNoPersonalData(t *testing.T) {
 	sender := &flakyMail{MailRecorder: api.mail}
 	authSvc := auth.NewService(api.pool, sender, auth.Config{WebBaseURL: "http://web.test"}, logger)
 	svc := finance.NewService(api.pool, time.UTC)
-	oauthSrv := oauth.NewServer(api.pool, authSvc, oauth.Config{Issuer: testIssuer}, logger)
+	oauthSrv := oauth.NewServer(api.pool, authSvc, &testutil.MailRecorder{}, oauth.Config{Issuer: testIssuer}, logger)
 	workspaces := workspace.NewService(api.pool, sender, workspace.Config{WebBaseURL: "http://web.test"})
 	mcpHandler := mcpserver.New(svc, Version).Handler(authSvc, testIssuer, oauthSrv.ResourceMetadataURL(), logger)
 	api.handler = NewHandler(Deps{Logger: logger, DB: api.pool, Auth: authSvc, Finance: svc, Workspaces: workspaces, OAuth: oauthSrv, MCP: mcpHandler})

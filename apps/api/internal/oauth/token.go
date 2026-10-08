@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
+	mailer "github.com/antoniojh10/finance-wingman/apps/api/internal/mail"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/store"
 )
 
@@ -139,7 +140,45 @@ func (s *Server) exchangeCode(w http.ResponseWriter, r *http.Request, client sto
 		s.serverError(w, r, "issue tokens", err)
 		return
 	}
+	// After the commit: the app is connected whether or not the email goes out.
+	s.notifyConnected(r.Context(), client, record.UserID, record.WorkspaceID, scope)
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// notifyConnected emails the user that an app was connected. Failures are
+// logged, never returned: they must not break the connection.
+func (s *Server) notifyConnected(ctx context.Context, client store.OauthClient, userID uuid.UUID, workspaceID *uuid.UUID, scope string) {
+	err := s.sendConnected(ctx, client, userID, workspaceID, scope)
+	if err != nil {
+		s.logger.WarnContext(ctx, "oauth: send app connected email", "error", err, "client_id", client.ID, "user_id", userID)
+	}
+}
+
+func (s *Server) sendConnected(ctx context.Context, client store.OauthClient, userID uuid.UUID, workspaceID *uuid.UUID, scope string) error {
+	user, err := s.q.GetUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	var workspaceName string
+	if workspaceID != nil {
+		w, err := s.q.GetWorkspace(ctx, *workspaceID)
+		if err != nil {
+			return err
+		}
+		workspaceName = w.Name
+	}
+	msg, err := mailer.RenderAppConnected(mailer.AppConnectedEmail{
+		To: user.Email, Name: user.Name, Locale: user.Locale,
+		AppName:       client.Name,
+		CanWrite:      slices.Contains(auth.ParseScope(scope), auth.ScopeWrite),
+		WorkspaceName: workspaceName,
+		Date:          s.now().In(s.cfg.Location),
+		Link:          strings.TrimRight(s.cfg.WebBaseURL, "/") + "/settings/security",
+	})
+	if err != nil {
+		return err
+	}
+	return s.mail.Send(ctx, msg)
 }
 
 // refresh rotates a refresh token. It locks the token's grant first, the

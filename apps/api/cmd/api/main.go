@@ -120,7 +120,7 @@ func run(args []string, logger *slog.Logger) error {
 
 	switch command {
 	case "serve":
-		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL, MaxInvitationsPerHour: cfg.InvitationsPerHour, Location: cfg.Location})
+		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL, MaxInvitationsPerHour: cfg.InvitationsPerHour, Location: cfg.Location, Logger: logger})
 		var initialIDs []uuid.UUID
 		for _, u := range cfg.InitialUsers {
 			user, err := authSvc.AddUser(ctx, u.Email, u.Name)
@@ -137,7 +137,7 @@ func run(args []string, logger *slog.Logger) error {
 			logger.Info("initial workspace created", "owners", len(initialIDs))
 		}
 		financeSvc := finance.NewService(pool, cfg.Location)
-		oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: cfg.PublicURL}, logger)
+		oauthSrv := oauth.NewServer(pool, authSvc, sender, oauth.Config{Issuer: cfg.PublicURL, WebBaseURL: cfg.WebBaseURL, Location: cfg.Location}, logger)
 		mcpSrv := mcpserver.New(financeSvc, httpapi.Version)
 		mcpSrv.SetLimiter(newLimiter(cfg.RateLimitMCPPerMinute))
 		mcpHandler := mcpSrv.Handler(authSvc, cfg.PublicURL, oauthSrv.ResourceMetadataURL(), logger)

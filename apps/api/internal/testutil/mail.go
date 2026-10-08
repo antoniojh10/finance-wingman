@@ -14,11 +14,19 @@ import (
 type MailRecorder struct {
 	mu       sync.Mutex
 	messages []mail.Message
+	// Fail, when set, makes Send return its error instead of recording the
+	// message.
+	Fail func(mail.Message) error
 }
 
 func (r *MailRecorder) Send(_ context.Context, msg mail.Message) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.Fail != nil {
+		if err := r.Fail(msg); err != nil {
+			return err
+		}
+	}
 	r.messages = append(r.messages, msg)
 	return nil
 }

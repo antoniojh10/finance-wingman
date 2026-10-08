@@ -20,6 +20,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
+	mailer "github.com/antoniojh10/finance-wingman/apps/api/internal/mail"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/store"
 )
 
@@ -39,6 +40,11 @@ type Config struct {
 	AuthorizationCodeTTL    time.Duration
 	AuthorizationRequestTTL time.Duration
 	MaxClientsPerHour       int
+
+	// WebBaseURL is where links in emails point to (the Next.js app).
+	WebBaseURL string
+	// Location is the time zone of the dates in emails; UTC when nil.
+	Location *time.Location
 }
 
 func (c Config) withDefaults() Config {
@@ -61,6 +67,9 @@ func (c Config) withDefaults() Config {
 	if c.MaxClientsPerHour == 0 {
 		c.MaxClientsPerHour = 50
 	}
+	if c.Location == nil {
+		c.Location = time.UTC
+	}
 	return c
 }
 
@@ -70,11 +79,14 @@ type Server struct {
 	auth   *auth.Service
 	cfg    Config
 	logger *slog.Logger
+	mail   mailer.Sender
 	now    func() time.Time
 }
 
-func NewServer(pool *pgxpool.Pool, authSvc *auth.Service, cfg Config, logger *slog.Logger) *Server {
-	return &Server{pool: pool, q: store.New(pool), auth: authSvc, cfg: cfg.withDefaults(), logger: logger, now: time.Now}
+// NewServer creates the authorization server. sender delivers the security
+// notifications (a new app was connected).
+func NewServer(pool *pgxpool.Pool, authSvc *auth.Service, sender mailer.Sender, cfg Config, logger *slog.Logger) *Server {
+	return &Server{pool: pool, q: store.New(pool), auth: authSvc, mail: sender, cfg: cfg.withDefaults(), logger: logger, now: time.Now}
 }
 
 // SetClock overrides the time source; intended for tests.
