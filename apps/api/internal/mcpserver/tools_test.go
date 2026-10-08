@@ -18,6 +18,7 @@ import (
 
 type harness struct {
 	t       *testing.T
+	server  *Server
 	svc     *finance.Service
 	session *mcp.ClientSession
 	pool    *pgxpool.Pool
@@ -37,7 +38,7 @@ func newHarness(t *testing.T) *harness {
 	server := New(svc, "test")
 	workspaceID := testutil.NewWorkspace(t, pool, "Home")
 	server.workspaceOf = func(*mcp.CallToolRequest) (uuid.UUID, bool) { return workspaceID, true }
-	h := &harness{t: t, svc: svc, pool: pool, ctx: db.WithWorkspace(ctx, workspaceID), workspaceID: workspaceID}
+	h := &harness{t: t, server: server, svc: svc, pool: pool, ctx: db.WithWorkspace(ctx, workspaceID), workspaceID: workspaceID}
 	server.actorOf = func(*mcp.CallToolRequest) (uuid.UUID, bool) { return h.actor, h.actor != uuid.Nil }
 
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()

@@ -28,10 +28,10 @@ export function apiBaseUrl(): string {
   return process.env.API_URL ?? "http://localhost:8080";
 }
 
-export function createApiClient(token?: string) {
+export function createApiClient(token?: string, extraHeaders: Record<string, string> = {}) {
   return createClient<paths>({
     baseUrl: apiBaseUrl(),
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    headers: { ...extraHeaders, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     cache: "no-store",
   });
 }

@@ -199,7 +199,7 @@ async function expectToast(page: Page, message: string) {
 test("accepts a detected subscription and sees its linked transactions", async ({ page }, testInfo) => {
   const suffix = `${testInfo.project.name}-${Date.now()}`;
   const accountName = `Detect ${suffix}`;
-  const description = `Streaming ${testInfo.project.name}`;
+  const description = `Streaming ${suffix}`;
   const name = `Streaming plan ${suffix}`;
 
   await page.goto("/");
