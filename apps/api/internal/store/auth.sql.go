@@ -81,9 +81,9 @@ func (q *Queries) CreateChallenge(ctx context.Context, arg CreateChallengeParams
 }
 
 const createSession = `-- name: CreateSession :one
-INSERT INTO sessions (user_id, token_hash, client, expires_at, workspace_id)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, user_id, token_hash, client, expires_at, last_used_at, created_at, oauth_client_id, oauth_family_id, workspace_id
+INSERT INTO sessions (user_id, token_hash, client, expires_at, workspace_id, user_agent, last_used_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, user_id, token_hash, client, expires_at, last_used_at, created_at, oauth_client_id, oauth_family_id, workspace_id, user_agent
 `
 
 type CreateSessionParams struct {
@@ -92,6 +92,8 @@ type CreateSessionParams struct {
 	Client      string
 	ExpiresAt   time.Time
 	WorkspaceID *uuid.UUID
+	UserAgent   string
+	LastUsedAt  time.Time
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
@@ -101,6 +103,8 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		arg.Client,
 		arg.ExpiresAt,
 		arg.WorkspaceID,
+		arg.UserAgent,
+		arg.LastUsedAt,
 	)
 	var i Session
 	err := row.Scan(
@@ -114,20 +118,46 @@ func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (S
 		&i.OauthClientID,
 		&i.OauthFamilyID,
 		&i.WorkspaceID,
+		&i.UserAgent,
 	)
 	return i, err
 }
 
 const deleteExpiredAuthRecords = `-- name: DeleteExpiredAuthRecords :exec
 WITH expired_sessions AS (
-    DELETE FROM sessions WHERE sessions.expires_at < $1
+    DELETE FROM sessions
+    WHERE sessions.expires_at < $1 OR sessions.last_used_at < $2
 )
 DELETE FROM login_challenges WHERE login_challenges.expires_at < $1
 `
 
-func (q *Queries) DeleteExpiredAuthRecords(ctx context.Context, expiresAt time.Time) error {
-	_, err := q.db.Exec(ctx, deleteExpiredAuthRecords, expiresAt)
+type DeleteExpiredAuthRecordsParams struct {
+	Now       time.Time
+	IdleSince time.Time
+}
+
+// Sessions end at their absolute expiry or after being idle too long.
+func (q *Queries) DeleteExpiredAuthRecords(ctx context.Context, arg DeleteExpiredAuthRecordsParams) error {
+	_, err := q.db.Exec(ctx, deleteExpiredAuthRecords, arg.Now, arg.IdleSince)
 	return err
+}
+
+const deleteOtherUserSessions = `-- name: DeleteOtherUserSessions :execrows
+DELETE FROM sessions
+WHERE user_id = $1 AND id <> $2 AND oauth_family_id IS NULL
+`
+
+type DeleteOtherUserSessionsParams struct {
+	UserID uuid.UUID
+	ID     uuid.UUID
+}
+
+func (q *Queries) DeleteOtherUserSessions(ctx context.Context, arg DeleteOtherUserSessionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOtherUserSessions, arg.UserID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteSession = `-- name: DeleteSession :exec
@@ -145,6 +175,26 @@ DELETE FROM users WHERE email = $1
 
 func (q *Queries) DeleteUserByEmail(ctx context.Context, email string) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteUserByEmail, email)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteUserSession = `-- name: DeleteUserSession :execrows
+DELETE FROM sessions
+WHERE id = $1 AND user_id = $2 AND oauth_family_id IS NULL
+`
+
+type DeleteUserSessionParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+// Only the user's own sign-ins can be revoked this way; connected apps are
+// disconnected through their OAuth grant.
+func (q *Queries) DeleteUserSession(ctx context.Context, arg DeleteUserSessionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteUserSession, arg.ID, arg.UserID)
 	if err != nil {
 		return 0, err
 	}
@@ -245,7 +295,7 @@ func (q *Queries) GetMembership(ctx context.Context, arg GetMembershipParams) (G
 }
 
 const getSessionByTokenHash = `-- name: GetSessionByTokenHash :one
-SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, s.workspace_id, u.email, u.name, u.locale,
+SELECT s.id, s.user_id, s.token_hash, s.client, s.expires_at, s.last_used_at, s.created_at, s.oauth_client_id, s.oauth_family_id, s.workspace_id, s.user_agent, u.email, u.name, u.locale,
     w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role,
     oc.name AS oauth_client_name
 FROM sessions s
@@ -267,6 +317,7 @@ type GetSessionByTokenHashRow struct {
 	OauthClientID     *string
 	OauthFamilyID     *uuid.UUID
 	WorkspaceID       *uuid.UUID
+	UserAgent         string
 	Email             string
 	Name              string
 	Locale            string
@@ -292,6 +343,7 @@ func (q *Queries) GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (
 		&i.OauthClientID,
 		&i.OauthFamilyID,
 		&i.WorkspaceID,
+		&i.UserAgent,
 		&i.Email,
 		&i.Name,
 		&i.Locale,
@@ -350,6 +402,58 @@ func (q *Queries) IncrementChallengeAttempts(ctx context.Context, id uuid.UUID) 
 	return attempts, err
 }
 
+const listUserSessions = `-- name: ListUserSessions :many
+SELECT id, user_agent, created_at, last_used_at, expires_at
+FROM sessions
+WHERE user_id = $1
+  AND oauth_family_id IS NULL
+  AND expires_at > $2
+  AND last_used_at > $3
+ORDER BY last_used_at DESC, created_at DESC
+`
+
+type ListUserSessionsParams struct {
+	UserID    uuid.UUID
+	Now       time.Time
+	IdleSince time.Time
+}
+
+type ListUserSessionsRow struct {
+	ID         uuid.UUID
+	UserAgent  string
+	CreatedAt  time.Time
+	LastUsedAt time.Time
+	ExpiresAt  time.Time
+}
+
+// The user's active sign-ins (not the access tokens of connected apps),
+// most recently used first.
+func (q *Queries) ListUserSessions(ctx context.Context, arg ListUserSessionsParams) ([]ListUserSessionsRow, error) {
+	rows, err := q.db.Query(ctx, listUserSessions, arg.UserID, arg.Now, arg.IdleSince)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUserSessionsRow{}
+	for rows.Next() {
+		var i ListUserSessionsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserAgent,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+			&i.ExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT id, email, name, locale, created_at, updated_at FROM users ORDER BY created_at
 `
@@ -398,11 +502,16 @@ func (q *Queries) SetSessionWorkspace(ctx context.Context, arg SetSessionWorkspa
 }
 
 const touchSession = `-- name: TouchSession :exec
-UPDATE sessions SET last_used_at = now() WHERE id = $1
+UPDATE sessions SET last_used_at = $2 WHERE id = $1
 `
 
-func (q *Queries) TouchSession(ctx context.Context, id uuid.UUID) error {
-	_, err := q.db.Exec(ctx, touchSession, id)
+type TouchSessionParams struct {
+	ID         uuid.UUID
+	LastUsedAt time.Time
+}
+
+func (q *Queries) TouchSession(ctx context.Context, arg TouchSessionParams) error {
+	_, err := q.db.Exec(ctx, touchSession, arg.ID, arg.LastUsedAt)
 	return err
 }
 

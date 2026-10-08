@@ -117,6 +117,17 @@ type OauthClient struct {
 	CreatedAt               time.Time
 }
 
+type OauthGrant struct {
+	ID          uuid.UUID
+	ClientID    string
+	UserID      uuid.UUID
+	WorkspaceID *uuid.UUID
+	Scope       string
+	CreatedAt   time.Time
+	LastUsedAt  time.Time
+	RevokedAt   *time.Time
+}
+
 type OauthRefreshToken struct {
 	TokenHash   []byte
 	FamilyID    uuid.UUID
@@ -168,6 +179,7 @@ type Session struct {
 	OauthClientID *string
 	OauthFamilyID *uuid.UUID
 	WorkspaceID   *uuid.UUID
+	UserAgent     string
 }
 
 type Transaction struct {

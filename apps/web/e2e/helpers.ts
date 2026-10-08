@@ -64,17 +64,21 @@ export async function openNewTransaction(page: Page): Promise<void> {
 }
 
 /**
- * Opens the categories page: from the sidebar on desktop, and through the
- * settings page on mobile, where categories are not in the tab bar.
+ * Opens a section that is not in the mobile tab bar: from the sidebar on
+ * desktop, and through the settings page on mobile.
  */
-export async function openCategories(page: Page): Promise<void> {
-  const link = page.getByRole("link", { name: /categories/i }).filter({ visible: true });
+async function openFromSettings(page: Page, name: RegExp): Promise<void> {
+  const link = page.getByRole("link", { name }).filter({ visible: true });
   if ((await link.count()) === 0) {
     await page.getByRole("link", { name: /settings/i }).filter({ visible: true }).first().click();
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   }
   await link.first().click();
 }
+
+export const openCategories = (page: Page) => openFromSettings(page, /categories/i);
+
+export const openSubscriptions = (page: Page) => openFromSettings(page, /subscriptions/i);
 
 export function invitationLinkFrom(text: string): string {
   const match = /(https?:\/\/\S+\/invite\?token=\S+)/.exec(text);

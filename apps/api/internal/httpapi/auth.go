@@ -116,7 +116,14 @@ type loginOutput struct {
 	}
 }
 
+// ClientInfo identifies the browser opening a session. The web app
+// forwards its visitor's User-Agent, since it calls the API server-side.
+type ClientInfo struct {
+	UserAgent string `header:"User-Agent" doc:"Recorded with the session so the user can recognize it"`
+}
+
 type verifyInput struct {
+	ClientInfo
 	Body struct {
 		Token string `json:"token,omitempty" doc:"Token from the magic link"`
 		Email string `json:"email,omitempty" doc:"Email address, required together with code"`
@@ -166,6 +173,7 @@ func registerAuth(api huma.API, svc *auth.Service, logger *slog.Logger) {
 			session auth.Session
 			err     error
 		)
+		ctx = auth.WithUserAgent(ctx, in.UserAgent)
 		switch {
 		case in.Body.Token != "":
 			session, err = svc.VerifyToken(ctx, in.Body.Token, auth.ClientWeb)

@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures";
 
-import { e2eUser } from "../playwright.config";
+import { apiPort, e2eUser } from "../playwright.config";
 import { codeFrom, linkFrom, navigate, requestLogin, signIn } from "./helpers";
 
 // These flows start signed out, and signing out ends the session, so they
@@ -31,7 +31,7 @@ test("signs in with the magic link", async ({ page }) => {
 test("switches language and signs out", { tag: "@mobile" }, async ({ page }) => {
   await signIn(page, e2eUser);
   await navigate(page, /settings/i);
-  await expect(page.getByTestId("mcp-url")).toHaveText("http://localhost:8081/mcp");
+  await expect(page.getByTestId("mcp-url")).toHaveText(`http://localhost:${apiPort}/mcp`);
 
   await page.locator("label", { hasText: "Español" }).click();
   await page.getByRole("button", { name: "Save" }).click();

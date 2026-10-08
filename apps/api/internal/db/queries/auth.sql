@@ -56,8 +56,8 @@ UPDATE login_challenges SET consumed_at = now()
 WHERE user_id = $1 AND consumed_at IS NULL;
 
 -- name: CreateSession :one
-INSERT INTO sessions (user_id, token_hash, client, expires_at, workspace_id)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO sessions (user_id, token_hash, client, expires_at, workspace_id, user_agent, last_used_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING *;
 
 -- The session's workspace is only reported while the user is still a
@@ -97,13 +97,36 @@ WHERE m.workspace_id = $1 AND m.user_id = $2;
 UPDATE sessions SET workspace_id = $2, last_used_at = now() WHERE id = $1;
 
 -- name: TouchSession :exec
-UPDATE sessions SET last_used_at = now() WHERE id = $1;
+UPDATE sessions SET last_used_at = $2 WHERE id = $1;
 
 -- name: DeleteSession :exec
 DELETE FROM sessions WHERE id = $1;
 
+-- The user's active sign-ins (not the access tokens of connected apps),
+-- most recently used first.
+-- name: ListUserSessions :many
+SELECT id, user_agent, created_at, last_used_at, expires_at
+FROM sessions
+WHERE user_id = sqlc.arg('user_id')
+  AND oauth_family_id IS NULL
+  AND expires_at > sqlc.arg('now')
+  AND last_used_at > sqlc.arg('idle_since')
+ORDER BY last_used_at DESC, created_at DESC;
+
+-- Only the user's own sign-ins can be revoked this way; connected apps are
+-- disconnected through their OAuth grant.
+-- name: DeleteUserSession :execrows
+DELETE FROM sessions
+WHERE id = $1 AND user_id = $2 AND oauth_family_id IS NULL;
+
+-- name: DeleteOtherUserSessions :execrows
+DELETE FROM sessions
+WHERE user_id = $1 AND id <> $2 AND oauth_family_id IS NULL;
+
+-- Sessions end at their absolute expiry or after being idle too long.
 -- name: DeleteExpiredAuthRecords :exec
 WITH expired_sessions AS (
-    DELETE FROM sessions WHERE sessions.expires_at < $1
+    DELETE FROM sessions
+    WHERE sessions.expires_at < sqlc.arg('now') OR sessions.last_used_at < sqlc.arg('idle_since')
 )
-DELETE FROM login_challenges WHERE login_challenges.expires_at < $1;
+DELETE FROM login_challenges WHERE login_challenges.expires_at < sqlc.arg('now');

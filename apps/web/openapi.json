@@ -805,6 +805,54 @@
         ],
         "type": "object"
       },
+      "Connection": {
+        "additionalProperties": false,
+        "properties": {
+          "client_name": {
+            "description": "Name the app registered with; empty when it gave none",
+            "type": "string"
+          },
+          "connected_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "description": "Latest token refresh or request; request times are updated at most once an hour",
+            "format": "date-time",
+            "type": "string"
+          },
+          "workspace": {
+            "$ref": "#/components/schemas/ConnectionWorkspace",
+            "description": "The workspace the app acts on; omitted when it acts on none"
+          }
+        },
+        "required": [
+          "id",
+          "client_name",
+          "connected_at",
+          "last_used_at"
+        ],
+        "type": "object"
+      },
+      "ConnectionWorkspace": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "CreateAccountInput": {
         "additionalProperties": false,
         "properties": {
@@ -1429,6 +1477,30 @@
         ],
         "type": "object"
       },
+      "ListOutputConnectionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputConnectionBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Connection"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "ListOutputCurrencyBody": {
         "additionalProperties": false,
         "properties": {
@@ -1612,6 +1684,30 @@
           "items": {
             "items": {
               "$ref": "#/components/schemas/UpcomingRecurring"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ListOutputWebSessionBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputWebSessionBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/WebSession"
             },
             "type": "array"
           }
@@ -2227,6 +2323,29 @@
         },
         "required": [
           "currencies"
+        ],
+        "type": "object"
+      },
+      "RevokeOtherSessionsOutputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/RevokeOtherSessionsOutputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "revoked": {
+            "description": "Number of sessions signed out",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revoked"
         ],
         "type": "object"
       },
@@ -3003,6 +3122,44 @@
         },
         "type": "object"
       },
+      "WebSession": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current": {
+            "description": "Whether this is the session making the request",
+            "type": "boolean"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "last_used_at": {
+            "description": "Updated at most once an hour",
+            "format": "date-time",
+            "type": "string"
+          },
+          "user_agent": {
+            "description": "User-Agent of the browser that signed in; empty when unknown",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "user_agent",
+          "created_at",
+          "last_used_at",
+          "expires_at",
+          "current"
+        ],
+        "type": "object"
+      },
       "Workspace": {
         "additionalProperties": false,
         "properties": {
@@ -3438,6 +3595,74 @@
         ]
       }
     },
+    "/api/v1/auth/connections": {
+      "get": {
+        "description": "Apps (MCP clients such as Claude or ChatGPT) the user authorized through OAuth that can still act on their behalf, most recently used first.",
+        "operationId": "list-connections",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputConnectionBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List connected apps",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/connections/{id}": {
+      "delete": {
+        "description": "Revokes the app's refresh tokens and access tokens at once. The app has to be authorized again to regain access.",
+        "operationId": "disconnect-connection",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Disconnect an app",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "description": "Sends a magic link and a six-digit code to the address if it belongs to an allowed user. The response is the same whether or not the address is known.",
@@ -3648,10 +3873,121 @@
         ]
       }
     },
+    "/api/v1/auth/sessions": {
+      "get": {
+        "description": "Browser sessions where the user is signed in, most recently used first. Connected apps are listed separately.",
+        "operationId": "list-sessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputWebSessionBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List the user's active sessions",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions/revoke-others": {
+      "post": {
+        "description": "Ends every session of the user except the current one. Connected apps stay connected.",
+        "operationId": "revoke-other-sessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeOtherSessionsOutputBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Sign out everywhere else",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/sessions/{id}": {
+      "delete": {
+        "description": "Ends one of the user's sessions. Revoking the current session signs the user out.",
+        "operationId": "revoke-session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Sign out a session",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
     "/api/v1/auth/verify": {
       "post": {
         "description": "Provide either `token`, or `email` and `code`. Returns a bearer token for subsequent requests.",
         "operationId": "verify-login",
+        "parameters": [
+          {
+            "description": "Recorded with the session so the user can recognize it",
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "description": "Recorded with the session so the user can recognize it",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -4230,6 +4566,17 @@
       "post": {
         "description": "Adds the invitee to the workspace (creating their user if needed) and returns a session acting on it. The token proves ownership of the invited address, like a magic link.",
         "operationId": "accept-invitation",
+        "parameters": [
+          {
+            "description": "Recorded with the session so the user can recognize it",
+            "in": "header",
+            "name": "User-Agent",
+            "schema": {
+              "description": "Recorded with the session so the user can recognize it",
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

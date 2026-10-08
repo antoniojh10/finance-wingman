@@ -130,6 +130,30 @@ func (q *Queries) CreateOAuthClient(ctx context.Context, arg CreateOAuthClientPa
 	return i, err
 }
 
+const createOAuthGrant = `-- name: CreateOAuthGrant :exec
+INSERT INTO oauth_grants (id, client_id, user_id, workspace_id, scope)
+VALUES ($1, $2, $3, $4, $5)
+`
+
+type CreateOAuthGrantParams struct {
+	ID          uuid.UUID
+	ClientID    string
+	UserID      uuid.UUID
+	WorkspaceID *uuid.UUID
+	Scope       string
+}
+
+func (q *Queries) CreateOAuthGrant(ctx context.Context, arg CreateOAuthGrantParams) error {
+	_, err := q.db.Exec(ctx, createOAuthGrant,
+		arg.ID,
+		arg.ClientID,
+		arg.UserID,
+		arg.WorkspaceID,
+		arg.Scope,
+	)
+	return err
+}
+
 const createOAuthSession = `-- name: CreateOAuthSession :one
 INSERT INTO sessions (user_id, token_hash, client, expires_at, oauth_client_id, oauth_family_id, workspace_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -218,6 +242,18 @@ DELETE FROM sessions WHERE oauth_family_id = $1
 
 func (q *Queries) DeleteFamilySessions(ctx context.Context, oauthFamilyID *uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteFamilySessions, oauthFamilyID)
+	return err
+}
+
+const deleteOrphanOAuthGrants = `-- name: DeleteOrphanOAuthGrants :exec
+DELETE FROM oauth_grants g
+WHERE NOT EXISTS (SELECT 1 FROM oauth_refresh_tokens t WHERE t.family_id = g.id)
+`
+
+// Grants whose refresh tokens have all been purged can no longer be used.
+// A grant is created in the same transaction as its first refresh token.
+func (q *Queries) DeleteOrphanOAuthGrants(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, deleteOrphanOAuthGrants)
 	return err
 }
 
@@ -335,6 +371,99 @@ func (q *Queries) GetSessionFamily(ctx context.Context, tokenHash []byte) (*uuid
 	return oauth_family_id, err
 }
 
+const listUserOAuthGrants = `-- name: ListUserOAuthGrants :many
+SELECT g.id, c.name AS client_name, g.workspace_id, w.name AS workspace_name, g.scope, g.created_at,
+    greatest(g.last_used_at, (
+        SELECT max(s.last_used_at) FROM sessions s WHERE s.oauth_family_id = g.id
+    ))::timestamptz AS last_used_at
+FROM oauth_grants g
+JOIN oauth_clients c ON c.id = g.client_id
+LEFT JOIN workspaces w ON w.id = g.workspace_id
+WHERE g.user_id = $1
+  AND g.revoked_at IS NULL
+  AND EXISTS (
+    SELECT 1 FROM oauth_refresh_tokens t
+    WHERE t.family_id = g.id AND t.revoked_at IS NULL AND t.expires_at > $2
+  )
+ORDER BY last_used_at DESC, g.created_at DESC
+`
+
+type ListUserOAuthGrantsParams struct {
+	UserID uuid.UUID
+	Now    time.Time
+}
+
+type ListUserOAuthGrantsRow struct {
+	ID            uuid.UUID
+	ClientName    string
+	WorkspaceID   *uuid.UUID
+	WorkspaceName *string
+	Scope         string
+	CreatedAt     time.Time
+	LastUsedAt    time.Time
+}
+
+// The user's connected apps: grants with a refresh token still usable.
+// Last use is the latest refresh or call made with one of its access tokens.
+func (q *Queries) ListUserOAuthGrants(ctx context.Context, arg ListUserOAuthGrantsParams) ([]ListUserOAuthGrantsRow, error) {
+	rows, err := q.db.Query(ctx, listUserOAuthGrants, arg.UserID, arg.Now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUserOAuthGrantsRow{}
+	for rows.Next() {
+		var i ListUserOAuthGrantsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientName,
+			&i.WorkspaceID,
+			&i.WorkspaceName,
+			&i.Scope,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const lockOAuthGrant = `-- name: LockOAuthGrant :one
+SELECT id, client_id, user_id, workspace_id, scope, created_at, last_used_at, revoked_at FROM oauth_grants WHERE id = $1 FOR UPDATE
+`
+
+// Locks the grant so its tokens are issued and revoked one flow at a time:
+// every flow that issues or revokes a grant's tokens takes this lock first.
+func (q *Queries) LockOAuthGrant(ctx context.Context, id uuid.UUID) (OauthGrant, error) {
+	row := q.db.QueryRow(ctx, lockOAuthGrant, id)
+	var i OauthGrant
+	err := row.Scan(
+		&i.ID,
+		&i.ClientID,
+		&i.UserID,
+		&i.WorkspaceID,
+		&i.Scope,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+		&i.RevokedAt,
+	)
+	return i, err
+}
+
+const revokeOAuthGrant = `-- name: RevokeOAuthGrant :exec
+UPDATE oauth_grants SET revoked_at = now() WHERE id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeOAuthGrant(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, revokeOAuthGrant, id)
+	return err
+}
+
 const revokeRefreshTokenFamily = `-- name: RevokeRefreshTokenFamily :exec
 UPDATE oauth_refresh_tokens SET revoked_at = now()
 WHERE family_id = $1 AND revoked_at IS NULL
@@ -394,6 +523,15 @@ type SetAuthorizationRequestUserParams struct {
 
 func (q *Queries) SetAuthorizationRequestUser(ctx context.Context, arg SetAuthorizationRequestUserParams) error {
 	_, err := q.db.Exec(ctx, setAuthorizationRequestUser, arg.ID, arg.UserID)
+	return err
+}
+
+const touchOAuthGrant = `-- name: TouchOAuthGrant :exec
+UPDATE oauth_grants SET last_used_at = now() WHERE id = $1
+`
+
+func (q *Queries) TouchOAuthGrant(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, touchOAuthGrant, id)
 	return err
 }
 

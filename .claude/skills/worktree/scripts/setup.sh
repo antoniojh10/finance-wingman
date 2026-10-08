@@ -27,8 +27,8 @@ done
 [ -f .env ] || cp "$main/.env" .env
 [ -f apps/web/.env.local ] || cp "$main/apps/web/.env.local" apps/web/.env.local
 
-# Slot N gives API port 8090+N and web port 3000+N (main uses 8080/3000,
-# e2e uses 8081/3100). Keep the slot already assigned to this worktree.
+# Slot N gives API port 8090+N and web port 3000+N (main uses 8080/3000;
+# e2e picks free ports per run). Keep the slot already assigned to this worktree.
 slot=$(get_env .env WORKTREE_SLOT)
 if [ -z "$slot" ]; then
   used=" "

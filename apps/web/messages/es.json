@@ -28,7 +28,8 @@
     "categories": "Categorías",
     "settings": "Ajustes",
     "signOut": "Cerrar sesión",
-    "subscriptions": "Suscripciones"
+    "subscriptions": "Suscripciones",
+    "budgets": "Presupuestos"
   },
   "auth": {
     "title": "Iniciar sesión",
@@ -226,7 +227,8 @@
     "exportTitle": "Exporta tus datos",
     "exportDescription": "Descarga todo lo de este espacio de trabajo: cuentas, categorías, transacciones, pagos recurrentes, presupuestos y miembros.",
     "exportJson": "Descargar JSON",
-    "exportCsv": "Descargar CSV (zip)"
+    "exportCsv": "Descargar CSV (zip)",
+    "subscriptionsDescription": "Pagos recurrentes y sugerencias detectadas."
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -240,7 +242,8 @@
     "pageTitle": "Algo salió mal",
     "retry": "Intentar de nuevo",
     "invalidWholeNumber": "Ingresa un número entero de 1 o más.",
-    "forbidden": "No tienes permiso para hacer eso."
+    "forbidden": "No tienes permiso para hacer eso.",
+    "invalidBudgetAmount": "Introduce un importe con los decimales de la moneda como máximo, o déjalo vacío para no tener presupuesto."
   },
   "subscriptions": {
     "title": "Suscripciones",
@@ -408,5 +411,69 @@
     "ownerHint": "A quién pertenece la cuenta. Todos los miembros pueden verla y usarla.",
     "sharedOption": "Compartida (cuenta conjunta)",
     "you": "{name} (tú)"
+  },
+  "security": {
+    "title": "Seguridad",
+    "settingsDescription": "Dónde tienes la sesión iniciada y qué apps están conectadas.",
+    "sessions": "Dónde tienes la sesión iniciada",
+    "sessionsDescription": "Navegadores con sesión iniciada en tu cuenta. Cierra la sesión de los que no reconozcas.",
+    "thisDevice": "Este dispositivo",
+    "device": "{browser} en {os}",
+    "unknownBrowser": "Navegador desconocido",
+    "unknownDevice": "Dispositivo desconocido",
+    "lastActive": "Última actividad: {date}",
+    "signedIn": "Sesión iniciada: {date}",
+    "signOut": "Cerrar sesión",
+    "signOutLabel": "Cerrar la sesión de {device}",
+    "signOutTitle": "¿Cerrar la sesión de {device}?",
+    "signOutDescription": "Ese navegador necesitará un nuevo enlace o código de acceso para volver a entrar.",
+    "signedOut": "Sesión cerrada",
+    "signOutOthers": "Cerrar las demás sesiones",
+    "signOutOthersTitle": "¿Cerrar las demás sesiones?",
+    "signOutOthersDescription": "Se cerrará la sesión en todos los demás navegadores. Las apps conectadas seguirán conectadas.",
+    "signedOutOthers": "Se cerraron las demás sesiones",
+    "connections": "Apps conectadas",
+    "connectionsDescription": "Asistentes de IA a los que permitiste leer y modificar tus datos. Desconecta los que ya no uses.",
+    "noConnections": "No hay apps conectadas.",
+    "unnamedApp": "App sin nombre",
+    "noWorkspace": "Sin espacio",
+    "connectedAt": "Conectada: {date}",
+    "disconnect": "Desconectar",
+    "disconnectLabel": "Desconectar {name}",
+    "disconnectTitle": "¿Desconectar {name}?",
+    "disconnectDescription": "{name} pierde el acceso de inmediato. Para volver a usarla, tendrás que conectarla de nuevo.",
+    "disconnected": "App desconectada"
+  },
+  "budgets": {
+    "title": "Presupuestos",
+    "edit": "Editar presupuestos",
+    "setBudgets": "Definir presupuestos",
+    "emptyTitle": "Aún no hay presupuestos",
+    "emptyDescription": "Define un importe mensual por categoría para ver cuánto has gastado y cuánto te queda.",
+    "ownerHint": "Los presupuestos son del espacio de trabajo; gastado y comprometido solo cuentan las cuentas de esta vista.",
+    "budget": "Presupuesto",
+    "budgeted": "Presupuestado",
+    "spent": "Gastado",
+    "committed": "Comprometido",
+    "remaining": "Restante",
+    "overBy": "Excedido en",
+    "noBudget": "Sin presupuesto",
+    "uncategorized": "Sin categoría",
+    "inheritedFrom": "desde {month}",
+    "progress": "Presupuesto usado",
+    "used": "{percent}% usado",
+    "state": {
+      "ok": "En camino",
+      "near": "Cerca del límite",
+      "over": "Excedido"
+    },
+    "editHint": "Los importes que definas se aplican desde {month} en adelante, hasta que un mes posterior fije otro. Vacía un campo para quitar el presupuesto desde este mes.",
+    "applyAllSuggestions": "Aplicar todas las sugerencias",
+    "suggestionsHint": "Según la mediana de los últimos 3 meses. No se guarda nada hasta que guardes.",
+    "suggested": "Sugerido",
+    "useSuggestion": "Usar",
+    "useSuggestionFor": "Usar la sugerencia de {name}",
+    "noCategories": "Crea una cuenta y una categoría de gasto para definir presupuestos.",
+    "saved": "Presupuestos guardados"
   }
 }

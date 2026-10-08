@@ -33,20 +33,38 @@ var (
 	ErrInvalidEmail       = errors.New("invalid email address")
 	ErrUserNotFound       = errors.New("user not found")
 	ErrNotMember          = errors.New("not a member of this workspace")
+	ErrSessionNotFound    = errors.New("session not found")
 )
 
 const (
 	ClientWeb  = "web"
 	codeDigits = 6
+	// maxUserAgentLength bounds the stored User-Agent; real ones are far
+	// shorter.
+	maxUserAgentLength = 512
+)
+
+// Session lifetime defaults. Signing in is a round trip to the inbox, so a
+// session lasts long enough not to be a chore for a weekly user, while one
+// left on an abandoned device stops working after two idle weeks and none
+// lasts more than a month. Sessions keep the expiry they were issued with.
+const (
+	DefaultSessionTTL         = 30 * 24 * time.Hour
+	DefaultSessionIdleTimeout = 14 * 24 * time.Hour
 )
 
 var Locales = []string{"en", "es"}
 
 type Config struct {
 	// WebBaseURL is where magic links point to (the Next.js app).
-	WebBaseURL           string
-	ChallengeTTL         time.Duration
-	SessionTTL           time.Duration
+	WebBaseURL   string
+	ChallengeTTL time.Duration
+	// SessionTTL is the absolute lifetime of a session: it ends then even
+	// while in use.
+	SessionTTL time.Duration
+	// SessionIdleTimeout ends a session unused for this long, before its
+	// absolute expiry.
+	SessionIdleTimeout   time.Duration
 	MaxChallengesPerHour int
 	MaxCodeAttempts      int
 }
@@ -56,7 +74,10 @@ func (c Config) withDefaults() Config {
 		c.ChallengeTTL = 15 * time.Minute
 	}
 	if c.SessionTTL == 0 {
-		c.SessionTTL = 60 * 24 * time.Hour
+		c.SessionTTL = DefaultSessionTTL
+	}
+	if c.SessionIdleTimeout == 0 {
+		c.SessionIdleTimeout = DefaultSessionIdleTimeout
 	}
 	if c.MaxChallengesPerHour == 0 {
 		c.MaxChallengesPerHour = 5
@@ -362,12 +383,15 @@ func (s *Service) CreateWorkspaceSession(ctx context.Context, userID uuid.UUID, 
 	if err != nil {
 		return Session{}, err
 	}
+	now := s.now()
 	row, err := s.q.CreateSession(ctx, store.CreateSessionParams{
 		UserID:      userID,
 		TokenHash:   HashToken(token),
 		Client:      client,
-		ExpiresAt:   s.now().Add(ttl),
+		ExpiresAt:   now.Add(ttl),
 		WorkspaceID: workspaceID,
+		UserAgent:   userAgentFrom(ctx),
+		LastUsedAt:  now,
 	})
 	if err != nil {
 		return Session{}, err
@@ -413,12 +437,12 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 		return Session{}, err
 	}
 	now := s.now()
-	if !now.Before(row.ExpiresAt) {
+	if !now.Before(row.ExpiresAt) || now.Sub(row.LastUsedAt) > s.cfg.SessionIdleTimeout {
 		return Session{}, ErrUnauthenticated
 	}
 	// Avoid a write on every request; hourly precision is enough.
 	if now.Sub(row.LastUsedAt) > time.Hour {
-		if err := s.q.TouchSession(ctx, row.ID); err != nil {
+		if err := s.q.TouchSession(ctx, store.TouchSessionParams{ID: row.ID, LastUsedAt: now}); err != nil {
 			s.logger.WarnContext(ctx, "touch session", "error", err)
 		}
 	}
@@ -442,6 +466,82 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 
 func (s *Service) Logout(ctx context.Context, sessionID uuid.UUID) error {
 	return s.q.DeleteSession(ctx, sessionID)
+}
+
+type userAgentKey struct{}
+
+// WithUserAgent records the User-Agent of the request opening a session, so
+// the user can recognize it in their list of sessions.
+func WithUserAgent(ctx context.Context, userAgent string) context.Context {
+	return context.WithValue(ctx, userAgentKey{}, userAgent)
+}
+
+func userAgentFrom(ctx context.Context) string {
+	ua, _ := ctx.Value(userAgentKey{}).(string)
+	ua = strings.ToValidUTF8(strings.TrimSpace(ua), "")
+	if len(ua) > maxUserAgentLength {
+		ua = strings.ToValidUTF8(ua[:maxUserAgentLength], "")
+	}
+	return ua
+}
+
+// WebSession is one of the user's active sign-ins, as shown in their
+// security settings.
+type WebSession struct {
+	ID         uuid.UUID `json:"id"`
+	UserAgent  string    `json:"user_agent" doc:"User-Agent of the browser that signed in; empty when unknown"`
+	CreatedAt  time.Time `json:"created_at"`
+	LastUsedAt time.Time `json:"last_used_at" doc:"Updated at most once an hour"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	Current    bool      `json:"current" doc:"Whether this is the session making the request"`
+}
+
+// ListSessions returns the user's active sign-ins, most recently used
+// first. Access tokens of connected apps are not included: those are
+// managed as OAuth grants.
+func (s *Service) ListSessions(ctx context.Context, userID, currentID uuid.UUID) ([]WebSession, error) {
+	now := s.now()
+	rows, err := s.q.ListUserSessions(ctx, store.ListUserSessionsParams{
+		UserID:    userID,
+		Now:       now,
+		IdleSince: now.Add(-s.cfg.SessionIdleTimeout),
+	})
+	if err != nil {
+		return nil, err
+	}
+	sessions := make([]WebSession, len(rows))
+	for i, r := range rows {
+		sessions[i] = WebSession{
+			ID:         r.ID,
+			UserAgent:  r.UserAgent,
+			CreatedAt:  r.CreatedAt,
+			LastUsedAt: r.LastUsedAt,
+			ExpiresAt:  r.ExpiresAt,
+			Current:    r.ID == currentID,
+		}
+	}
+	return sessions, nil
+}
+
+// RevokeSession signs the user out of one of their sessions. Sessions of
+// other users, and access tokens of connected apps, are reported as not
+// found.
+func (s *Service) RevokeSession(ctx context.Context, userID, sessionID uuid.UUID) error {
+	n, err := s.q.DeleteUserSession(ctx, store.DeleteUserSessionParams{ID: sessionID, UserID: userID})
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrSessionNotFound
+	}
+	return nil
+}
+
+// RevokeOtherSessions signs the user out everywhere except the current
+// session and returns how many sessions ended. Connected apps stay
+// connected.
+func (s *Service) RevokeOtherSessions(ctx context.Context, userID, currentID uuid.UUID) (int64, error) {
+	return s.q.DeleteOtherUserSessions(ctx, store.DeleteOtherUserSessionsParams{UserID: userID, ID: currentID})
 }
 
 type UpdateProfileInput struct {
@@ -509,9 +609,14 @@ func (s *Service) RemoveUser(ctx context.Context, rawEmail string) error {
 	return nil
 }
 
-// PurgeExpired deletes expired sessions and login challenges.
+// PurgeExpired deletes expired or idle sessions and expired login
+// challenges.
 func (s *Service) PurgeExpired(ctx context.Context) error {
-	return s.q.DeleteExpiredAuthRecords(ctx, s.now())
+	now := s.now()
+	return s.q.DeleteExpiredAuthRecords(ctx, store.DeleteExpiredAuthRecordsParams{
+		Now:       now,
+		IdleSince: now.Add(-s.cfg.SessionIdleTimeout),
+	})
 }
 
 func isLocale(l string) bool {

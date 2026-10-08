@@ -83,5 +83,5 @@ web-test:
 web-lint:
 	cd apps/web && pnpm lint && pnpm typecheck
 
-web-e2e: ## Requires `make up`; builds the web app and starts its own servers
+web-e2e: ## Requires `make up`; creates a throwaway database, builds the web app and starts its own servers
 	cd apps/web && pnpm e2e
