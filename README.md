@@ -28,6 +28,13 @@ make api-run     # API on :8080 (applies migrations on start)
 make web-install && make web-dev   # Web on :3000
 ```
 
+The local Postgres runs with `fsync=off`, `synchronous_commit=off` and
+`full_page_writes=off` (and `max_connections=500`) so the test suites, which
+create and drop many databases, run faster. The trade-off: if the container
+or the machine crashes, the dev data in the `postgres-data` volume can be
+lost or corrupted. A normal `make down && make up` keeps it. These settings
+exist only in `docker-compose.yml`; never use them in production.
+
 Grant access to the first users (no public sign-up), then sign in with the
 link or code that arrives in Mailpit:
 
