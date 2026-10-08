@@ -51,6 +51,9 @@ type Config struct {
 	// ClientIPSecret is shared with the web server, which uses it to vouch
 	// for the browser address it forwards (CLIENT_IP_SECRET).
 	ClientIPSecret string
+	// InvitationsPerHour caps invitation emails per workspace
+	// (INVITATIONS_PER_HOUR); zero uses the service default.
+	InvitationsPerHour int
 	// PprofAddr, when set, serves net/http/pprof on a separate listener
 	// (PPROF_ADDR, e.g. "localhost:6060"). Never expose it publicly.
 	PprofAddr string
@@ -178,6 +181,15 @@ func load(getenv func(string) string) (Config, error) {
 			errs = append(errs, fmt.Errorf("TRUSTED_PROXY_HOPS must be a non-negative integer, got %q", raw))
 		} else {
 			cfg.TrustedProxyHops = n
+		}
+	}
+
+	if raw := getenv("INVITATIONS_PER_HOUR"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 {
+			errs = append(errs, fmt.Errorf("INVITATIONS_PER_HOUR must be a positive integer, got %q", raw))
+		} else {
+			cfg.InvitationsPerHour = n
 		}
 	}
 

@@ -53,6 +53,8 @@ export default defineConfig({
         // shares one saved session and the web server's address.
         RATE_LIMIT_API_PER_MINUTE: "12000",
         RATE_LIMIT_AUTH_PER_MINUTE: "600",
+        // Every run invites people into the same workspace.
+        INVITATIONS_PER_HOUR: "1000",
         EMAIL_PROVIDER: "smtp",
         SMTP_HOST: "localhost",
         SMTP_PORT: "1025",
