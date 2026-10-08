@@ -319,6 +319,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export all the data of the workspace
+         * @description Downloads accounts, categories, transactions, recurring items, budgets and member names/emails of the current workspace. Amounts are decimals in the currency of their row, not minor units. format=json returns one document with schema_version 1; format=csv returns a zip with one CSV file per entity (members, accounts, categories, transactions, recurring_items, budgets). Any member can export. The response is streamed.
+         */
+        get: operations["export-data"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/invitations/accept": {
         parameters: {
             query?: never;
@@ -2813,6 +2833,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListOutputCurrencyBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "export-data": {
+        parameters: {
+            query?: {
+                /** @description json: one document. csv: a zip with one CSV file per entity */
+                format?: "json" | "csv";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The export file */
+            200: {
+                headers: {
+                    "Cache-Control"?: string;
+                    "Content-Disposition"?: string;
+                    "Content-Type"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string;
+                    "application/zip": string;
                 };
             };
             /** @description Error */

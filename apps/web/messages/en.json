@@ -222,7 +222,11 @@
     },
     "session": "Session",
     "signOutDescription": "Sign out of Finance Wingman on this device.",
-    "categoriesDescription": "Organize your expenses and income."
+    "categoriesDescription": "Organize your expenses and income.",
+    "exportTitle": "Export your data",
+    "exportDescription": "Download everything in this workspace: accounts, categories, transactions, recurring items, budgets and members.",
+    "exportJson": "Download JSON",
+    "exportCsv": "Download CSV (zip)"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",

@@ -12,6 +12,57 @@ import (
 	"github.com/google/uuid"
 )
 
+const listAllBudgets = `-- name: ListAllBudgets :many
+SELECT
+    b.category_id,
+    c.name AS category_name,
+    b.currency,
+    cur.minor_units,
+    b.month,
+    b.amount_minor
+FROM budgets b
+JOIN categories c ON c.id = b.category_id
+JOIN currencies cur ON cur.code = b.currency
+ORDER BY b.month, c.name, b.currency
+`
+
+type ListAllBudgetsRow struct {
+	CategoryID   uuid.UUID
+	CategoryName string
+	Currency     string
+	MinorUnits   int16
+	Month        time.Time
+	AmountMinor  *int64
+}
+
+// Every stored budget row, including cleared ones (null amount), for exports.
+func (q *Queries) ListAllBudgets(ctx context.Context) ([]ListAllBudgetsRow, error) {
+	rows, err := q.db.Query(ctx, listAllBudgets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllBudgetsRow{}
+	for rows.Next() {
+		var i ListAllBudgetsRow
+		if err := rows.Scan(
+			&i.CategoryID,
+			&i.CategoryName,
+			&i.Currency,
+			&i.MinorUnits,
+			&i.Month,
+			&i.AmountMinor,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listBudgetRecurringExpenses = `-- name: ListBudgetRecurringExpenses :many
 SELECT
     r.id,

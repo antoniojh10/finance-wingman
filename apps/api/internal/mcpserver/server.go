@@ -40,6 +40,7 @@ Guidelines:
 - For several records at once use the batch tools (create_accounts, create_categories, add_transactions): they are all-or-nothing, accept up to 100 items, and an error names the failing item so you can fix it and resend the whole batch.
 - To fix or re-categorize existing transactions use update_transaction (one) or update_transactions (several, preferred for re-categorizing many: all-or-nothing, up to 100). Get the transaction ids from list_transactions first; pass only the fields to change, and clear_category=true to remove a category. The type cannot be changed (delete and re-add instead, after confirming with the user). Editing keeps the link to a recurring item (but a linked transaction cannot change account).
 - If the user does not name an account and several exist, ask which one to use.
+- There is no tool to export or download all the data. If the user wants a copy of their data, tell them to use "Export your data" (JSON or CSV) in the Settings page of the Finance Wingman web app.
 - Dates use YYYY-MM-DD and default to today.
 - Summaries are per currency; never add amounts from different currencies together.`
 

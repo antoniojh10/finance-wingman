@@ -77,3 +77,17 @@ SELECT DISTINCT recurring_id::uuid AS recurring_id
 FROM transactions
 WHERE recurring_id IS NOT NULL
   AND occurred_on BETWEEN sqlc.arg('from_date') AND sqlc.arg('to_date');
+
+-- name: ListAllBudgets :many
+-- Every stored budget row, including cleared ones (null amount), for exports.
+SELECT
+    b.category_id,
+    c.name AS category_name,
+    b.currency,
+    cur.minor_units,
+    b.month,
+    b.amount_minor
+FROM budgets b
+JOIN categories c ON c.id = b.category_id
+JOIN currencies cur ON cur.code = b.currency
+ORDER BY b.month, c.name, b.currency;
