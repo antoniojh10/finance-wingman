@@ -199,6 +199,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/budgets/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Suggest budget amounts from past spending
+         * @description Per currency and expense category with spending in the 3 complete months before the month: the median monthly spending (months before the category's first expense are skipped, later months without spending count as zero) plus the monthly amount of active recurring expenses with no payment in those months, rounded up to a whole currency unit. Includes the months used and the budget currently in force. Transfers, income and uncategorized expenses are ignored. No currency conversion.
+         */
+        get: operations["suggest-budgets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/budgets/{month}": {
         parameters: {
             query?: never;
@@ -971,6 +991,62 @@ export interface components {
             /** @example 2026-10 */
             month: string;
         };
+        BudgetSuggestion: {
+            category_color: string | null;
+            /** Format: uuid */
+            category_id: string;
+            category_name: string;
+            /**
+             * Format: int64
+             * @description Budget in force for the month, in minor units; null when the category has none
+             */
+            current_amount: number | null;
+            /** @description Month the current amount was set in */
+            current_amount_month: string | null;
+            /**
+             * Format: int64
+             * @description Median monthly spending over months, in minor units
+             */
+            median: number;
+            /** @description Months the median was taken over, oldest first. Months before the first expense of the category in this currency are not included */
+            months: components["schemas"]["SuggestionMonth"][];
+            /**
+             * Format: int64
+             * @description Monthly amount of active recurring expenses of the category with no payment in these months yet (e.g. a subscription created recently), in minor units. Added on top of the median
+             */
+            recurring: number;
+            /**
+             * Format: int64
+             * @description median + recurring rounded up to a whole unit of the currency, in minor units
+             */
+            suggested: number;
+        };
+        BudgetSuggestionCurrency: {
+            /** @example MXN */
+            currency: string;
+            /**
+             * Format: int64
+             * @example 2
+             */
+            minor_units: number;
+            /** @description By category name */
+            suggestions: components["schemas"]["BudgetSuggestion"][];
+        };
+        BudgetSuggestions: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/BudgetSuggestions.json
+             */
+            readonly $schema?: string;
+            currencies: components["schemas"]["BudgetSuggestionCurrency"][];
+            /** @description First of the 3 complete months before the month that were considered */
+            from: string;
+            /** @example 2026-10 */
+            month: string;
+            /** @description Last of the 3 complete months before the month that were considered */
+            to: string;
+        };
         Category: {
             /**
              * Format: uri
@@ -1696,6 +1772,15 @@ export interface components {
             readonly $schema?: string;
             /** @description Key of a suggestion */
             key: string;
+        };
+        SuggestionMonth: {
+            /** @example 2026-09 */
+            month: string;
+            /**
+             * Format: int64
+             * @description Expenses of the category in the month, in minor units (0 when there was none)
+             */
+            spent: number;
         };
         Summary: {
             /**
@@ -2436,6 +2521,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BudgetStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "suggest-budgets": {
+        parameters: {
+            query?: {
+                /** @description Month to suggest budgets for, as YYYY-MM; defaults to the current month */
+                month?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetSuggestions"];
                 };
             };
             /** @description Error */

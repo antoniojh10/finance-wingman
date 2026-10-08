@@ -14,6 +14,10 @@ type budgetStatusInput struct {
 	Owner string `query:"owner" doc:"\"me\", \"shared\" or a member's user id. Only narrows spent and committed to those accounts; budgets are workspace-wide"`
 }
 
+type budgetSuggestionsInput struct {
+	Month string `query:"month" pattern:"^\\d{4}-\\d{2}$" example:"2026-10" doc:"Month to suggest budgets for, as YYYY-MM; defaults to the current month"`
+}
+
 type setBudgetsInput struct {
 	Month string `path:"month" pattern:"^\\d{4}-\\d{2}$" example:"2026-10" doc:"Month as YYYY-MM"`
 	Body  struct {
@@ -41,6 +45,21 @@ func (h *financeHandlers) registerBudgets(api huma.API) {
 			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.BudgetStatus]{Body: status}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "suggest-budgets",
+		Method:      http.MethodGet,
+		Path:        apiPrefix + "/budgets/suggestions",
+		Summary:     "Suggest budget amounts from past spending",
+		Description: "Per currency and expense category with spending in the 3 complete months before the month: the median monthly spending (months before the category's first expense are skipped, later months without spending count as zero) plus the monthly amount of active recurring expenses with no payment in those months, rounded up to a whole currency unit. Includes the months used and the budget currently in force. Transfers, income and uncategorized expenses are ignored. No currency conversion.",
+		Tags:        tags,
+	}, func(ctx context.Context, in *budgetSuggestionsInput) (*bodyOutput[finance.BudgetSuggestions], error) {
+		suggestions, err := h.svc.SuggestBudgets(ctx, in.Month)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		return &bodyOutput[finance.BudgetSuggestions]{Body: suggestions}, nil
 	})
 
 	huma.Register(api, huma.Operation{
