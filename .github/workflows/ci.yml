@@ -185,8 +185,10 @@ jobs:
         working-directory: apps/web
         env:
           CI: "true"
+      # Also kept when the job passes: a test that fails and then passes on
+      # retry (flaky) only leaves its trace in the report.
       - uses: actions/upload-artifact@v6
-        if: failure()
+        if: ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.shard }}
           path: apps/web/playwright-report
