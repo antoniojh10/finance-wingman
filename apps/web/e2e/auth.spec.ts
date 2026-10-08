@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 import { e2eUser } from "../playwright.config";
 import { codeFrom, linkFrom, navigate, requestLogin, signIn } from "./helpers";
@@ -47,4 +47,24 @@ test("switches language and signs out", { tag: "@mobile" }, async ({ page }) => 
   await expect(page).toHaveURL(/\/login/);
   await page.goto("/");
   await expect(page).toHaveURL(/\/login/);
+});
+
+test("sends security headers with a per-request CSP nonce", async ({ request }) => {
+  const first = await request.get("/login");
+  const second = await request.get("/login");
+  const headers = first.headers();
+
+  const csp = headers["content-security-policy"];
+  expect(csp).toContain("frame-ancestors 'none'");
+  expect(csp).toContain("object-src 'none'");
+  expect(csp).toMatch(/script-src 'self' 'nonce-[^']+' 'strict-dynamic'/);
+  expect(headers["x-content-type-options"]).toBe("nosniff");
+  expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
+  expect(headers["permissions-policy"]).toContain("camera=()");
+  // The e2e server is a production build, so HSTS is on.
+  expect(headers["strict-transport-security"]).toContain("max-age=");
+
+  const nonce = (value: string) => /'nonce-([^']+)'/.exec(value)?.[1];
+  expect(nonce(csp)).toBeTruthy();
+  expect(nonce(csp)).not.toBe(nonce(second.headers()["content-security-policy"]));
 });

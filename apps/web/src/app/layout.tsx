@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Bricolage_Grotesque, DM_Mono, DM_Sans } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
@@ -28,10 +29,11 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const locale = await getLocale();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className={`${display.variable} ${body.variable} ${code.variable} min-h-dvh bg-background font-sans text-foreground antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider nonce={nonce} attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <NextIntlClientProvider>
             <ThemeColorSync />
             {children}

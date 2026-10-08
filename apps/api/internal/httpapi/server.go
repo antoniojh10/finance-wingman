@@ -50,6 +50,9 @@ type Deps struct {
 	// OpenTelemetry providers.
 	TracerProvider trace.TracerProvider
 	MeterProvider  metric.MeterProvider
+	// HSTS adds Strict-Transport-Security; enable it only when the API is
+	// served over HTTPS.
+	HSTS bool
 }
 
 // NewHandler builds the root HTTP handler with every route registered.
@@ -76,6 +79,7 @@ func build(deps Deps) (chi.Router, huma.API) {
 	router.Use(middleware.RealIP)
 	router.Use(requestLogger(deps.Logger))
 	router.Use(middleware.Recoverer)
+	router.Use(securityHeaders(deps.HSTS))
 
 	if deps.OAuth != nil {
 		deps.OAuth.Mount(router)
@@ -120,6 +124,21 @@ func mcpHint(mcpURL string) http.HandlerFunc {
 		_ = json.NewEncoder(w).Encode(map[string]string{
 			"error":   "not_found",
 			"message": "No MCP endpoint at this URL. The MCP endpoint is " + mcpURL,
+		})
+	}
+}
+
+// securityHeaders sets the headers every response should carry, including
+// the non-HTML ones (JSON, SSE) where nosniff matters.
+func securityHeaders(hsts bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			h.Set("X-Content-Type-Options", "nosniff")
+			if hsts {
+				h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }

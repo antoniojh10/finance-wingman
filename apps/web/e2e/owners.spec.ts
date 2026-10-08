@@ -1,5 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
+import { expect, test } from "./fixtures";
 import { invitationLinkFrom, latestEmail, navigate, openWorkspaceMenu } from "./helpers";
 
 async function createAccount(page: Page, name: string, owner?: string) {
