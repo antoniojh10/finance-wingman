@@ -235,7 +235,8 @@
     "exportDescription": "Download everything in this workspace: accounts, categories, transactions, recurring items, budgets and members.",
     "exportJson": "Download JSON",
     "exportCsv": "Download CSV (zip)",
-    "subscriptionsDescription": "Recurring payments and detected suggestions."
+    "subscriptionsDescription": "Recurring payments and detected suggestions.",
+    "activityDescription": "Who changed what, from the web or an AI assistant."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -529,5 +530,53 @@
     "banner": "Your account will be deleted on {date}.",
     "bannerLink": "Review",
     "workspaces": "Your workspaces"
+  },
+  "activity": {
+    "title": "Activity",
+    "description": "Recent changes to this workspace's data, newest first. Only what changed is recorded, never amounts or descriptions.",
+    "empty": "No activity yet.",
+    "all": "All",
+    "filterMember": "Member",
+    "filterChannel": "Channel",
+    "filterEntity": "Type of record",
+    "channels": {
+      "web": "Web app",
+      "mcp": "AI assistants"
+    },
+    "entityTypes": {
+      "transaction": "Transactions"
+    },
+    "actions": {
+      "transaction": {
+        "created": "created a transaction",
+        "updated": "updated a transaction",
+        "deleted": "deleted a transaction"
+      }
+    },
+    "unknownAction": "did \"{action}\" on {entity}",
+    "types": {
+      "expense": "Expense",
+      "income": "Income",
+      "transfer": "Transfer"
+    },
+    "fields": {
+      "type": "Type",
+      "account_id": "Account",
+      "amount": "Amount",
+      "destination_account_id": "Destination account",
+      "destination_amount": "Amount received",
+      "category_id": "Category",
+      "description": "Description",
+      "occurred_on": "Date",
+      "recurring_id": "Subscription",
+      "recurring_due_on": "Subscription period"
+    },
+    "changedFields": "Changed: {fields}",
+    "formerMember": "Former member",
+    "viaClient": "via {client}",
+    "viaMcp": "via AI assistant",
+    "loadMore": "Load more",
+    "loading": "Loading…",
+    "loadFailed": "Couldn't load more activity. Try again."
   }
 }
