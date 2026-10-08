@@ -73,6 +73,18 @@ jobs:
       TEST_DATABASE_URL: postgres://finance:finance@localhost:5432/finance_test?sslmode=disable
     steps:
       - uses: actions/checkout@v7
+      - name: Tune Postgres for speed
+        run: |
+          # Service containers cannot take a command, so apply the
+          # reloadable durability settings once the service is healthy.
+          for setting in "fsync = off" "synchronous_commit = off" "full_page_writes = off"; do
+            psql "$PG_URL" -c "ALTER SYSTEM SET $setting"
+          done
+          psql "$PG_URL" -c "SELECT pg_reload_conf()"
+          sleep 1
+          test "$(psql "$PG_URL" -Atc "SHOW fsync")" = off
+        env:
+          PG_URL: postgres://finance:finance@localhost:5432/finance_test?sslmode=disable
       - uses: actions/setup-go@v7
         with:
           go-version-file: apps/api/go.mod
@@ -151,6 +163,18 @@ jobs:
           - 8025:8025
     steps:
       - uses: actions/checkout@v7
+      - name: Tune Postgres for speed
+        run: |
+          # Service containers cannot take a command, so apply the
+          # reloadable durability settings once the service is healthy.
+          for setting in "fsync = off" "synchronous_commit = off" "full_page_writes = off"; do
+            psql "$PG_URL" -c "ALTER SYSTEM SET $setting"
+          done
+          psql "$PG_URL" -c "SELECT pg_reload_conf()"
+          sleep 1
+          test "$(psql "$PG_URL" -Atc "SHOW fsync")" = off
+        env:
+          PG_URL: postgres://finance:finance@localhost:5432/finance_test?sslmode=disable
       - uses: actions/setup-go@v7
         with:
           go-version-file: apps/api/go.mod
