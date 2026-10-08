@@ -1,5 +1,6 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
+import { expect, test } from "./fixtures";
 import { navigate, openCategories, openNewTransaction } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
