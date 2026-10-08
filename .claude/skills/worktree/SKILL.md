@@ -62,9 +62,8 @@ it keeps the slot and database it assigned before.
   same time as another worktree's `api-test`: `testutil` drops test
   templates built from other migration sets, so the other run may fail
   mid-way. Re-run it if that happens.
-- **`make web-e2e` runs one at a time** across all checkouts: Playwright uses
-  fixed ports (8081/3100) and reuses servers already listening there, so a
-  second run would test the other worktree's code.
+- **`make web-e2e` can run in several worktrees at once:** each run gets its
+  own `finance_e2e_*` database and free ports, and is dropped afterwards.
 - Commit on the worktree's branch as usual (Conventional Commits, see
   AGENTS.md). Merging back to `main` is the user's call.
 
