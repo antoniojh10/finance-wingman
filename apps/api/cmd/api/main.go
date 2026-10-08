@@ -155,6 +155,7 @@ func run(args []string, logger *slog.Logger) error {
 				Unauthenticated:  newLimiter(cfg.RateLimitAuthPerMinute),
 				Authenticated:    newLimiter(cfg.RateLimitAPIPerMinute),
 				TrustedProxyHops: cfg.TrustedProxyHops,
+				ClientIPSecret:   cfg.ClientIPSecret,
 			},
 		})
 		return serve(ctx, cfg, logger, handler)

@@ -56,9 +56,10 @@ Variables:
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | | Used with `EMAIL_PROVIDER=smtp` |
 | `LOGIN_EMAILS_PER_HOUR` | `5` | Optional; sign-in emails allowed per user per hour |
 | `RATE_LIMIT_AUTH_PER_MINUTE` | `60` | Optional; requests per minute per client IP to login, code verification and the OAuth endpoints (`0` disables) |
-| `RATE_LIMIT_API_PER_MINUTE` | `300` | Optional; authenticated REST requests per minute per session (`0` disables) |
+| `RATE_LIMIT_API_PER_MINUTE` | `1200` | Optional; authenticated REST requests per minute per session (`0` disables) |
 | `RATE_LIMIT_MCP_PER_MINUTE` | `60` | Optional; MCP tool calls per minute per user (`0` disables) |
 | `TRUSTED_PROXY_HOPS` | `1` | Optional; reverse proxies in front of the API whose `X-Forwarded-For` entry is trusted. Defaults to `1` when `APP_ENV=production` |
+| `CLIENT_IP_SECRET` | random string | Optional; shared with the web service so the API trusts the browser address it forwards |
 | `MIGRATE_ON_START` | `true` | Optional; see [Database](#1-database) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `https://otlp.example.com/otlp` | Optional; enables traces, metrics and logs ([observability](observability.md)) |
 | `OTEL_EXPORTER_OTLP_HEADERS` | `Authorization=Basic%20...` | Optional; credentials for the OTLP endpoint |
@@ -76,8 +77,18 @@ challenge is locked and a new email is needed.
 The client IP comes from the `X-Forwarded-For` entry that Railway's proxy
 appends (`TRUSTED_PROXY_HOPS=1`, the production default); entries to its left
 are client supplied and ignored. Requests without the header use the TCP peer.
-The web service reaches the API over the private network, so sign-in requests
-made by the web app share the web service's address and a single budget.
+The web service reaches the API over the private network, where no proxy adds
+the browser's address. Set the same random `CLIENT_IP_SECRET` on the `api` and
+`web` services: the web service then forwards the browser address (taken from
+the `X-Forwarded-For` entry Railway's proxy appended to its own request) in
+`X-Client-IP`, and the API accepts it only together with the secret. Without
+the secret, all sign-in requests made by the web app share the web service's
+address and a single per-IP budget.
+
+Sizing: a page render makes about a dozen REST calls (session, workspaces,
+members, accounts, categories, currencies, recurring, summary, transactions),
+so the per-session default of 1200 per minute (20 per second sustained, burst
+600) leaves room for rapid navigation while still bounding a stolen token.
 
 ## 3. Web service
 
@@ -92,6 +103,8 @@ Variables:
 | --- | --- | --- |
 | `API_URL` | `http://api.railway.internal:8080` | Address the web server uses to reach the API; the private network address of the `api` service avoids public egress |
 | `API_PUBLIC_URL` | `https://api.example.com` | Shown in Settings as the MCP connector URL |
+| `CLIENT_IP_SECRET` | same as the API | Optional; lets the API rate limit sign-in per browser instead of per web server ([rate limiting](#rate-limiting)) |
+| `TRUSTED_PROXY_HOPS` | `1` | Optional; proxies in front of the web service (default `1` in production) |
 | `APP_TIMEZONE` | `America/Mexico_City` | Same value as the API |
 | `DEFAULT_CURRENCY` | `MXN` | Preselected when creating the first account |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | same as the API | Optional; enables traces ([observability](observability.md)) |

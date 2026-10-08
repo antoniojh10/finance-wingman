@@ -115,6 +115,41 @@ func TestRateLimitIgnoresForgedForwardingHeaders(t *testing.T) {
 	}
 }
 
+// The web server reaches the API over the private network and vouches for
+// the browser address with a shared secret; without the secret the header is
+// ignored, so visitors cannot pick their own bucket.
+func TestForwardedClientIPNeedsTheSharedSecret(t *testing.T) {
+	t.Parallel()
+	api := newTestAPI(t).withLimits(&Limits{Unauthenticated: ratelimit.New(60, 1), ClientIPSecret: "s3cret"})
+
+	send := func(clientIP, secret string) int {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(loginBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = "10.0.0.5:5000" // the web server
+		req.Header.Set("X-Client-IP", clientIP)
+		req.Header.Set("X-Client-IP-Secret", secret)
+		return api.raw(req).Code
+	}
+
+	if code := send("198.51.100.1", "s3cret"); code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d", code)
+	}
+	if code := send("198.51.100.1", "s3cret"); code != http.StatusTooManyRequests {
+		t.Fatalf("same browser should be limited, got %d", code)
+	}
+	if code := send("198.51.100.2", "s3cret"); code != http.StatusAccepted {
+		t.Fatalf("another browser behind the web server has its own budget, got %d", code)
+	}
+	// A wrong secret falls back to the peer (the web server), a separate
+	// bucket that the forged address does not influence.
+	if code := send("198.51.100.3", "wrong"); code != http.StatusAccepted {
+		t.Fatalf("expected 202 from the peer bucket, got %d", code)
+	}
+	if code := send("198.51.100.4", "wrong"); code != http.StatusTooManyRequests {
+		t.Fatalf("forged address must not give a fresh budget, got %d", code)
+	}
+}
+
 func TestAuthenticatedRequestsAreLimitedPerSession(t *testing.T) {
 	t.Parallel()
 	api := newTestAPI(t).withLimits(&Limits{Authenticated: ratelimit.New(60, 2)})

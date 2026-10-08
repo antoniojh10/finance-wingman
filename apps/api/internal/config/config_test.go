@@ -20,7 +20,7 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.LoginEmailsPerHour != 5 {
 		t.Fatalf("unexpected login rate limit: %d", cfg.LoginEmailsPerHour)
 	}
-	if cfg.RateLimitAuthPerMinute != 60 || cfg.RateLimitAPIPerMinute != 300 || cfg.RateLimitMCPPerMinute != 60 || cfg.TrustedProxyHops != 0 {
+	if cfg.RateLimitAuthPerMinute != 60 || cfg.RateLimitAPIPerMinute != 1200 || cfg.RateLimitMCPPerMinute != 60 || cfg.TrustedProxyHops != 0 {
 		t.Fatalf("unexpected rate limit defaults: %+v", cfg)
 	}
 	if cfg.PublicURL != "http://localhost:8080" {
@@ -59,6 +59,7 @@ func TestLoadOverrides(t *testing.T) {
 		"RATE_LIMIT_API_PER_MINUTE":  "0",
 		"RATE_LIMIT_MCP_PER_MINUTE":  "20",
 		"TRUSTED_PROXY_HOPS":         "2",
+		"CLIENT_IP_SECRET":           "s3cret",
 	}))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -69,7 +70,7 @@ func TestLoadOverrides(t *testing.T) {
 	if cfg.PublicURL != "https://api.example.com" || cfg.WebBaseURL != "https://app.example.com" || cfg.Email.Provider != "resend" || cfg.Email.SMTPPort != 2525 || cfg.Email.From != `"Wingman" <hi@example.com>` {
 		t.Fatalf("overrides not applied: %+v", cfg)
 	}
-	if cfg.RateLimitAuthPerMinute != 10 || cfg.RateLimitAPIPerMinute != 0 || cfg.RateLimitMCPPerMinute != 20 || cfg.TrustedProxyHops != 2 {
+	if cfg.RateLimitAuthPerMinute != 10 || cfg.RateLimitAPIPerMinute != 0 || cfg.RateLimitMCPPerMinute != 20 || cfg.TrustedProxyHops != 2 || cfg.ClientIPSecret != "s3cret" {
 		t.Fatalf("rate limit overrides not applied: %+v", cfg)
 	}
 	if cfg.PprofAddr != "localhost:6060" {

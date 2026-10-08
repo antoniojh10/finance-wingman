@@ -7,6 +7,7 @@
 package ratelimit
 
 import (
+	"crypto/subtle"
 	"net"
 	"net/http"
 	"strings"
@@ -135,6 +136,26 @@ func ClientIP(r *http.Request, trustedHops int) string {
 	if ip == nil {
 		return r.RemoteAddr
 	}
+	return keyFor(ip)
+}
+
+// ForwardedClientIP returns the client address that the web server reports in
+// X-Client-IP, accepted only when X-Client-IP-Secret matches secret. The web
+// server reaches the API over the private network, where no proxy appends the
+// browser's address, so it vouches for it with the shared secret. ok is false
+// when no secret is configured or the headers are missing, wrong or malformed.
+func ForwardedClientIP(r *http.Request, secret string) (key string, ok bool) {
+	if secret == "" || subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Client-IP-Secret")), []byte(secret)) != 1 {
+		return "", false
+	}
+	ip := net.ParseIP(strings.TrimSpace(r.Header.Get("X-Client-IP")))
+	if ip == nil {
+		return "", false
+	}
+	return keyFor(ip), true
+}
+
+func keyFor(ip net.IP) string {
 	if v4 := ip.To4(); v4 != nil {
 		return v4.String()
 	}

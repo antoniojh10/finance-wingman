@@ -49,6 +49,10 @@ export default defineConfig({
         WEB_BASE_URL: `http://localhost:${webPort}`,
         INITIAL_USERS: `${e2eUser}:E2E User`,
         LOGIN_EMAILS_PER_HOUR: "1000",
+        // Rate limiting stays on, with room for the whole suite: every test
+        // shares one saved session and the web server's address.
+        RATE_LIMIT_API_PER_MINUTE: "12000",
+        RATE_LIMIT_AUTH_PER_MINUTE: "600",
         EMAIL_PROVIDER: "smtp",
         SMTP_HOST: "localhost",
         SMTP_PORT: "1025",

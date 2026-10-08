@@ -153,3 +153,33 @@ func TestClientIP(t *testing.T) {
 		})
 	}
 }
+
+func TestForwardedClientIP(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		secret string
+		header map[string]string
+		want   string
+		ok     bool
+	}{
+		{"valid", "s3cret", map[string]string{"X-Client-IP": "198.51.100.7", "X-Client-IP-Secret": "s3cret"}, "198.51.100.7", true},
+		{"ipv6 collapses to its /64", "s3cret", map[string]string{"X-Client-IP": "2001:db8:1:2::9", "X-Client-IP-Secret": "s3cret"}, "2001:db8:1:2::/64", true},
+		{"wrong secret", "s3cret", map[string]string{"X-Client-IP": "198.51.100.7", "X-Client-IP-Secret": "nope"}, "", false},
+		{"missing secret", "s3cret", map[string]string{"X-Client-IP": "198.51.100.7"}, "", false},
+		{"not configured", "", map[string]string{"X-Client-IP": "198.51.100.7", "X-Client-IP-Secret": ""}, "", false},
+		{"malformed address", "s3cret", map[string]string{"X-Client-IP": "garbage", "X-Client-IP-Secret": "s3cret"}, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			for k, v := range tt.header {
+				r.Header.Set(k, v)
+			}
+			got, ok := ForwardedClientIP(r, tt.secret)
+			if got != tt.want || ok != tt.ok {
+				t.Fatalf("got %q, %v; want %q, %v", got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}

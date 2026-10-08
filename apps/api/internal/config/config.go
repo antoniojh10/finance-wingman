@@ -48,6 +48,9 @@ type Config struct {
 	// (TRUSTED_PROXY_HOPS). Defaults to 1 in production, where Railway's
 	// proxy fronts the API, and 0 otherwise.
 	TrustedProxyHops int
+	// ClientIPSecret is shared with the web server, which uses it to vouch
+	// for the browser address it forwards (CLIENT_IP_SECRET).
+	ClientIPSecret string
 	// PprofAddr, when set, serves net/http/pprof on a separate listener
 	// (PPROF_ADDR, e.g. "localhost:6060"). Never expose it publicly.
 	PprofAddr string
@@ -91,9 +94,10 @@ func load(getenv func(string) string) (Config, error) {
 		LoginEmailsPerHour:   5,
 
 		RateLimitAuthPerMinute: 60,
-		RateLimitAPIPerMinute:  300,
+		RateLimitAPIPerMinute:  1200,
 		RateLimitMCPPerMinute:  60,
 		PprofAddr:              getenv("PPROF_ADDR"),
+		ClientIPSecret:         getenv("CLIENT_IP_SECRET"),
 		Email: EmailConfig{
 			Provider:     valueOr(getenv("EMAIL_PROVIDER"), "log"),
 			From:         formatFrom(valueOr(getenv("EMAIL_FROM_NAME"), "Finance Wingman"), valueOr(getenv("EMAIL_FROM"), "no-reply@localhost")),

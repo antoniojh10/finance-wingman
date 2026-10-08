@@ -22,6 +22,17 @@ type Limits struct {
 	// TrustedProxyHops is the number of reverse proxies in front of the API
 	// whose X-Forwarded-For entry can be trusted (see ratelimit.ClientIP).
 	TrustedProxyHops int
+	// ClientIPSecret, when set, lets a caller that sends it in
+	// X-Client-IP-Secret name the client address in X-Client-IP; the web
+	// server uses this to pass on the browser's address.
+	ClientIPSecret string
+}
+
+func (l *Limits) clientIP(r *http.Request) string {
+	if ip, ok := ratelimit.ForwardedClientIP(r, l.ClientIPSecret); ok {
+		return ip
+	}
+	return ratelimit.ClientIP(r, l.TrustedProxyHops)
 }
 
 // unauthenticatedPaths are limited per client IP.
@@ -43,7 +54,7 @@ func limitUnauthenticated(limits *Limits) func(http.Handler) http.Handler {
 		}
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != http.MethodOptions && unauthenticatedPaths[r.URL.Path] {
-				ip := ratelimit.ClientIP(r, limits.TrustedProxyHops)
+				ip := limits.clientIP(r)
 				if ok, wait := limits.Unauthenticated.Allow(ip); !ok {
 					writeRateLimited(w, wait)
 					return
