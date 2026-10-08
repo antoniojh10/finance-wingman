@@ -179,6 +179,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Budget status of a month
+         * @description Per currency and expense category: the budget in force (set in the month or inherited from the latest earlier one), spent, committed (unpaid recurring expenses due in the month, not counted as spent), remaining and state. Categories with spending but no budget and an uncategorized bucket are included. No currency conversion.
+         */
+        get: operations["get-budget-status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/budgets/{month}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set or clear budgets from a month
+         * @description Atomically sets (amount) or clears (clear: true) the budget of expense categories per currency, effective from the month. Later months inherit it until they set their own. Returns the status of the month.
+         */
+        put: operations["set-budgets"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/categories": {
         parameters: {
             query?: never;
@@ -834,6 +874,102 @@ export interface components {
             readonly $schema?: string;
             /** @description Items to create (1 to 100). All are created or none are */
             items: components["schemas"]["TransactionInput"][];
+        };
+        BudgetCurrency: {
+            /**
+             * Format: int64
+             * @description Sum of the budget amounts, in minor units
+             */
+            budgeted: number;
+            /** @description Categories with a budget or with spending/committed expenses in the month, by name */
+            categories: components["schemas"]["BudgetLine"][];
+            /**
+             * Format: int64
+             * @description Committed in the categories that have a budget
+             */
+            committed: number;
+            /** @example MXN */
+            currency: string;
+            /**
+             * Format: int64
+             * @example 2
+             */
+            minor_units: number;
+            /**
+             * Format: int64
+             * @description budgeted - spent - committed
+             */
+            remaining: number;
+            /**
+             * Format: int64
+             * @description Spent in the categories that have a budget
+             */
+            spent: number;
+            /** @description Expenses without a category; null when there are none */
+            uncategorized: components["schemas"]["BudgetLine"];
+        };
+        BudgetItemInput: {
+            /**
+             * Format: int64
+             * @description Budget in minor units (0 means spend nothing). Later months inherit it until one sets another amount
+             */
+            amount?: number;
+            /**
+             * Format: uuid
+             * @description Expense category
+             */
+            category_id: string;
+            /** @description Remove the budget from this month on (earlier months keep theirs). Use instead of amount */
+            clear?: boolean;
+            /**
+             * @description ISO 4217 code. A category has an independent budget per currency
+             * @example MXN
+             */
+            currency: string;
+        };
+        BudgetLine: {
+            /**
+             * Format: int64
+             * @description Budget in force for the month, in minor units. Null when the category has no budget
+             */
+            amount: number | null;
+            /** @description Month (YYYY-MM) the amount was set in. Differs from the requested month when the amount is inherited from an earlier one */
+            amount_month: string | null;
+            category_color: string | null;
+            /** @description Null for the uncategorized bucket */
+            category_id: string | null;
+            category_name: string | null;
+            /**
+             * Format: int64
+             * @description Active recurring expenses of the category due this month and not paid yet, in minor units. Not counted as spent
+             */
+            committed: number;
+            /**
+             * Format: int64
+             * @description amount - spent - committed; negative when over budget. Null when there is no budget
+             */
+            remaining: number | null;
+            /**
+             * Format: int64
+             * @description Expenses in the month, in minor units (transfers excluded)
+             */
+            spent: number;
+            /**
+             * @description none: no budget. near: spent + committed is at least 80% of the amount. over: it exceeds the amount
+             * @enum {string}
+             */
+            state: "ok" | "near" | "over" | "none";
+        };
+        BudgetStatus: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/BudgetStatus.json
+             */
+            readonly $schema?: string;
+            currencies: components["schemas"]["BudgetCurrency"][];
+            /** @example 2026-10 */
+            month: string;
         };
         Category: {
             /**
@@ -1541,6 +1677,15 @@ export interface components {
             name: string;
             /** @enum {string} */
             role: "owner" | "member";
+        };
+        SetBudgetsInputBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/SetBudgetsInputBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["BudgetItemInput"][];
         };
         SuggestionKeyInput: {
             /**
@@ -2257,6 +2402,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-budget-status": {
+        parameters: {
+            query?: {
+                /** @description Month as YYYY-MM; defaults to the current month */
+                month?: string;
+                /** @description "me", "shared" or a member's user id. Only narrows spent and committed to those accounts; budgets are workspace-wide */
+                owner?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetStatus"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "set-budgets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Month as YYYY-MM */
+                month: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetBudgetsInputBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BudgetStatus"];
                 };
             };
             /** @description Error */

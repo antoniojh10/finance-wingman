@@ -213,6 +213,211 @@
         ],
         "type": "object"
       },
+      "BudgetCurrency": {
+        "additionalProperties": false,
+        "properties": {
+          "budgeted": {
+            "description": "Sum of the budget amounts, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "categories": {
+            "description": "Categories with a budget or with spending/committed expenses in the month, by name",
+            "items": {
+              "$ref": "#/components/schemas/BudgetLine"
+            },
+            "type": "array"
+          },
+          "committed": {
+            "description": "Committed in the categories that have a budget",
+            "format": "int64",
+            "type": "integer"
+          },
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "remaining": {
+            "description": "budgeted - spent - committed",
+            "format": "int64",
+            "type": "integer"
+          },
+          "spent": {
+            "description": "Spent in the categories that have a budget",
+            "format": "int64",
+            "type": "integer"
+          },
+          "uncategorized": {
+            "$ref": "#/components/schemas/BudgetLine",
+            "description": "Expenses without a category; null when there are none"
+          }
+        },
+        "required": [
+          "currency",
+          "minor_units",
+          "budgeted",
+          "spent",
+          "committed",
+          "remaining",
+          "categories",
+          "uncategorized"
+        ],
+        "type": "object"
+      },
+      "BudgetItemInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "description": "Budget in minor units (0 means spend nothing). Later months inherit it until one sets another amount",
+            "format": "int64",
+            "maximum": 1000000000000000,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "category_id": {
+            "description": "Expense category",
+            "format": "uuid",
+            "type": "string"
+          },
+          "clear": {
+            "description": "Remove the budget from this month on (earlier months keep theirs). Use instead of amount",
+            "type": "boolean"
+          },
+          "currency": {
+            "description": "ISO 4217 code. A category has an independent budget per currency",
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "BudgetLine": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "description": "Budget in force for the month, in minor units. Null when the category has no budget",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "amount_month": {
+            "description": "Month (YYYY-MM) the amount was set in. Differs from the requested month when the amount is inherited from an earlier one",
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_id": {
+            "description": "Null for the uncategorized bucket",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "committed": {
+            "description": "Active recurring expenses of the category due this month and not paid yet, in minor units. Not counted as spent",
+            "format": "int64",
+            "type": "integer"
+          },
+          "remaining": {
+            "description": "amount - spent - committed; negative when over budget. Null when there is no budget",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "spent": {
+            "description": "Expenses in the month, in minor units (transfers excluded)",
+            "format": "int64",
+            "type": "integer"
+          },
+          "state": {
+            "description": "none: no budget. near: spent + committed is at least 80% of the amount. over: it exceeds the amount",
+            "enum": [
+              "ok",
+              "near",
+              "over",
+              "none"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "category_id",
+          "category_name",
+          "category_color",
+          "amount",
+          "amount_month",
+          "spent",
+          "committed",
+          "remaining",
+          "state"
+        ],
+        "type": "object"
+      },
+      "BudgetStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BudgetStatus.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetCurrency"
+            },
+            "type": "array"
+          },
+          "month": {
+            "examples": [
+              "2026-10"
+            ],
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "currencies"
+        ],
+        "type": "object"
+      },
       "Category": {
         "additionalProperties": false,
         "properties": {
@@ -1807,6 +2012,32 @@
         ],
         "type": "object"
       },
+      "SetBudgetsInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/SetBudgetsInputBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetItemInput"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "SuggestionKeyInput": {
         "additionalProperties": false,
         "properties": {
@@ -3053,6 +3284,122 @@
         "summary": "Exchange a magic link token or code for a session",
         "tags": [
           "Auth"
+        ]
+      }
+    },
+    "/api/v1/budgets": {
+      "get": {
+        "description": "Per currency and expense category: the budget in force (set in the month or inherited from the latest earlier one), spent, committed (unpaid recurring expenses due in the month, not counted as spent), remaining and state. Categories with spending but no budget and an uncategorized bucket are included. No currency conversion.",
+        "operationId": "get-budget-status",
+        "parameters": [
+          {
+            "description": "Month as YYYY-MM; defaults to the current month",
+            "explode": false,
+            "in": "query",
+            "name": "month",
+            "schema": {
+              "description": "Month as YYYY-MM; defaults to the current month",
+              "examples": [
+                "2026-10"
+              ],
+              "pattern": "^\\d{4}-\\d{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "\"me\", \"shared\" or a member's user id. Only narrows spent and committed to those accounts; budgets are workspace-wide",
+            "explode": false,
+            "in": "query",
+            "name": "owner",
+            "schema": {
+              "description": "\"me\", \"shared\" or a member's user id. Only narrows spent and committed to those accounts; budgets are workspace-wide",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Budget status of a month",
+        "tags": [
+          "Budgets"
+        ]
+      }
+    },
+    "/api/v1/budgets/{month}": {
+      "put": {
+        "description": "Atomically sets (amount) or clears (clear: true) the budget of expense categories per currency, effective from the month. Later months inherit it until they set their own. Returns the status of the month.",
+        "operationId": "set-budgets",
+        "parameters": [
+          {
+            "description": "Month as YYYY-MM",
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "description": "Month as YYYY-MM",
+              "examples": [
+                "2026-10"
+              ],
+              "pattern": "^\\d{4}-\\d{2}$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBudgetsInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetStatus"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Set or clear budgets from a month",
+        "tags": [
+          "Budgets"
         ]
       }
     },
