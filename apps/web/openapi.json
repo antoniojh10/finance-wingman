@@ -904,6 +904,17 @@
             "format": "date-time",
             "type": "string"
           },
+          "scopes": {
+            "description": "What the app may do: finance:read alone is a read-only connection, finance:write also records and changes data",
+            "items": {
+              "enum": [
+                "finance:read",
+                "finance:write"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
           "workspace": {
             "$ref": "#/components/schemas/ConnectionWorkspace",
             "description": "The workspace the app acts on; omitted when it acts on none"
@@ -912,6 +923,7 @@
         "required": [
           "id",
           "client_name",
+          "scopes",
           "connected_at",
           "last_used_at"
         ],

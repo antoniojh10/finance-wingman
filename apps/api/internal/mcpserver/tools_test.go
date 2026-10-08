@@ -29,6 +29,8 @@ type harness struct {
 	// actor is the user tool calls act as; calls are anonymous while it is
 	// uuid.Nil.
 	actor uuid.UUID
+	// readOnly makes the connection read-only (no finance:write scope).
+	readOnly bool
 }
 
 func newHarness(t *testing.T) *harness {
@@ -41,6 +43,7 @@ func newHarness(t *testing.T) *harness {
 	server.workspaceOf = func(*mcp.CallToolRequest) (uuid.UUID, bool) { return workspaceID, true }
 	h := &harness{t: t, server: server, svc: svc, pool: pool, ctx: db.WithWorkspace(ctx, workspaceID), workspaceID: workspaceID}
 	server.actorOf = func(*mcp.CallToolRequest) (uuid.UUID, bool) { return h.actor, h.actor != uuid.Nil }
+	server.canWrite = func(mcp.Request) bool { return !h.readOnly }
 
 	clientTransport, serverTransport := mcp.NewInMemoryTransports()
 	if _, err := server.MCP().Connect(ctx, serverTransport, nil); err != nil {

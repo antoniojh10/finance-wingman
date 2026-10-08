@@ -1337,6 +1337,8 @@ export interface components {
              * @description Latest token refresh or request; request times are updated at most once an hour
              */
             last_used_at: string;
+            /** @description What the app may do: finance:read alone is a read-only connection, finance:write also records and changes data */
+            scopes: ("finance:read" | "finance:write")[];
             /** @description The workspace the app acts on; omitted when it acts on none */
             workspace?: components["schemas"]["ConnectionWorkspace"];
         };

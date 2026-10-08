@@ -76,7 +76,7 @@ type recurringMatchOut struct {
 }
 
 func (s *Server) registerRecurringSuggestionTools() {
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "list_recurring_suggestions",
 		Title:       "List recurring suggestions",
 		Description: "List recurring patterns detected among unlinked expenses and income (e.g. a Spotify charge every month) that could be tracked as recurring items. Suggestions only: show them to the user and call accept_recurring_suggestion only after the user agrees.",
@@ -85,7 +85,7 @@ func (s *Server) registerRecurringSuggestionTools() {
 		return s.listRecurringSuggestions(ctx)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "accept_recurring_suggestion",
 		Title:       "Accept recurring suggestion",
 		Description: "Turn a suggestion into a recurring item and link its matching past transactions to it. Only call it after the user agreed to track it. Optional name, amount and category overrides. Fails if the name clashes with another non-cancelled item.",
@@ -94,7 +94,7 @@ func (s *Server) registerRecurringSuggestionTools() {
 		return s.acceptRecurringSuggestion(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "dismiss_recurring_suggestion",
 		Title:       "Dismiss recurring suggestion",
 		Description: "Hide a suggestion for good because the user does not want to track it. It does not touch any transaction. Ask the user first.",
@@ -103,7 +103,7 @@ func (s *Server) registerRecurringSuggestionTools() {
 		return s.dismissRecurringSuggestion(ctx, args)
 	})
 
-	mcp.AddTool(s.mcp, &mcp.Tool{
+	addTool(s, &mcp.Tool{
 		Name:        "link_transaction_to_recurring",
 		Title:       "Link transaction to recurring item",
 		Description: "Mark an existing transaction as a payment of a recurring item (use it when add_expense or add_income reports a recurring_match and the user confirms), or remove that link with unlink=true. The transaction must have the item's type and account. It does not change the transaction amount or the item's estimate.",

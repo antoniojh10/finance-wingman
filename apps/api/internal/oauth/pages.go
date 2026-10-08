@@ -38,6 +38,11 @@ type pageData struct {
 	Email        string
 	Error        string
 	Workspaces   []workspaceOption
+	// OfferWrite is false when the client asked for read access only.
+	OfferWrite bool
+	// Access is the selected access choice (accessReadWrite or
+	// accessReadOnly).
+	Access string
 }
 
 type workspaceOption struct {
@@ -50,7 +55,12 @@ var copies = map[string]map[string]string{
 	"en": {
 		"title":            "Connect to Finance Wingman",
 		"heading":          "Connect %s",
-		"intro":            "%s wants to access your Finance Wingman workspace. It will be able to view your accounts and transactions and record new ones.",
+		"intro":            "%s wants to access your Finance Wingman workspace.",
+		"access_legend":    "Access",
+		"access_rw":        "Read and write",
+		"access_rw_hint":   "View your accounts and transactions, and record and change them.",
+		"access_ro":        "Read only",
+		"access_ro_hint":   "View your accounts and transactions, without changing anything.",
 		"redirect":         "After approving you will return to %s.",
 		"email_label":      "Email",
 		"send_code":        "Email me a code",
@@ -75,7 +85,12 @@ var copies = map[string]map[string]string{
 	"es": {
 		"title":            "Conectar con Finance Wingman",
 		"heading":          "Conectar %s",
-		"intro":            "%s quiere acceder a tu espacio de Finance Wingman. Podrá ver tus cuentas y transacciones y registrar nuevas.",
+		"intro":            "%s quiere acceder a tu espacio de Finance Wingman.",
+		"access_legend":    "Acceso",
+		"access_rw":        "Lectura y escritura",
+		"access_rw_hint":   "Ver tus cuentas y transacciones, y registrarlas y modificarlas.",
+		"access_ro":        "Solo lectura",
+		"access_ro_hint":   "Ver tus cuentas y transacciones, sin cambiar nada.",
 		"redirect":         "Después de aprobar volverás a %s.",
 		"email_label":      "Correo electrónico",
 		"send_code":        "Enviarme un código",
@@ -150,6 +165,9 @@ form.inline{margin:0}
 fieldset{border:0;padding:0;margin:0 0 16px}
 label.option{display:flex;align-items:center;gap:10px;font-weight:500;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer}
 label.option input{width:auto;margin:0}
+label.option span{display:block}
+label.option small{display:block;color:var(--muted);font-weight:400;font-size:13px;margin-top:2px}
+legend{font-size:14px;font-weight:600;margin-bottom:6px;padding:0}
 </style>
 </head>
 <body>
@@ -192,6 +210,13 @@ label.option input{width:auto;margin:0}
     <input type="hidden" name="action" value="verify">
     <label for="code">{{t .Locale "code_label"}}</label>
     <input id="code" class="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus>
+    <fieldset>
+      <legend>{{t .Locale "access_legend"}}</legend>
+      {{if .OfferWrite}}
+      <label class="option"><input type="radio" name="access" value="read_write"{{if ne .Access "read_only"}} checked{{end}}><span>{{t .Locale "access_rw"}}<small>{{t .Locale "access_rw_hint"}}</small></span></label>
+      {{end}}
+      <label class="option"><input type="radio" name="access" value="read_only"{{if or (eq .Access "read_only") (not .OfferWrite)}} checked{{end}}><span>{{t .Locale "access_ro"}}<small>{{t .Locale "access_ro_hint"}}</small></span></label>
+    </fieldset>
     <button type="submit">{{t .Locale "approve"}}</button>
   </form>
   <form class="inline" method="post" action="/oauth/authorize">

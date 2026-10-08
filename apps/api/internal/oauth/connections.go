@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/store"
 )
 
@@ -21,6 +22,7 @@ type Connection struct {
 	ID          uuid.UUID            `json:"id"`
 	ClientName  string               `json:"client_name" doc:"Name the app registered with; empty when it gave none"`
 	Workspace   *ConnectionWorkspace `json:"workspace,omitempty" doc:"The workspace the app acts on; omitted when it acts on none"`
+	Scopes      []string             `json:"scopes" enum:"finance:read,finance:write" doc:"What the app may do: finance:read alone is a read-only connection, finance:write also records and changes data"`
 	ConnectedAt time.Time            `json:"connected_at"`
 	LastUsedAt  time.Time            `json:"last_used_at" doc:"Latest token refresh or request; request times are updated at most once an hour"`
 }
@@ -42,6 +44,7 @@ func (s *Server) ListConnections(ctx context.Context, userID uuid.UUID) ([]Conne
 		connections[i] = Connection{
 			ID:          r.ID,
 			ClientName:  r.ClientName,
+			Scopes:      auth.ParseScope(r.Scope),
 			ConnectedAt: r.CreatedAt,
 			LastUsedAt:  r.LastUsedAt,
 		}

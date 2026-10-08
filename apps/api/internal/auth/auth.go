@@ -120,6 +120,9 @@ type Session struct {
 	ExpiresAt   time.Time         `json:"expires_at"`
 	User        User              `json:"user"`
 	Workspace   *SessionWorkspace `json:"workspace,omitempty" doc:"The workspace the session acts on; omitted until the user joins or picks one"`
+	// Scopes the session grants: both for sign-in sessions, those of its
+	// grant for OAuth access tokens.
+	Scopes []string `json:"-"`
 }
 
 // OAuthClient identifies the OAuth client (an MCP host such as Claude) a
@@ -396,7 +399,7 @@ func (s *Service) CreateWorkspaceSession(ctx context.Context, userID uuid.UUID, 
 	if err != nil {
 		return Session{}, err
 	}
-	return Session{ID: row.ID, Token: token, Client: row.Client, ExpiresAt: row.ExpiresAt, User: userFromModel(user), Workspace: workspace}, nil
+	return Session{ID: row.ID, Token: token, Client: row.Client, ExpiresAt: row.ExpiresAt, User: userFromModel(user), Workspace: workspace, Scopes: ParseScope("")}, nil
 }
 
 // SwitchWorkspace makes the session act on another workspace the user
@@ -451,6 +454,8 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 		Client:    row.Client,
 		ExpiresAt: row.ExpiresAt,
 		User:      User{ID: row.UserID, Email: row.Email, Name: row.Name, Locale: row.Locale},
+		// Sign-in sessions have no scope, which is full access.
+		Scopes: ParseScope(row.Scope),
 	}
 	if row.ActiveWorkspaceID != nil {
 		session.Workspace = &SessionWorkspace{ID: *row.ActiveWorkspaceID, Name: *row.WorkspaceName, Role: *row.WorkspaceRole}

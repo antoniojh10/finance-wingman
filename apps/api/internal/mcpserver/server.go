@@ -57,6 +57,11 @@ type Server struct {
 	actorOf func(*mcp.CallToolRequest) (uuid.UUID, bool)
 	// limiter, when set, caps tool calls per user (see SetLimiter).
 	limiter *ratelimit.Limiter
+	// canWrite reports whether a request's token carries finance:write;
+	// tests replace it for the same reason as workspaceOf.
+	canWrite func(mcp.Request) bool
+	// readOnly maps each tool name to whether it only reads data.
+	readOnly map[string]bool
 }
 
 // tokenWorkspaceKey is the TokenInfo.Extra key holding the workspace of the
@@ -78,6 +83,8 @@ func New(fin *finance.Service, version string) *Server {
 		finance:     fin,
 		workspaceOf: tokenWorkspace,
 		actorOf:     tokenUser,
+		canWrite:    tokenCanWrite,
+		readOnly:    map[string]bool{},
 		mcp: mcp.NewServer(&mcp.Implementation{
 			Name:    "finance-wingman",
 			Title:   "Finance Wingman",
@@ -85,7 +92,7 @@ func New(fin *finance.Service, version string) *Server {
 		}, &mcp.ServerOptions{Instructions: instructions}),
 	}
 	// The global provider forwards to the SDK once telemetry is set up.
-	s.mcp.AddReceivingMiddleware(tracing(otel.GetTracerProvider()), s.rateLimit, s.workspaceScope)
+	s.mcp.AddReceivingMiddleware(tracing(otel.GetTracerProvider()), s.rateLimit, s.scopeGuard, s.workspaceScope)
 	s.registerTools()
 	s.registerUpdateTransactionTools()
 	s.registerRecurringTools()
@@ -116,7 +123,7 @@ func (s *Server) Handler(authSvc *auth.Service, publicURL, resourceMetadataURL s
 		info := &mcpauth.TokenInfo{
 			UserID:     session.User.ID.String(),
 			Expiration: session.ExpiresAt,
-			Scopes:     []string{"finance"},
+			Scopes:     session.Scopes,
 		}
 		info.Extra = map[string]any{}
 		if session.Workspace != nil {
