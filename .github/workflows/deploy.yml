@@ -28,7 +28,7 @@ jobs:
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npm install --global @railway/cli@5.63.4
       # The repository root is uploaded; each service builds from its own
       # root directory (/apps/api, /apps/web) set in Railway.
