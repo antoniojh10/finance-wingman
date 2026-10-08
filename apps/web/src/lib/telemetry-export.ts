@@ -8,21 +8,31 @@ import {
 
 type Env = Record<string, string | undefined>;
 
-const SEARCH_PARAM = /([?&]q=)[^&#\s]*/g;
+const SENSITIVE_PARAM = /([?&](?:q|token|code|state|code_challenge|code_verifier|access_token|refresh_token)=)[^&#\s]*/gi;
+const EMAIL = /[A-Za-z0-9._%+-]+(?:@|%40)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
 
 /**
- * Replaces the value of the `q` search parameter in any URL-like string.
- * Search terms can reveal what someone spends money on, so they never leave
- * the server in telemetry.
+ * Replaces the value of sensitive query parameters in any URL-like string:
+ * `q` (search terms reveal what someone spends money on), and the `token`
+ * of magic links and invitations or OAuth `code`/`state` values (credentials).
+ * Email addresses are replaced too. None of them leave the server in telemetry.
  */
 export function redactSearch(value: string): string {
-  return value.replace(SEARCH_PARAM, "$1REDACTED");
+  return value.replace(SENSITIVE_PARAM, "$1REDACTED").replace(EMAIL, "REDACTED");
+}
+
+function redactValue(value: unknown): unknown {
+  if (typeof value === "string") return redactSearch(value);
+  if (Array.isArray(value)) return value.map(redactValue);
+  return value;
+}
+
+function redactAttributes<T extends Record<string, unknown> | undefined>(attributes: T): T {
+  if (!attributes) return attributes;
+  return Object.fromEntries(Object.entries(attributes).map(([key, value]) => [key, redactValue(value)])) as T;
 }
 
 function redactSpan(span: ReadableSpan): ReadableSpan {
-  const attributes = Object.fromEntries(
-    Object.entries(span.attributes).map(([key, value]) => [key, typeof value === "string" ? redactSearch(value) : value]),
-  );
   return {
     name: redactSearch(span.name),
     kind: span.kind,
@@ -30,10 +40,10 @@ function redactSpan(span: ReadableSpan): ReadableSpan {
     parentSpanContext: span.parentSpanContext,
     startTime: span.startTime,
     endTime: span.endTime,
-    status: span.status,
-    attributes,
+    status: span.status?.message ? { ...span.status, message: redactSearch(span.status.message) } : span.status,
+    attributes: redactAttributes(span.attributes),
     links: span.links,
-    events: span.events,
+    events: (span.events ?? []).map((event) => ({ ...event, name: redactSearch(event.name), attributes: redactAttributes(event.attributes) })),
     duration: span.duration,
     ended: span.ended,
     resource: span.resource,
@@ -45,8 +55,9 @@ function redactSpan(span: ReadableSpan): ReadableSpan {
 }
 
 /**
- * Wraps an exporter so span names and string attributes (fetch URLs, Next.js
- * `http.target`) are redacted before they are sent.
+ * Wraps an exporter so span names, status messages, string attributes (fetch
+ * URLs, Next.js `http.target`) and event attributes (exception messages) are
+ * redacted before they are sent.
  */
 export class RedactingSpanExporter implements SpanExporter {
   constructor(private readonly inner: SpanExporter) {}

@@ -146,6 +146,130 @@ func (q *Queries) ListEffectiveBudgets(ctx context.Context, month time.Time) ([]
 	return items, nil
 }
 
+const listFirstExpenseByCategory = `-- name: ListFirstExpenseByCategory :many
+SELECT t.category_id, a.currency, min(t.occurred_on)::date AS first_on
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.type = 'expense'
+  AND t.category_id IS NOT NULL
+  AND t.occurred_on <= $1
+GROUP BY t.category_id, a.currency
+`
+
+type ListFirstExpenseByCategoryRow struct {
+	CategoryID *uuid.UUID
+	Currency   string
+	FirstOn    time.Time
+}
+
+// Date of the first expense of each category in each currency, up to a date.
+func (q *Queries) ListFirstExpenseByCategory(ctx context.Context, toDate time.Time) ([]ListFirstExpenseByCategoryRow, error) {
+	rows, err := q.db.Query(ctx, listFirstExpenseByCategory, toDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFirstExpenseByCategoryRow{}
+	for rows.Next() {
+		var i ListFirstExpenseByCategoryRow
+		if err := rows.Scan(&i.CategoryID, &i.Currency, &i.FirstOn); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMonthlyExpenseByCategory = `-- name: ListMonthlyExpenseByCategory :many
+SELECT
+    t.category_id,
+    a.currency,
+    date_trunc('month', t.occurred_on)::date AS month,
+    sum(t.amount)::bigint AS total
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+WHERE t.type = 'expense'
+  AND t.category_id IS NOT NULL
+  AND t.occurred_on BETWEEN $1 AND $2
+GROUP BY t.category_id, a.currency, date_trunc('month', t.occurred_on)
+ORDER BY t.category_id, a.currency, month
+`
+
+type ListMonthlyExpenseByCategoryParams struct {
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+type ListMonthlyExpenseByCategoryRow struct {
+	CategoryID *uuid.UUID
+	Currency   string
+	Month      time.Time
+	Total      int64
+}
+
+// Expenses per category, currency and month in a date range. Transfers and
+// income are not expenses; uncategorized expenses are left out.
+func (q *Queries) ListMonthlyExpenseByCategory(ctx context.Context, arg ListMonthlyExpenseByCategoryParams) ([]ListMonthlyExpenseByCategoryRow, error) {
+	rows, err := q.db.Query(ctx, listMonthlyExpenseByCategory, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMonthlyExpenseByCategoryRow{}
+	for rows.Next() {
+		var i ListMonthlyExpenseByCategoryRow
+		if err := rows.Scan(
+			&i.CategoryID,
+			&i.Currency,
+			&i.Month,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRecurringIDsPaidBetween = `-- name: ListRecurringIDsPaidBetween :many
+SELECT DISTINCT recurring_id::uuid AS recurring_id
+FROM transactions
+WHERE recurring_id IS NOT NULL
+  AND occurred_on BETWEEN $1 AND $2
+`
+
+type ListRecurringIDsPaidBetweenParams struct {
+	FromDate time.Time
+	ToDate   time.Time
+}
+
+// Recurring items with at least one linked transaction in a date range.
+func (q *Queries) ListRecurringIDsPaidBetween(ctx context.Context, arg ListRecurringIDsPaidBetweenParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, listRecurringIDsPaidBetween, arg.FromDate, arg.ToDate)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var recurring_id uuid.UUID
+		if err := rows.Scan(&recurring_id); err != nil {
+			return nil, err
+		}
+		items = append(items, recurring_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertBudget = `-- name: UpsertBudget :exec
 INSERT INTO budgets (category_id, currency, month, amount_minor, created_by)
 VALUES ($1, $2, $3, $4, $5)

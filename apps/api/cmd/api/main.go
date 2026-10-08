@@ -130,7 +130,7 @@ func run(args []string, logger *slog.Logger) error {
 			return fmt.Errorf("create initial workspace: %w", err)
 		}
 		if created {
-			logger.Info("initial workspace created", "name", cfg.InitialWorkspaceName, "owners", len(initialIDs))
+			logger.Info("initial workspace created", "owners", len(initialIDs))
 		}
 		financeSvc := finance.NewService(pool, cfg.Location)
 		oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: cfg.PublicURL}, logger)
