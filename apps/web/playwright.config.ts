@@ -2,15 +2,18 @@ import path from "node:path";
 
 import { defineConfig, devices } from "@playwright/test";
 
-// End-to-end tests run the real API (port 8081) and web app (port 3100)
-// against the docker-compose Postgres and Mailpit (`make up`). The web app
-// is a production build unless E2E_DEV is set.
-const apiPort = 8081;
-const webPort = 3100;
+// End-to-end tests run the real API and web app against the docker-compose
+// Postgres and Mailpit (`make up`). `pnpm e2e` (scripts/e2e.mjs) gives each
+// run its own database, free ports and sign-in email; the defaults below
+// only apply when Playwright is started directly. The web app is a
+// production build unless E2E_DEV is set.
+export const apiPort = Number(process.env.E2E_API_PORT ?? 8081);
+const webPort = Number(process.env.E2E_WEB_PORT ?? 3100);
 const databaseUrl =
-  process.env.E2E_DATABASE_URL ?? "postgres://finance:finance@localhost:5432/finance_test?sslmode=disable";
+  process.env.E2E_RUN_DATABASE_URL ?? "postgres://finance:finance@localhost:5432/finance_test?sslmode=disable";
 
-export const e2eUser = "e2e@example.com";
+// Mailpit is shared, so concurrent runs need distinct addresses.
+export const e2eUser = process.env.E2E_RUN_ID ? `e2e-${process.env.E2E_RUN_ID}@example.com` : "e2e@example.com";
 // Session saved by e2e/auth.setup.ts, so tests start signed in.
 export const authFile = path.join(__dirname, "playwright/.auth/user.json");
 
@@ -40,7 +43,7 @@ export default defineConfig({
       command: "go run ./cmd/api serve",
       cwd: "../api",
       url: `http://localhost:${apiPort}/healthz`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 120_000,
       env: {
         PORT: String(apiPort),
@@ -67,7 +70,7 @@ export default defineConfig({
       // E2E_DEV=1 skips the build while iterating on a flow.
       command: process.env.E2E_DEV ? `pnpm dev --port ${webPort}` : "pnpm build && pnpm start:standalone",
       url: `http://localhost:${webPort}/login`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 300_000,
       env: {
         PORT: String(webPort),
