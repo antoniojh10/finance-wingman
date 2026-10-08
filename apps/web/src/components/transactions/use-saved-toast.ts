@@ -10,19 +10,25 @@ import { findRecurringMatch, linkTransactionRecurring } from "@/app/actions/tran
  * Returns a function that announces a saved transaction. For a newly created
  * one it also looks for a matching active subscription and, when found, adds
  * a "Link to <name>?" action to the toast. The lookup is best effort: any
- * failure just shows the plain confirmation.
+ * failure just shows the plain confirmation. A budget warning (the expense
+ * left its category near or over budget) is shown as the toast description.
  */
 export function useSavedToast() {
   const t = useTranslations("transactions");
 
   return useCallback(
-    async (createdId?: string) => {
+    async (createdId?: string, budgetWarning?: string) => {
       const match = createdId ? await findRecurringMatch(createdId) : null;
       if (!createdId || !match) {
-        toast.success(t("saved"));
+        if (budgetWarning) {
+          toast.success(t("saved"), { description: budgetWarning, duration: 8000 });
+        } else {
+          toast.success(t("saved"));
+        }
         return;
       }
       toast.success(t("saved"), {
+        description: budgetWarning,
         duration: 8000,
         action: {
           label: t("linkSuggestion", { name: match.name }),

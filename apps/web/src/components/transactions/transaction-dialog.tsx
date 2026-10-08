@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { saveTransaction } from "@/app/actions/transactions";
 import { AmountInput, amountInputHandlers } from "@/components/amount-input";
@@ -16,8 +16,10 @@ import { useFormAction } from "@/hooks/use-form-action";
 import { formatAmountInput, toDecimalString } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
+import { BudgetImpactHint, useBudgetMessage } from "./budget-impact-hint";
 import { TransactionSubscriptionLink } from "./transaction-subscription-link";
 import type { AccountOption, CategoryOption, RecurringOption, TransactionRow, TransactionType } from "./types";
+import { useBudgetImpact } from "./use-budget-impact";
 import { useSavedToast } from "./use-saved-toast";
 
 const types: TransactionType[] = ["expense", "income", "transfer"];
@@ -77,8 +79,8 @@ export function TransactionDialog({
             categories={categories}
             transaction={transaction}
             defaultDate={defaultDate}
-            onSaved={({ transactionId }) => {
-              void announceSaved(transactionId);
+            onSaved={({ transactionId, budgetWarning }) => {
+              void announceSaved(transactionId, budgetWarning);
               setOpen(false);
             }}
             onCancel={() => setOpen(false)}
@@ -101,7 +103,8 @@ export function TransactionForm({
   categories: CategoryOption[];
   transaction?: TransactionRow;
   defaultDate: string;
-  onSaved: (result: { transactionId?: string }) => void;
+  /** `budgetWarning` is set when the new expense left its category near or over budget. */
+  onSaved: (result: { transactionId?: string; budgetWarning?: string }) => void;
   onCancel: () => void;
 }) {
   const t = useTranslations();
@@ -109,7 +112,11 @@ export function TransactionForm({
   // arrives before the dialog closes, and changing defaultValue on mounted
   // inputs makes Base UI warn.
   const [transaction] = useState(transactionProp);
-  const { state, onSubmit, pending } = useFormAction(saveTransaction, (result) => onSaved({ transactionId: result.transactionId }));
+  const budgetMessage = useBudgetMessage();
+  const warningText = useRef<string | undefined>(undefined);
+  const { state, onSubmit, pending } = useFormAction(saveTransaction, (result) =>
+    onSaved({ transactionId: result.transactionId, budgetWarning: warningText.current }),
+  );
 
   // Archived accounts and categories are only offered when already selected.
   const accountOptions = accounts.filter(
@@ -129,9 +136,32 @@ export function TransactionForm({
   const categoryOptions = categories.filter(
     (c) => c.kind === type && (!c.archived || c.id === transaction?.category_id),
   );
+  const [categoryId, setCategoryId] = useState(transaction?.type === type ? (transaction.category_id ?? "") : "");
+  const [amountText, setAmountText] = useState(
+    transaction ? formatAmountInput(toDecimalString(transaction.amount, transaction.minor_units)) : "",
+  );
+  const [date, setDate] = useState(transaction?.occurred_on ?? defaultDate);
   const errors = state.fieldErrors ?? {};
 
+  // Editing is excluded: the saved expense already counts towards the budget.
+  const impact = useBudgetImpact({
+    enabled: !transaction && type === "expense",
+    categoryId,
+    currency: account?.currency ?? "",
+    minorUnits: account?.minor_units ?? 2,
+    amount: amountText,
+    date,
+  });
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const budgetWarningMessage = budgetMessage(impact, selectedCategory?.name ?? "", account?.currency ?? "", account?.minor_units ?? 2);
+  const budgetWarning = budgetWarningMessage ? { message: budgetWarningMessage, over: impact?.state === "over" } : null;
+  // Read when saving succeeds, to repeat the warning in the toast.
+  useEffect(() => {
+    warningText.current = budgetWarningMessage ?? undefined;
+  }, [budgetWarningMessage]);
+
   const accountChip = (a: AccountOption) => ({ value: a.id, label: a.name, detail: a.currency });
+  const amountHandlers = amountInputHandlers();
   const sign = type === "expense" ? "−" : type === "income" ? "+" : "";
 
   return (
@@ -146,7 +176,10 @@ export function TransactionForm({
             type="button"
             role="radio"
             aria-checked={type === option}
-            onClick={() => setType(option)}
+            onClick={() => {
+              setType(option);
+              setCategoryId("");
+            }}
             className={cn(
               "min-h-11 rounded-xl px-2 text-sm font-bold transition-colors",
               type === option ? typeStyles[option] : "text-muted-foreground hover:text-foreground",
@@ -170,7 +203,11 @@ export function TransactionForm({
             autoComplete="off"
             placeholder="0.00"
             defaultValue={transaction ? formatAmountInput(toDecimalString(transaction.amount, transaction.minor_units)) : ""}
-            {...amountInputHandlers()}
+            {...amountHandlers}
+            onChange={(event) => {
+              amountHandlers.onChange(event);
+              setAmountText(event.currentTarget.value);
+            }}
             aria-invalid={Boolean(errors.amount)}
             aria-describedby={errors.amount ? "amount-error" : undefined}
             autoFocus={!transaction}
@@ -238,14 +275,24 @@ export function TransactionForm({
               leading: <ColorTile color={c.color} label={c.name} className="size-7 rounded-[9px] text-[13px]" />,
             })),
           ]}
-          defaultValue={transaction?.type === type ? (transaction.category_id ?? "") : ""}
+          value={categoryId}
+          onChange={setCategoryId}
           error={errors.category_id}
         />
       )}
 
+      {budgetWarning && <BudgetImpactHint message={budgetWarning.message} over={budgetWarning.over} />}
+
       <div className="grid gap-4 sm:grid-cols-[11rem_1fr]">
         <Field id="occurred_on" label={t("transactions.date")} error={errors.occurred_on}>
-          <Input id="occurred_on" name="occurred_on" type="date" defaultValue={transaction?.occurred_on ?? defaultDate} required />
+          <Input
+            id="occurred_on"
+            name="occurred_on"
+            type="date"
+            defaultValue={transaction?.occurred_on ?? defaultDate}
+            onChange={(event) => setDate(event.currentTarget.value)}
+            required
+          />
         </Field>
         <Field id="description" label={t("transactions.description")} error={errors.description}>
           <Input

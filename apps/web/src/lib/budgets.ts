@@ -56,6 +56,30 @@ export function barSegments(amount: number, spent: number, committed: number): {
   return { spent: (spent / scale) * 100, committed: (committed / scale) * 100 };
 }
 
+export type AttentionCurrency = { currency: string; minorUnits: number; lines: BudgetLineData[] };
+
+/** Whether any category has a budget in force in the status. */
+export function hasBudgets(currencies: BudgetCurrencyData[]): boolean {
+  return currencies.some((c) => c.categories.some((l) => l.amount !== null));
+}
+
+/**
+ * The lines near or over their budget, per currency (currencies with none are
+ * left out). Over budget comes first, then the most used.
+ */
+export function attentionLines(currencies: BudgetCurrencyData[]): AttentionCurrency[] {
+  const usage = (l: BudgetLineData) => (l.amount && l.amount > 0 ? (l.spent + l.committed) / l.amount : Number.MAX_SAFE_INTEGER);
+  return currencies
+    .map((c) => ({
+      currency: c.currency,
+      minorUnits: c.minor_units,
+      lines: c.categories
+        .filter((l) => l.state === "near" || l.state === "over")
+        .sort((a, b) => Number(b.state === "over") - Number(a.state === "over") || usage(b) - usage(a)),
+    }))
+    .filter((c) => c.lines.length > 0);
+}
+
 /** Name of the form field holding the budget of a category in a currency. */
 export function amountField(currency: string, categoryId: string): string {
   return `amount:${currency}:${categoryId}`;
