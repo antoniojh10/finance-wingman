@@ -10,6 +10,7 @@ import { today } from "@/lib/dates";
 import { pageHref, parseTransactionQuery } from "@/lib/query";
 import { authedApi, expectData, getAccountOwners, getCurrentUser } from "@/lib/session";
 import { toAccountOption, toCategoryOption, toRecurringNames, toRecurringOption, toTransactionRow } from "@/lib/view-models";
+import { NEW_ACCOUNT_HREF } from "@/components/accounts/new-account-dialog";
 
 const PAGE_SIZE = 25;
 
@@ -66,7 +67,7 @@ export default async function TransactionsPage({
         {!hasActiveAccounts && (
           <p className="rounded-2xl bg-card px-5 py-4 text-sm ring-1 ring-foreground/5">
             {t("transactions.needAccount")}{" "}
-            <Link href="/accounts" className="font-semibold text-primary underline underline-offset-4">
+            <Link href={NEW_ACCOUNT_HREF} className="font-semibold text-primary underline underline-offset-4">
               {t("accounts.add")}
             </Link>
           </p>

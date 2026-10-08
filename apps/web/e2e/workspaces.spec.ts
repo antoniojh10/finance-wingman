@@ -70,7 +70,17 @@ test("invites someone to a workspace and keeps workspaces apart", { tag: "@mobil
   await expect(guest.getByText("Workspace created")).toBeVisible();
   await expectWorkspace(guest, `Personal ${suffix}`);
   await expectAccount(guest, sharedAccount, false);
-  await createAccount(guest, personalAccount);
+
+  // The empty dashboard's call to action opens the new account form directly.
+  await guest.goto("/");
+  await guest.getByRole("button", { name: "Create account" }).click();
+  await expect(guest).toHaveURL(/\/accounts\?new=1/);
+  const accountDialog = guest.getByRole("dialog");
+  await accountDialog.getByLabel("Name").fill(personalAccount);
+  await accountDialog.getByLabel("Currency").selectOption("MXN");
+  await accountDialog.getByRole("button", { name: "Save" }).click();
+  await expect(guest.getByText("Account saved")).toBeVisible();
+  await expect(guest).toHaveURL(/\/accounts$/);
 
   // Switching back shows the shared data again, and never the personal one.
   await openWorkspaceMenu(guest);
