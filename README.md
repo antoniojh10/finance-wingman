@@ -83,6 +83,7 @@ Tools:
 - Accounts: `list_accounts`, `create_account`, `create_accounts`, `update_account`
 - Categories: `list_categories`, `create_category`, `create_categories`, `update_category`
 - Recurring: `list_recurring`, `create_recurring`, `update_recurring`, `list_upcoming_recurring`, `mark_recurring_paid`, `link_transaction_to_recurring`, `list_recurring_suggestions`, `accept_recurring_suggestion`, `dismiss_recurring_suggestion`
+- Budgets: `get_budget_status`, `set_budgets`, `suggest_budgets`; expense tools add a warning when a category gets near or over its budget
 
 Amounts are decimals in the account currency; summaries never mix currencies.
 Accounts belong to a workspace member or are shared: a bare account name

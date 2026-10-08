@@ -4,6 +4,7 @@ import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
 
+import { e2eUser } from "../playwright.config";
 import { navigate } from "./helpers";
 
 async function createAccount(page: Page, name: string) {
@@ -34,7 +35,7 @@ test("exports the workspace data as JSON and CSV", { tag: "@mobile" }, async ({ 
   expect(json.filename).toMatch(/^finance-wingman-export-\d{4}-\d{2}-\d{2}\.json$/);
   const doc = JSON.parse(json.file.toString("utf8"));
   expect(doc.schema_version).toBe(1);
-  expect(doc.members.map((m: { email: string }) => m.email)).toContain("e2e@example.com");
+  expect(doc.members.map((m: { email: string }) => m.email)).toContain(e2eUser);
   const account = doc.accounts.find((a: { name: string }) => a.name === accountName);
   expect(account).toMatchObject({ currency: "MXN", initial_balance: 1500.5 });
   expect(Array.isArray(doc.transactions)).toBe(true);

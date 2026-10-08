@@ -61,7 +61,7 @@ Commit messages follow [Conventional Commits 1.0.0](https://www.conventionalcomm
 ## Workflow
 - Start local services with `make up`; integration tests need Postgres running.
 - Run `make api-lint api-test` before considering backend work done, and `make web-lint web-test` for frontend work.
-- E2E runs in full only in CI, on the pull request. Locally, run just the specs for the flows you changed (`cd apps/web && pnpm e2e <spec>`), never the whole suite; if CI's e2e fails, reproduce that spec locally. The local e2e database is shared and keeps data between runs, so CI is the source of truth.
+- E2E runs in full only in CI, on the pull request. Locally, run just the specs for the flows you changed (`cd apps/web && pnpm e2e <spec>`), never the whole suite; if CI's e2e fails, reproduce that spec locally. `pnpm e2e` creates a fresh `finance_e2e_*` database, free ports and a unique sign-in email per run and drops them afterwards, so runs and worktrees can overlap.
 - A pull request must be up to date with `main` and have green CI before merging: merge `main` into the branch (never rebase) and wait for CI again.
 - Integration tests use `testutil.NewDatabase`, which creates an isolated database per test; never share state between tests.
 - SQL lives in `apps/api/internal/db/queries`; run `make api-generate` after editing queries or migrations. Never edit `internal/store` by hand.
