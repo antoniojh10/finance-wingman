@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures";
-import { navigate, openCategories, openNewTransaction } from "./helpers";
+import { navigate, openCategories, openNewTransaction, openSubscriptions } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -98,7 +98,7 @@ test("creates, edits and pauses a subscription", async ({ page }, testInfo) => {
   await expect(page.getByText("Account saved")).toBeVisible();
 
   // Create
-  await navigate(page, /subscriptions/i);
+  await openSubscriptions(page);
   await expect(page.getByRole("heading", { name: "Subscriptions" })).toBeVisible();
   await page.getByRole("button", { name: "New subscription" }).click();
   const dialog = page.getByRole("dialog");
@@ -149,7 +149,7 @@ test("registers a subscription payment from the dashboard", async ({ page }, tes
   await expect(page.getByText("Account saved")).toBeVisible();
 
   // The first due date defaults to today, so the subscription is pending.
-  await navigate(page, /subscriptions/i);
+  await openSubscriptions(page);
   await page.getByRole("button", { name: "New subscription" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Name").fill(name);
@@ -175,13 +175,13 @@ test("registers a subscription payment from the dashboard", async ({ page }, tes
   await expect(upcoming.getByRole("button", { name: "Register payment" })).toHaveCount(0);
 
   // The status changed on the subscriptions page and the transaction shows its subscription.
-  await navigate(page, /subscriptions/i);
+  await openSubscriptions(page);
   await expect(listRow).toContainText("Paid");
   await navigate(page, /transactions/i);
   await expect(page.getByTestId("transaction-row").filter({ hasText: `Subscription: ${name}` })).toContainText("−MX$310.00");
 
   // Clean up: cancel it so it stops counting.
-  await navigate(page, /subscriptions/i);
+  await openSubscriptions(page);
   await listRow.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
@@ -231,7 +231,7 @@ test("accepts a detected subscription and sees its linked transactions", async (
   await expect(page.getByTestId("subscriptions-card").getByTestId("suggestions-link")).toContainText(/suggestion/);
 
   // Accept the suggestion with a clean name.
-  await navigate(page, /subscriptions/i);
+  await openSubscriptions(page);
   const suggestion = page.getByTestId("suggestion-row").filter({ hasText: accountName });
   await expect(suggestion).toContainText("3 matching transactions");
   await suggestion.getByRole("button", { name: "Add" }).click();
@@ -251,7 +251,7 @@ test("accepts a detected subscription and sees its linked transactions", async (
   await expect(page.getByTestId("transaction-row").filter({ hasText: `Subscription: ${name}` })).toHaveCount(3);
 
   // Clean up: cancel it so it stops counting.
-  await navigate(page, /subscriptions/i);
+  await openSubscriptions(page);
   await listRow.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
@@ -272,7 +272,7 @@ test("links and unlinks a transaction to a subscription", async ({ page }, testI
   await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Account saved")).toBeVisible();
 
-  await navigate(page, /subscriptions/i);
+  await openSubscriptions(page);
   await page.getByRole("button", { name: "New subscription" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Name").fill(name);
@@ -311,7 +311,7 @@ test("links and unlinks a transaction to a subscription", async ({ page }, testI
   await expect(row).not.toContainText("Subscription:");
 
   // Clean up: cancel the subscription so it stops counting.
-  await navigate(page, /subscriptions/i);
+  await openSubscriptions(page);
   const listRow = page.getByTestId("recurring-row").filter({ hasText: name });
   await listRow.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
