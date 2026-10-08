@@ -73,7 +73,7 @@ test("invites someone to a workspace and keeps workspaces apart", { tag: "@mobil
 
   // The empty dashboard's call to action opens the new account form directly.
   await guest.goto("/");
-  await guest.getByRole("link", { name: "Create account" }).click();
+  await guest.getByRole("button", { name: "Create account" }).click();
   await expect(guest).toHaveURL(/\/accounts\?new=1/);
   const accountDialog = guest.getByRole("dialog");
   await accountDialog.getByLabel("Name").fill(personalAccount);

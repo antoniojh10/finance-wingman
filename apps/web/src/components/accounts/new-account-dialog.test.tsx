@@ -13,7 +13,8 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/accounts",
   useSearchParams: () => new URLSearchParams(query),
 }));
-vi.mock("@/app/actions/accounts", () => ({ saveAccount: vi.fn() }));
+const saveAccount = vi.fn();
+vi.mock("@/app/actions/accounts", () => ({ saveAccount: (...args: unknown[]) => saveAccount(...args) }));
 
 const renderDialog = () =>
   renderWithIntl(
@@ -28,6 +29,7 @@ const renderDialog = () =>
 beforeEach(() => {
   query = "";
   replace.mockReset();
+  saveAccount.mockReset();
 });
 
 describe("NewAccountDialog", () => {
@@ -62,5 +64,24 @@ describe("NewAccountDialog", () => {
     await userEvent.click(await screen.findByRole("button", { name: /cancel/i }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("closes after saving when opened with the trigger", async () => {
+    saveAccount.mockResolvedValue({ ok: true, nonce: 1 });
+    renderDialog();
+    await userEvent.click(screen.getByRole("button", { name: "New account" }));
+    await userEvent.type(await screen.findByLabelText("Name"), "Checking");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("removes the flag after saving when opened with ?new=1", async () => {
+    saveAccount.mockResolvedValue({ ok: true, nonce: 1 });
+    query = "new=1";
+    renderDialog();
+    await userEvent.type(await screen.findByLabelText("Name"), "Checking");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/accounts"));
   });
 });
