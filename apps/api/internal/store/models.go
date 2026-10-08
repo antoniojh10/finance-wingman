@@ -25,6 +25,20 @@ type Account struct {
 	OwnerUserID    *uuid.UUID
 }
 
+type ActivityLog struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	ActorID     *uuid.UUID
+	Channel     string
+	ClientID    *string
+	ClientName  *string
+	Action      string
+	EntityType  string
+	EntityID    uuid.UUID
+	Details     []byte
+	CreatedAt   time.Time
+}
+
 type Budget struct {
 	ID          uuid.UUID
 	WorkspaceID uuid.UUID

@@ -132,6 +132,139 @@
         ],
         "type": "object"
       },
+      "ActivityDetails": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "changed": {
+            "description": "Fields modified by an update (names only, never values)",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "destination_account_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "type": {
+            "description": "Transaction type",
+            "examples": [
+              "expense"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ActivityEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "examples": [
+              "transaction.created"
+            ],
+            "type": "string"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/UserRef",
+            "description": "Member who made the change. Omitted when the user was erased"
+          },
+          "channel": {
+            "enum": [
+              "web",
+              "mcp"
+            ],
+            "type": "string"
+          },
+          "client_id": {
+            "description": "OAuth client behind an MCP change",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_name": {
+            "description": "Name the OAuth client registered with, as it was when the change was made",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "details": {
+            "$ref": "#/components/schemas/ActivityDetails"
+          },
+          "entity_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "entity_type": {
+            "examples": [
+              "transaction"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "entity_type",
+          "entity_id",
+          "channel",
+          "client_id",
+          "client_name",
+          "details",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ActivityPage": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ActivityPage.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityEntry"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "next_cursor": {
+            "description": "Pass as cursor to get the next page; null on the last page",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "limit"
+        ],
+        "type": "object"
+      },
       "BatchInputCreateAccountInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -3196,6 +3329,112 @@
         "summary": "Update an account",
         "tags": [
           "Accounts"
+        ]
+      }
+    },
+    "/api/v1/activity": {
+      "get": {
+        "description": "Who changed what in the workspace, newest first, with the channel it came from (web app or MCP client). Entries hold metadata only (ids, type and the names of changed fields), never amounts or descriptions. Paginated with an opaque cursor: pass next_cursor as cursor until it is null.",
+        "operationId": "list-activity",
+        "parameters": [
+          {
+            "description": "Only changes made by this member",
+            "explode": false,
+            "in": "query",
+            "name": "actor_id",
+            "schema": {
+              "description": "Only changes made by this member",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only changes made from the web app or from MCP clients",
+            "explode": false,
+            "in": "query",
+            "name": "channel",
+            "schema": {
+              "description": "Only changes made from the web app or from MCP clients",
+              "enum": [
+                "web",
+                "mcp"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only changes to this kind of record",
+            "explode": false,
+            "in": "query",
+            "name": "entity_type",
+            "schema": {
+              "description": "Only changes to this kind of record",
+              "enum": [
+                "transaction"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only changes to this record",
+            "explode": false,
+            "in": "query",
+            "name": "entity_id",
+            "schema": {
+              "description": "Only changes to this record",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "next_cursor of the previous page",
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "description": "next_cursor of the previous page",
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "format": "int64",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List workspace activity",
+        "tags": [
+          "Activity"
         ]
       }
     },

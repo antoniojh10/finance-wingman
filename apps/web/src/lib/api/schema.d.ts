@@ -67,6 +67,26 @@ export interface paths {
         patch: operations["update-account"];
         trace?: never;
     };
+    "/api/v1/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List workspace activity
+         * @description Who changed what in the workspace, newest first, with the channel it came from (web app or MCP client). Entries hold metadata only (ids, type and the names of changed fields), never amounts or descriptions. Paginated with an opaque cursor: pass next_cursor as cursor until it is null.
+         */
+        get: operations["list-activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -884,6 +904,52 @@ export interface components {
             type: "checking" | "savings" | "credit_card" | "cash" | "investment" | "other";
             /** Format: date-time */
             updated_at: string;
+        };
+        ActivityDetails: {
+            /** Format: uuid */
+            account_id?: string;
+            /** @description Fields modified by an update (names only, never values) */
+            changed?: string[];
+            /** Format: uuid */
+            destination_account_id?: string;
+            /**
+             * @description Transaction type
+             * @example expense
+             */
+            type?: string;
+        };
+        ActivityEntry: {
+            /** @example transaction.created */
+            action: string;
+            /** @description Member who made the change. Omitted when the user was erased */
+            actor?: components["schemas"]["UserRef"];
+            /** @enum {string} */
+            channel: "web" | "mcp";
+            /** @description OAuth client behind an MCP change */
+            client_id: string | null;
+            /** @description Name the OAuth client registered with, as it was when the change was made */
+            client_name: string | null;
+            /** Format: date-time */
+            created_at: string;
+            details: components["schemas"]["ActivityDetails"];
+            /** Format: uuid */
+            entity_id: string;
+            /** @example transaction */
+            entity_type: string;
+            id: string;
+        };
+        ActivityPage: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ActivityPage.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["ActivityEntry"][];
+            /** Format: int64 */
+            limit: number;
+            /** @description Pass as cursor to get the next page; null on the last page */
+            next_cursor: string | null;
         };
         BatchInputCreateAccountInputBody: {
             /**
@@ -2290,6 +2356,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Account"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-activity": {
+        parameters: {
+            query?: {
+                /** @description Only changes made by this member */
+                actor_id?: string;
+                /** @description Only changes made from the web app or from MCP clients */
+                channel?: "web" | "mcp";
+                /** @description Only changes to this kind of record */
+                entity_type?: "transaction";
+                /** @description Only changes to this record */
+                entity_id?: string;
+                /** @description next_cursor of the previous page */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityPage"];
                 };
             };
             /** @description Error */
