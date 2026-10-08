@@ -54,6 +54,7 @@ func registerFinance(api huma.API, svc *finance.Service, logger *slog.Logger) {
 	h.registerTransactionLinks(api)
 	h.registerSummary(api)
 	h.registerBudgets(api)
+	h.registerActivity(api)
 }
 
 func (h *financeHandlers) fail(ctx context.Context, err error) error {

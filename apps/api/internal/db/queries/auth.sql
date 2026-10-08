@@ -64,9 +64,11 @@ RETURNING *;
 -- member of it.
 -- name: GetSessionByTokenHash :one
 SELECT s.*, u.email, u.name, u.locale, u.deletion_scheduled_for AS user_deletion_scheduled_for,
-    w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role
+    w.id AS active_workspace_id, w.name AS workspace_name, m.role AS workspace_role,
+    oc.name AS oauth_client_name
 FROM sessions s
 JOIN users u ON u.id = s.user_id
+LEFT JOIN oauth_clients oc ON oc.id = s.oauth_client_id
 LEFT JOIN workspace_members m ON m.workspace_id = s.workspace_id AND m.user_id = s.user_id
 LEFT JOIN workspaces w ON w.id = m.workspace_id
 WHERE s.token_hash = $1;

@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { AccountStrip } from "@/components/dashboard/account-strip";
 import { BalanceOverview } from "@/components/dashboard/balance-overview";
+import { BudgetsCard } from "@/components/dashboard/budgets-card";
 import { MonthPicker } from "@/components/dashboard/month-picker";
 import { OwnerFilter } from "@/components/owner-filter";
 import { SubscriptionsCard } from "@/components/dashboard/subscriptions-card";
@@ -42,7 +43,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const owner = parseOwner(params.owner);
 
   const api = await authedApi();
-  const [summaryRes, accountsRes, categoriesRes, recentRes, upcomingRes, committedRes, recurringRes, suggestionsRes, owners, user] = await Promise.all([
+  const [summaryRes, accountsRes, categoriesRes, recentRes, upcomingRes, committedRes, recurringRes, suggestionsRes, budgetsRes, owners, user] = await Promise.all([
     api.GET("/api/v1/summary", { params: { query: { from, to, owner } } }),
     api.GET("/api/v1/accounts", { params: { query: { owner } } }),
     api.GET("/api/v1/categories"),
@@ -51,6 +52,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     api.GET("/api/v1/recurring/summary"),
     api.GET("/api/v1/recurring"),
     api.GET("/api/v1/recurring/suggestions"),
+    api.GET("/api/v1/budgets", { params: { query: { month, owner } } }),
     getAccountOwners(),
     getCurrentUser(),
   ]);
@@ -97,6 +99,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         suggestionCount={expectData(suggestionsRes).items.length}
         defaultDate={todayDate}
       />
+
+      <BudgetsCard currencies={expectData(budgetsRes).currencies} href={`/budgets?${new URLSearchParams({ month, ...(owner && { owner }) })}`} />
 
       <section className="grid gap-2.5" aria-labelledby="accounts-heading">
         <div className="flex items-center justify-between px-1">

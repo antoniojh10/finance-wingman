@@ -201,6 +201,139 @@
         ],
         "type": "object"
       },
+      "ActivityDetails": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "changed": {
+            "description": "Fields modified by an update (names only, never values)",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "destination_account_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "type": {
+            "description": "Transaction type",
+            "examples": [
+              "expense"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ActivityEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "examples": [
+              "transaction.created"
+            ],
+            "type": "string"
+          },
+          "actor": {
+            "$ref": "#/components/schemas/UserRef",
+            "description": "Member who made the change. Omitted when the user was erased"
+          },
+          "channel": {
+            "enum": [
+              "web",
+              "mcp"
+            ],
+            "type": "string"
+          },
+          "client_id": {
+            "description": "OAuth client behind an MCP change",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "client_name": {
+            "description": "Name the OAuth client registered with, as it was when the change was made",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "details": {
+            "$ref": "#/components/schemas/ActivityDetails"
+          },
+          "entity_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "entity_type": {
+            "examples": [
+              "transaction"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "entity_type",
+          "entity_id",
+          "channel",
+          "client_id",
+          "client_name",
+          "details",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ActivityPage": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ActivityPage.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityEntry"
+            },
+            "type": "array"
+          },
+          "limit": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "next_cursor": {
+            "description": "Pass as cursor to get the next page; null on the last page",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor",
+          "limit"
+        ],
+        "type": "object"
+      },
       "BatchInputCreateAccountInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -339,6 +472,86 @@
           "remaining",
           "categories",
           "uncategorized"
+        ],
+        "type": "object"
+      },
+      "BudgetImpactResult": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/BudgetImpactResult.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "amount": {
+            "description": "Budget in force, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "committed": {
+            "description": "Committed recurring expenses not paid yet",
+            "format": "int64",
+            "type": "integer"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "has_budget": {
+            "description": "False when the category has no budget in force that month; the other figures are then zero",
+            "type": "boolean"
+          },
+          "month": {
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": "string"
+          },
+          "remaining": {
+            "description": "Remaining after the expense; negative when over",
+            "format": "int64",
+            "type": "integer"
+          },
+          "spent": {
+            "description": "Already spent in the month, before the expense",
+            "format": "int64",
+            "type": "integer"
+          },
+          "state_after": {
+            "enum": [
+              "ok",
+              "near",
+              "over",
+              "none"
+            ],
+            "type": "string"
+          },
+          "state_before": {
+            "enum": [
+              "ok",
+              "near",
+              "over",
+              "none"
+            ],
+            "type": "string"
+          },
+          "warning": {
+            "description": "True when the category is near or over its budget after the expense",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "month",
+          "currency",
+          "has_budget",
+          "amount",
+          "spent",
+          "committed",
+          "remaining",
+          "state_before",
+          "state_after",
+          "warning"
         ],
         "type": "object"
       },
@@ -3463,6 +3676,112 @@
         ]
       }
     },
+    "/api/v1/activity": {
+      "get": {
+        "description": "Who changed what in the workspace, newest first, with the channel it came from (web app or MCP client). Entries hold metadata only (ids, type and the names of changed fields), never amounts or descriptions. Paginated with an opaque cursor: pass next_cursor as cursor until it is null.",
+        "operationId": "list-activity",
+        "parameters": [
+          {
+            "description": "Only changes made by this member",
+            "explode": false,
+            "in": "query",
+            "name": "actor_id",
+            "schema": {
+              "description": "Only changes made by this member",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only changes made from the web app or from MCP clients",
+            "explode": false,
+            "in": "query",
+            "name": "channel",
+            "schema": {
+              "description": "Only changes made from the web app or from MCP clients",
+              "enum": [
+                "web",
+                "mcp"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only changes to this kind of record",
+            "explode": false,
+            "in": "query",
+            "name": "entity_type",
+            "schema": {
+              "description": "Only changes to this kind of record",
+              "enum": [
+                "transaction"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only changes to this record",
+            "explode": false,
+            "in": "query",
+            "name": "entity_id",
+            "schema": {
+              "description": "Only changes to this record",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "next_cursor of the previous page",
+            "explode": false,
+            "in": "query",
+            "name": "cursor",
+            "schema": {
+              "description": "next_cursor of the previous page",
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "explode": false,
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 50,
+              "format": "int64",
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityPage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List workspace activity",
+        "tags": [
+          "Activity"
+        ]
+      }
+    },
     "/api/v1/auth/connections": {
       "get": {
         "description": "Apps (MCP clients such as Claude or ChatGPT) the user authorized through OAuth that can still act on their behalf, most recently used first.",
@@ -4043,6 +4362,96 @@
           }
         },
         "summary": "Budget status of a month",
+        "tags": [
+          "Budgets"
+        ]
+      }
+    },
+    "/api/v1/budgets/impact": {
+      "get": {
+        "description": "Tells whether adding an expense to a category would leave its budget near or over the limit in the month of the date, counting spent and committed recurring expenses of the whole workspace. Never pass an expense that is already recorded: it would be counted twice. Without a budget in force for the category, currency and month, has_budget is false and there is no warning.",
+        "operationId": "get-budget-impact",
+        "parameters": [
+          {
+            "description": "Expense category of the expense",
+            "explode": false,
+            "in": "query",
+            "name": "category_id",
+            "required": true,
+            "schema": {
+              "description": "Expense category of the expense",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "ISO 4217 code of the expense's account",
+            "explode": false,
+            "in": "query",
+            "name": "currency",
+            "required": true,
+            "schema": {
+              "description": "ISO 4217 code of the expense's account",
+              "examples": [
+                "MXN"
+              ],
+              "maxLength": 3,
+              "minLength": 3,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Date of the expense as YYYY-MM-DD; its month decides the budget",
+            "explode": false,
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "description": "Date of the expense as YYYY-MM-DD; its month decides the budget",
+              "examples": [
+                "2026-10-08"
+              ],
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Amount of the expense in minor units",
+            "explode": false,
+            "in": "query",
+            "name": "amount",
+            "required": true,
+            "schema": {
+              "description": "Amount of the expense in minor units",
+              "format": "int64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetImpactResult"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Budget impact of an expense not recorded yet",
         "tags": [
           "Budgets"
         ]

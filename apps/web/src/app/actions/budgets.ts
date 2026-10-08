@@ -42,3 +42,37 @@ export async function saveBudgets(_: FormState, formData: FormData): Promise<For
   revalidatePath("/", "layout");
   return success();
 }
+
+/** What recording an expense would do to the budget of its category. */
+export type BudgetImpact = {
+  hasBudget: boolean;
+  warning: boolean;
+  state: "ok" | "near" | "over" | "none";
+  /** Budget left after the expense, in minor units; negative when over. */
+  remaining: number;
+};
+
+/**
+ * Asks the API whether an expense that is not saved yet would leave its
+ * category near or over budget. The hint is optional and must never get in
+ * the way of saving, so any failure just reads as "no impact".
+ */
+export async function getBudgetImpact(input: {
+  categoryId: string;
+  currency: string;
+  date: string;
+  /** Amount in minor units. */
+  amount: number;
+}): Promise<BudgetImpact | null> {
+  try {
+    const api = await authedApi();
+    const impact = unwrap(
+      await api.GET("/api/v1/budgets/impact", {
+        params: { query: { category_id: input.categoryId, currency: input.currency, date: input.date, amount: input.amount } },
+      }),
+    );
+    return { hasBudget: impact.has_budget, warning: impact.warning, state: impact.state_after, remaining: impact.remaining };
+  } catch {
+    return null;
+  }
+}

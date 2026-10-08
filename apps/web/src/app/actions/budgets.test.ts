@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { cookieJar, mockApi } from "@/test/server-mocks";
 
-import { saveBudgets } from "./budgets";
+import { getBudgetImpact, saveBudgets } from "./budgets";
 
 function form(values: Record<string, string>): FormData {
   const data = new FormData();
@@ -84,5 +84,27 @@ describe("saveBudgets", () => {
     ]);
     const result = await saveBudgets({ ok: false }, form({ month: "2026-10", "amount:MXN:food": "10" }));
     expect(result).toMatchObject({ ok: false, message: "Please check the highlighted fields." });
+  });
+});
+
+describe("getBudgetImpact", () => {
+  const input = { categoryId: "c1", currency: "MXN", date: "2026-10-08", amount: 3000 };
+
+  it("returns the warning for an expense that is not saved yet", async () => {
+    const requests = mockApi([
+      {
+        method: "GET",
+        path: "/api/v1/budgets/impact",
+        status: 200,
+        body: { has_budget: true, warning: true, state_after: "near", remaining: 2000 },
+      },
+    ]);
+    expect(await getBudgetImpact(input)).toEqual({ hasBudget: true, warning: true, state: "near", remaining: 2000 });
+    expect(requests[0].path).toBe("/api/v1/budgets/impact?category_id=c1&currency=MXN&date=2026-10-08&amount=3000");
+  });
+
+  it("reads as no impact when the lookup fails", async () => {
+    mockApi([{ method: "GET", path: "/api/v1/budgets/impact", status: 500, body: { status: 500, detail: "boom" } }]);
+    expect(await getBudgetImpact(input)).toBeNull();
   });
 });

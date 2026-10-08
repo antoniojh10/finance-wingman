@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -16,6 +17,13 @@ type budgetStatusInput struct {
 
 type budgetSuggestionsInput struct {
 	Month string `query:"month" pattern:"^\\d{4}-\\d{2}$" example:"2026-10" doc:"Month to suggest budgets for, as YYYY-MM; defaults to the current month"`
+}
+
+type budgetImpactInput struct {
+	CategoryID string `query:"category_id" format:"uuid" required:"true" doc:"Expense category of the expense"`
+	Currency   string `query:"currency" required:"true" minLength:"3" maxLength:"3" example:"MXN" doc:"ISO 4217 code of the expense's account"`
+	Date       string `query:"date" required:"true" pattern:"^\\d{4}-\\d{2}-\\d{2}$" example:"2026-10-08" doc:"Date of the expense as YYYY-MM-DD; its month decides the budget"`
+	Amount     int64  `query:"amount" required:"true" minimum:"0" doc:"Amount of the expense in minor units"`
 }
 
 type setBudgetsInput struct {
@@ -60,6 +68,29 @@ func (h *financeHandlers) registerBudgets(api huma.API) {
 			return nil, h.fail(ctx, err)
 		}
 		return &bodyOutput[finance.BudgetSuggestions]{Body: suggestions}, nil
+	})
+
+	huma.Register(api, huma.Operation{
+		OperationID: "get-budget-impact",
+		Method:      http.MethodGet,
+		Path:        apiPrefix + "/budgets/impact",
+		Summary:     "Budget impact of an expense not recorded yet",
+		Description: "Tells whether adding an expense to a category would leave its budget near or over the limit in the month of the date, counting spent and committed recurring expenses of the whole workspace. Never pass an expense that is already recorded: it would be counted twice. Without a budget in force for the category, currency and month, has_budget is false and there is no warning.",
+		Tags:        tags,
+	}, func(ctx context.Context, in *budgetImpactInput) (*bodyOutput[finance.BudgetImpactResult], error) {
+		categoryID, err := parseOptionalID("query.category_id", in.CategoryID)
+		if err != nil || categoryID == nil {
+			return nil, h.fail(ctx, finance.Invalid("query.category_id", "is required"))
+		}
+		date, err := time.Parse("2006-01-02", in.Date)
+		if err != nil {
+			return nil, h.fail(ctx, finance.Invalid("query.date", "must be a date as YYYY-MM-DD"))
+		}
+		impact, err := h.svc.BudgetImpact(ctx, *categoryID, in.Currency, date, in.Amount)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		return &bodyOutput[finance.BudgetImpactResult]{Body: impact}, nil
 	})
 
 	huma.Register(api, huma.Operation{

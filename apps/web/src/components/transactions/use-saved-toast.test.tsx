@@ -58,6 +58,17 @@ describe("useSavedToast", () => {
     expect(toast.success).toHaveBeenLastCalledWith("Linked to Netflix");
   });
 
+  it("shows the budget warning in the toast, with or without a subscription match", async () => {
+    findMatch.mockResolvedValue(null);
+    await setup()("tx1", "Food: this goes over budget by MX$10.00.");
+    expect(toast.success).toHaveBeenCalledWith("Transaction saved", { description: "Food: this goes over budget by MX$10.00.", duration: 8000 });
+
+    findMatch.mockResolvedValue({ recurringId: "r1", name: "Netflix", period: null });
+    await setup()("tx2", "Food: warning");
+    expect(toast.success.mock.calls[1][1]).toMatchObject({ description: "Food: warning" });
+    expect(toast.success.mock.calls[1][1].action.label).toBe("Link to Netflix?");
+  });
+
   it("reports a refused link", async () => {
     findMatch.mockResolvedValue({ recurringId: "r1", name: "Netflix", period: null });
     link.mockResolvedValue({ ok: false, message: "nope" });

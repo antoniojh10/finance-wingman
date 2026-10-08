@@ -114,12 +114,22 @@ type User struct {
 }
 
 type Session struct {
-	ID        uuid.UUID         `json:"-"`
-	Token     string            `json:"token,omitempty" doc:"Bearer token; only returned when the session is created"`
-	Client    string            `json:"-"`
-	ExpiresAt time.Time         `json:"expires_at"`
-	User      User              `json:"user"`
-	Workspace *SessionWorkspace `json:"workspace,omitempty" doc:"The workspace the session acts on; omitted until the user joins or picks one"`
+	ID     uuid.UUID `json:"-"`
+	Token  string    `json:"token,omitempty" doc:"Bearer token; only returned when the session is created"`
+	Client string    `json:"-"`
+	// OAuthClient is the MCP host behind an OAuth session; nil for web
+	// sessions.
+	OAuthClient *OAuthClient      `json:"-"`
+	ExpiresAt   time.Time         `json:"expires_at"`
+	User        User              `json:"user"`
+	Workspace   *SessionWorkspace `json:"workspace,omitempty" doc:"The workspace the session acts on; omitted until the user joins or picks one"`
+}
+
+// OAuthClient identifies the OAuth client (an MCP host such as Claude) a
+// session was issued to. Name is the one the client registered with.
+type OAuthClient struct {
+	ID   string
+	Name string
 }
 
 // SessionWorkspace is the workspace a session acts on, with the user's role
@@ -447,6 +457,12 @@ func (s *Service) Authenticate(ctx context.Context, token string) (Session, erro
 	}
 	if row.ActiveWorkspaceID != nil {
 		session.Workspace = &SessionWorkspace{ID: *row.ActiveWorkspaceID, Name: *row.WorkspaceName, Role: *row.WorkspaceRole}
+	}
+	if row.OauthClientID != nil {
+		session.OAuthClient = &OAuthClient{ID: *row.OauthClientID}
+		if row.OauthClientName != nil {
+			session.OAuthClient.Name = *row.OauthClientName
+		}
 	}
 	return session, nil
 }

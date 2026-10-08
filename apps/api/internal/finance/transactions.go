@@ -349,11 +349,76 @@ func (s *Service) CreateTransaction(ctx context.Context, in TransactionInput) (T
 	if actor, ok := ActorFrom(ctx); ok {
 		params.CreatedBy = &actor
 	}
-	id, err := s.q.CreateTransaction(ctx, params)
+	var id uuid.UUID
+	err = s.withTx(ctx, func(tx *Service) error {
+		var err error
+		if id, err = tx.q.CreateTransaction(ctx, params); err != nil {
+			return err
+		}
+		return tx.record(ctx, ActionTransactionCreated, EntityTransaction, id,
+			transactionDetails(r.typ, r.accountID, r.destinationAccountID))
+	})
 	if err != nil {
 		return Transaction{}, err
 	}
 	return s.GetTransaction(ctx, id)
+}
+
+// transactionDetails are the facts logged about a transaction: its type and
+// accounts, never its amount or description.
+func transactionDetails(typ string, accountID uuid.UUID, destinationAccountID *uuid.UUID) ActivityDetails {
+	return ActivityDetails{Type: typ, AccountID: &accountID, DestinationAccountID: destinationAccountID}
+}
+
+// changedFields names the fields an update modifies, as the API calls them.
+func changedFields(old store.Transaction, r resolved) []string {
+	var changed []string
+	add := func(differs bool, name string) {
+		if differs {
+			changed = append(changed, name)
+		}
+	}
+	add(old.Type != r.typ, "type")
+	add(old.AccountID != r.accountID, "account_id")
+	add(old.Amount != r.amount, "amount")
+	add(!equalPtr(old.DestinationAccountID, r.destinationAccountID), "destination_account_id")
+	add(!equalPtr(old.DestinationAmount, r.destinationAmount), "destination_amount")
+	add(!equalPtr(old.CategoryID, r.categoryID), "category_id")
+	add(old.Description != r.description, "description")
+	add(!old.OccurredOn.Equal(r.occurredOn), "occurred_on")
+	return changed
+}
+
+func equalPtr[T comparable](a, b *T) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
+
+func equalDatePtr(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Equal(*b)
+}
+
+// recordRecurringLink logs a change of the recurring item or period a
+// transaction is linked to. Nothing is logged when the link stays the same.
+func (s *Service) recordRecurringLink(ctx context.Context, old store.Transaction, recurringID *uuid.UUID, dueOn *time.Time) error {
+	var changed []string
+	if !equalPtr(old.RecurringID, recurringID) {
+		changed = append(changed, "recurring_id")
+	}
+	if !equalDatePtr(old.RecurringDueOn, dueOn) {
+		changed = append(changed, "recurring_due_on")
+	}
+	if len(changed) == 0 {
+		return nil
+	}
+	details := transactionDetails(old.Type, old.AccountID, old.DestinationAccountID)
+	details.Changed = changed
+	return s.record(ctx, ActionTransactionUpdated, EntityTransaction, old.ID, details)
 }
 
 func (s *Service) UpdateTransaction(ctx context.Context, id uuid.UUID, in TransactionInput) (Transaction, error) {
@@ -371,16 +436,29 @@ func (s *Service) UpdateTransaction(ctx context.Context, id uuid.UUID, in Transa
 	if existing.RecurringID != nil && (r.typ != existing.Type || r.accountID != existing.AccountID) {
 		return Transaction{}, Invalid("recurring_id", "transaction is linked to a recurring item: unlink it before changing its type or account")
 	}
-	err = s.q.UpdateTransaction(ctx, store.UpdateTransactionParams{
-		ID:                   id,
-		Type:                 r.typ,
-		AccountID:            r.accountID,
-		Amount:               r.amount,
-		DestinationAccountID: r.destinationAccountID,
-		DestinationAmount:    r.destinationAmount,
-		CategoryID:           r.categoryID,
-		Description:          r.description,
-		OccurredOn:           r.occurredOn,
+	err = s.withTx(ctx, func(tx *Service) error {
+		err := tx.q.UpdateTransaction(ctx, store.UpdateTransactionParams{
+			ID:                   id,
+			Type:                 r.typ,
+			AccountID:            r.accountID,
+			Amount:               r.amount,
+			DestinationAccountID: r.destinationAccountID,
+			DestinationAmount:    r.destinationAmount,
+			CategoryID:           r.categoryID,
+			Description:          r.description,
+			OccurredOn:           r.occurredOn,
+		})
+		if err != nil {
+			return err
+		}
+		changed := changedFields(existing, r)
+		if len(changed) == 0 {
+			// Saving a transaction as it is changes nothing worth logging.
+			return nil
+		}
+		details := transactionDetails(r.typ, r.accountID, r.destinationAccountID)
+		details.Changed = changed
+		return tx.record(ctx, ActionTransactionUpdated, EntityTransaction, id, details)
 	})
 	if err != nil {
 		return Transaction{}, err
@@ -389,12 +467,15 @@ func (s *Service) UpdateTransaction(ctx context.Context, id uuid.UUID, in Transa
 }
 
 func (s *Service) DeleteTransaction(ctx context.Context, id uuid.UUID) error {
-	affected, err := s.q.DeleteTransaction(ctx, id)
-	if err != nil {
-		return err
-	}
-	if affected == 0 {
-		return NotFound("transaction")
-	}
-	return nil
+	return s.withTx(ctx, func(tx *Service) error {
+		deleted, err := tx.q.DeleteTransaction(ctx, id)
+		if isNoRows(err) {
+			return NotFound("transaction")
+		}
+		if err != nil {
+			return err
+		}
+		return tx.record(ctx, ActionTransactionDeleted, EntityTransaction, id,
+			transactionDetails(deleted.Type, deleted.AccountID, deleted.DestinationAccountID))
+	})
 }
