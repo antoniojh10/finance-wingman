@@ -34,6 +34,20 @@ type Config struct {
 	InitialWorkspaceName string
 	// LoginEmailsPerHour caps sign-in emails per user (LOGIN_EMAILS_PER_HOUR).
 	LoginEmailsPerHour int
+	// RateLimitAuthPerMinute caps requests per client IP to the login and
+	// OAuth endpoints (RATE_LIMIT_AUTH_PER_MINUTE); 0 disables the limit.
+	RateLimitAuthPerMinute int
+	// RateLimitAPIPerMinute caps REST requests per session
+	// (RATE_LIMIT_API_PER_MINUTE); 0 disables the limit.
+	RateLimitAPIPerMinute int
+	// RateLimitMCPPerMinute caps MCP tool calls per user
+	// (RATE_LIMIT_MCP_PER_MINUTE); 0 disables the limit.
+	RateLimitMCPPerMinute int
+	// TrustedProxyHops is the number of reverse proxies in front of the API
+	// whose X-Forwarded-For entry is trusted to find the client IP
+	// (TRUSTED_PROXY_HOPS). Defaults to 1 in production, where Railway's
+	// proxy fronts the API, and 0 otherwise.
+	TrustedProxyHops int
 	// PprofAddr, when set, serves net/http/pprof on a separate listener
 	// (PPROF_ADDR, e.g. "localhost:6060"). Never expose it publicly.
 	PprofAddr string
@@ -75,7 +89,11 @@ func load(getenv func(string) string) (Config, error) {
 		InitialUsers:         parseInitialUsers(getenv("INITIAL_USERS")),
 		InitialWorkspaceName: valueOr(strings.TrimSpace(getenv("INITIAL_WORKSPACE_NAME")), "Finance Wingman"),
 		LoginEmailsPerHour:   5,
-		PprofAddr:            getenv("PPROF_ADDR"),
+
+		RateLimitAuthPerMinute: 60,
+		RateLimitAPIPerMinute:  300,
+		RateLimitMCPPerMinute:  60,
+		PprofAddr:              getenv("PPROF_ADDR"),
 		Email: EmailConfig{
 			Provider:     valueOr(getenv("EMAIL_PROVIDER"), "log"),
 			From:         formatFrom(valueOr(getenv("EMAIL_FROM_NAME"), "Finance Wingman"), valueOr(getenv("EMAIL_FROM"), "no-reply@localhost")),
@@ -126,6 +144,36 @@ func load(getenv func(string) string) (Config, error) {
 			errs = append(errs, fmt.Errorf("LOGIN_EMAILS_PER_HOUR must be a positive integer, got %q", raw))
 		} else {
 			cfg.LoginEmailsPerHour = n
+		}
+	}
+
+	for _, limit := range []struct {
+		name string
+		dst  *int
+	}{
+		{"RATE_LIMIT_AUTH_PER_MINUTE", &cfg.RateLimitAuthPerMinute},
+		{"RATE_LIMIT_API_PER_MINUTE", &cfg.RateLimitAPIPerMinute},
+		{"RATE_LIMIT_MCP_PER_MINUTE", &cfg.RateLimitMCPPerMinute},
+	} {
+		if raw := getenv(limit.name); raw != "" {
+			n, err := strconv.Atoi(raw)
+			if err != nil || n < 0 {
+				errs = append(errs, fmt.Errorf("%s must be a non-negative integer (0 disables the limit), got %q", limit.name, raw))
+			} else {
+				*limit.dst = n
+			}
+		}
+	}
+
+	if cfg.Env == "production" {
+		cfg.TrustedProxyHops = 1
+	}
+	if raw := getenv("TRUSTED_PROXY_HOPS"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 0 {
+			errs = append(errs, fmt.Errorf("TRUSTED_PROXY_HOPS must be a non-negative integer, got %q", raw))
+		} else {
+			cfg.TrustedProxyHops = n
 		}
 	}
 

@@ -34,6 +34,7 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mail"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/ratelimit"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/telemetry"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/workspace"
 )
@@ -134,7 +135,9 @@ func run(args []string, logger *slog.Logger) error {
 		}
 		financeSvc := finance.NewService(pool, cfg.Location)
 		oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: cfg.PublicURL}, logger)
-		mcpHandler := mcpserver.New(financeSvc, httpapi.Version).Handler(authSvc, cfg.PublicURL, oauthSrv.ResourceMetadataURL(), logger)
+		mcpSrv := mcpserver.New(financeSvc, httpapi.Version)
+		mcpSrv.SetLimiter(newLimiter(cfg.RateLimitMCPPerMinute))
+		mcpHandler := mcpSrv.Handler(authSvc, cfg.PublicURL, oauthSrv.ResourceMetadataURL(), logger)
 		go purgeExpiredPeriodically(ctx, logger, authSvc.PurgeExpired, oauthSrv.PurgeExpired, workspaceSvc.PurgeExpired)
 		if cfg.PprofAddr != "" {
 			go servePprof(ctx, cfg.PprofAddr, logger)
@@ -148,6 +151,11 @@ func run(args []string, logger *slog.Logger) error {
 			Workspaces: workspaceSvc,
 			OAuth:      oauthSrv,
 			MCP:        mcpHandler,
+			Limits: &httpapi.Limits{
+				Unauthenticated:  newLimiter(cfg.RateLimitAuthPerMinute),
+				Authenticated:    newLimiter(cfg.RateLimitAPIPerMinute),
+				TrustedProxyHops: cfg.TrustedProxyHops,
+			},
 		})
 		return serve(ctx, cfg, logger, handler)
 	case "users":
@@ -155,6 +163,12 @@ func run(args []string, logger *slog.Logger) error {
 	default:
 		return fmt.Errorf("unknown command %q", command)
 	}
+}
+
+// newLimiter builds a limiter that allows perMinute requests per minute per
+// key, with bursts of half that. Zero disables the limit.
+func newLimiter(perMinute int) *ratelimit.Limiter {
+	return ratelimit.New(perMinute, max(perMinute/2, 1))
 }
 
 // writeOpenAPI prints the REST API's OpenAPI document. Services are only

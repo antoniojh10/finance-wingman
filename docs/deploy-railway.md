@@ -55,10 +55,29 @@ Variables:
 | `RESEND_API_KEY` | `re_...` | Required with `EMAIL_PROVIDER=resend` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` | | Used with `EMAIL_PROVIDER=smtp` |
 | `LOGIN_EMAILS_PER_HOUR` | `5` | Optional; sign-in emails allowed per user per hour |
+| `RATE_LIMIT_AUTH_PER_MINUTE` | `60` | Optional; requests per minute per client IP to login, code verification and the OAuth endpoints (`0` disables) |
+| `RATE_LIMIT_API_PER_MINUTE` | `300` | Optional; authenticated REST requests per minute per session (`0` disables) |
+| `RATE_LIMIT_MCP_PER_MINUTE` | `60` | Optional; MCP tool calls per minute per user (`0` disables) |
+| `TRUSTED_PROXY_HOPS` | `1` | Optional; reverse proxies in front of the API whose `X-Forwarded-For` entry is trusted. Defaults to `1` when `APP_ENV=production` |
 | `MIGRATE_ON_START` | `true` | Optional; see [Database](#1-database) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `https://otlp.example.com/otlp` | Optional; enables traces, metrics and logs ([observability](observability.md)) |
 | `OTEL_EXPORTER_OTLP_HEADERS` | `Authorization=Basic%20...` | Optional; credentials for the OTLP endpoint |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name=production` | Optional; separates production from development data |
+
+### Rate limiting
+
+Limits are token buckets kept in the API process (a burst of half the
+per-minute value, refilled continuously), so each instance enforces its own
+budget; run a single API instance or move the counters to a shared store before
+scaling out. Over-limit requests get `429` with a `Retry-After` header; MCP tool
+calls get a tool error asking the model to wait. After 5 wrong sign-in codes the
+challenge is locked and a new email is needed.
+
+The client IP comes from the `X-Forwarded-For` entry that Railway's proxy
+appends (`TRUSTED_PROXY_HOPS=1`, the production default); entries to its left
+are client supplied and ignored. Requests without the header use the TCP peer.
+The web service reaches the API over the private network, so sign-in requests
+made by the web app share the web service's address and a single budget.
 
 ## 3. Web service
 
