@@ -109,6 +109,10 @@ func build(deps Deps) (chi.Router, huma.API) {
 			api.UseMiddleware(limitSessions(api, deps.Limits.Authenticated))
 		}
 		registerAuth(api, deps.Auth, deps.Logger)
+		registerSessions(api, deps.Auth, deps.Logger)
+		if deps.OAuth != nil {
+			registerConnections(api, deps.OAuth, deps.Logger)
+		}
 	}
 	if deps.Workspaces != nil && deps.Auth != nil {
 		registerWorkspaces(api, deps.Workspaces, deps.Auth, deps.Logger)

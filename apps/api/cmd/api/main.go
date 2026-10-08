@@ -181,6 +181,7 @@ func writeOpenAPI(w io.Writer) error {
 		Auth:       &auth.Service{},
 		Finance:    &finance.Service{},
 		Workspaces: &workspace.Service{},
+		OAuth:      &oauth.Server{},
 	})
 	if err != nil {
 		return err

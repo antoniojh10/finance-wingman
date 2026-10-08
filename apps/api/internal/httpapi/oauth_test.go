@@ -482,15 +482,129 @@ func TestOAuthPurgeExpired(t *testing.T) {
 	api := newTestAPI(t)
 	client := newOAuthClient(t, api, "none")
 	client.startAuthorization(t)
+	client.exchange(client.authorize(t, "owner@example.com"))
 	api.oauth.SetClock(func() time.Time { return time.Now().Add(100 * 24 * time.Hour) })
 	if err := api.oauth.PurgeExpired(t.Context()); err != nil {
 		t.Fatal(err)
 	}
-	var remaining int
-	if err := api.pool.QueryRow(t.Context(), "SELECT count(*) FROM oauth_authorization_requests").Scan(&remaining); err != nil {
-		t.Fatal(err)
+	for _, table := range []string{"oauth_authorization_requests", "oauth_refresh_tokens", "oauth_grants"} {
+		var remaining int
+		if err := api.pool.QueryRow(t.Context(), "SELECT count(*) FROM "+table).Scan(&remaining); err != nil {
+			t.Fatal(err)
+		}
+		if remaining != 0 {
+			t.Fatalf("expected expired %s to be purged, %d left", table, remaining)
+		}
 	}
-	if remaining != 0 {
-		t.Fatalf("expected expired requests to be purged, %d left", remaining)
+}
+
+type connectionBody struct {
+	ID          string    `json:"id"`
+	ClientName  string    `json:"client_name"`
+	ConnectedAt time.Time `json:"connected_at"`
+	LastUsedAt  time.Time `json:"last_used_at"`
+	Workspace   *struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	} `json:"workspace"`
+}
+
+func (a *testAPI) listConnections() []connectionBody {
+	a.t.Helper()
+	var list struct{ Items []connectionBody }
+	a.do(http.MethodGet, "/api/v1/auth/connections", nil).expect(http.StatusOK).decode(&list)
+	return list.Items
+}
+
+// mcpStatus returns the status of an MCP request made with the token.
+func (a *testAPI) mcpStatus(token string) int {
+	req := httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	req.Header.Set("Authorization", "Bearer "+token)
+	return a.raw(req).Code
+}
+
+func TestOAuthListConnections(t *testing.T) {
+	t.Parallel()
+	api := newTestAPI(t)
+	if got := api.listConnections(); len(got) != 0 {
+		t.Fatalf("expected no connections, got %+v", got)
 	}
+
+	client := newOAuthClient(t, api, "none")
+	first := client.exchange(client.authorize(t, "owner@example.com"))
+	// Refreshing keeps a single connection.
+	second := client.refresh(first.RefreshToken)
+	if second.Status != http.StatusOK {
+		t.Fatalf("refresh: %+v", second)
+	}
+	connections := api.listConnections()
+	if len(connections) != 1 {
+		t.Fatalf("expected 1 connection, got %+v", connections)
+	}
+	c := connections[0]
+	if c.ClientName != "Claude" || c.Workspace == nil || c.Workspace.Name != "Home" || c.ConnectedAt.IsZero() || c.LastUsedAt.Before(c.ConnectedAt) {
+		t.Fatalf("unexpected connection %+v", c)
+	}
+
+	// Another user sees only their own connections.
+	bob := api.newUser("bob@example.com", "Bob's")
+	if got := bob.listConnections(); len(got) != 0 {
+		t.Fatalf("bob should not see the owner's connections: %+v", got)
+	}
+
+	// A connection the app revoked itself is no longer listed.
+	api.postForm("/oauth/revoke", url.Values{"token": {second.AccessToken}, "client_id": {client.clientID}}, "", "")
+	if got := api.listConnections(); len(got) != 0 {
+		t.Fatalf("revoked connection should not be listed: %+v", got)
+	}
+}
+
+func TestOAuthDisconnect(t *testing.T) {
+	t.Parallel()
+	api := newTestAPI(t)
+	client := newOAuthClient(t, api, "none")
+	revoked := client.exchange(client.authorize(t, "owner@example.com"))
+	if status := api.mcpStatus(revoked.AccessToken); status != http.StatusOK {
+		t.Fatalf("access token should reach /mcp before disconnecting, got %d", status)
+	}
+	connections := api.listConnections()
+	if len(connections) != 1 {
+		t.Fatalf("expected 1 connection, got %+v", connections)
+	}
+	id := connections[0].ID
+	// A second authorization is a separate connection.
+	kept := client.exchange(client.authorize(t, "owner@example.com"))
+
+	// Other users can't disconnect it.
+	bob := api.newUser("bob@example.com", "Bob's")
+	bob.do(http.MethodDelete, "/api/v1/auth/connections/"+id, nil).expectError(http.StatusNotFound)
+	bob.do(http.MethodDelete, "/api/v1/auth/connections/not-a-uuid", nil).expectError(http.StatusUnprocessableEntity)
+	api.as("").do(http.MethodDelete, "/api/v1/auth/connections/"+id, nil).expectError(http.StatusUnauthorized)
+
+	api.do(http.MethodDelete, "/api/v1/auth/connections/"+id, nil).expect(http.StatusNoContent)
+	api.do(http.MethodDelete, "/api/v1/auth/connections/"+id, nil).expectError(http.StatusNotFound)
+	api.do(http.MethodDelete, "/api/v1/auth/connections/"+missingID, nil).expectError(http.StatusNotFound)
+	if got := api.listConnections(); len(got) != 1 || got[0].ID == id {
+		t.Fatalf("expected only the other connection, got %+v", got)
+	}
+
+	// The disconnected app can neither refresh nor call the API or /mcp.
+	if res := client.refresh(revoked.RefreshToken); res.Status != http.StatusBadRequest || res.Error != "invalid_grant" {
+		t.Fatalf("refresh after disconnect: %+v", res)
+	}
+	if status := api.mcpStatus(revoked.AccessToken); status != http.StatusUnauthorized {
+		t.Fatalf("/mcp after disconnect: expected 401, got %d", status)
+	}
+	api.as(revoked.AccessToken).do(http.MethodGet, "/api/v1/auth/me", nil).expectError(http.StatusUnauthorized)
+
+	// The other connection and the user's browser session keep working.
+	if status := api.mcpStatus(kept.AccessToken); status != http.StatusOK {
+		t.Fatalf("the other connection should reach /mcp, got %d", status)
+	}
+	if res := client.refresh(kept.RefreshToken); res.Status != http.StatusOK {
+		t.Fatalf("the other connection should keep refreshing: %+v", res)
+	}
+	api.do(http.MethodGet, "/api/v1/auth/me", nil).expect(http.StatusOK)
 }

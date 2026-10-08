@@ -110,7 +110,23 @@ func (s *Server) exchangeCode(w http.ResponseWriter, r *http.Request, client sto
 		return
 	}
 
-	resp, err := s.issueTokens(r.Context(), client.ID, record.UserID, record.WorkspaceID, uuid.New())
+	var resp tokenResponse
+	err = pgx.BeginFunc(r.Context(), s.pool, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		grant := uuid.New()
+		if err := q.CreateOAuthGrant(r.Context(), store.CreateOAuthGrantParams{
+			ID:          grant,
+			ClientID:    client.ID,
+			UserID:      record.UserID,
+			WorkspaceID: record.WorkspaceID,
+			Scope:       Scope,
+		}); err != nil {
+			return err
+		}
+		var err error
+		resp, err = s.issueTokens(r.Context(), q, client.ID, record.UserID, record.WorkspaceID, grant)
+		return err
+	})
 	if err != nil {
 		s.serverError(w, r, "issue tokens", err)
 		return
@@ -118,7 +134,12 @@ func (s *Server) exchangeCode(w http.ResponseWriter, r *http.Request, client sto
 	writeJSON(w, http.StatusOK, resp)
 }
 
+// refresh rotates a refresh token. It locks the token's grant first, the
+// lock revocation takes too, so a refresh racing a disconnect either
+// completes before it (and its new tokens are revoked with the rest) or
+// fails.
 func (s *Server) refresh(w http.ResponseWriter, r *http.Request, client store.OauthClient) {
+	ctx := r.Context()
 	token := r.PostForm.Get("refresh_token")
 	if token == "" {
 		oauthError(w, http.StatusBadRequest, "invalid_request", "refresh_token is required")
@@ -126,42 +147,69 @@ func (s *Server) refresh(w http.ResponseWriter, r *http.Request, client store.Oa
 	}
 	hash := auth.HashToken(token)
 
-	record, err := s.q.RotateRefreshToken(r.Context(), hash)
+	old, err := s.q.GetRefreshToken(ctx, hash)
 	if errors.Is(err, pgx.ErrNoRows) {
-		// A revoked token being presented again means it may have leaked:
-		// revoke every token in its family (OAuth 2.1 §4.3.1).
-		if old, err := s.q.GetRefreshToken(r.Context(), hash); err == nil && old.RevokedAt != nil {
-			s.logger.WarnContext(r.Context(), "oauth: refresh token reuse detected", "client_id", old.ClientID, "user_id", old.UserID)
-			s.revokeFamily(r.Context(), old.FamilyID)
-		}
 		oauthError(w, http.StatusBadRequest, "invalid_grant", "invalid refresh token")
 		return
 	}
 	if err != nil {
-		s.serverError(w, r, "rotate refresh token", err)
-		return
-	}
-	if record.ClientID != client.ID {
-		s.revokeFamily(r.Context(), record.FamilyID)
-		oauthError(w, http.StatusBadRequest, "invalid_grant", "refresh token was issued to another client")
-		return
-	}
-	if !s.now().Before(record.ExpiresAt) {
-		oauthError(w, http.StatusBadRequest, "invalid_grant", "refresh token expired")
+		s.serverError(w, r, "get refresh token", err)
 		return
 	}
 
-	resp, err := s.issueTokens(r.Context(), client.ID, record.UserID, record.WorkspaceID, record.FamilyID)
+	var (
+		resp    tokenResponse
+		failure string
+	)
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		q := s.q.WithTx(tx)
+		grant, err := q.LockOAuthGrant(ctx, old.FamilyID)
+		if errors.Is(err, pgx.ErrNoRows) || (err == nil && grant.RevokedAt != nil) {
+			failure = "invalid refresh token"
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		record, err := q.RotateRefreshToken(ctx, hash)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// A revoked token being presented again means it may have leaked:
+			// revoke every token of its grant (OAuth 2.1 §4.3.1).
+			s.logger.WarnContext(ctx, "oauth: refresh token reuse detected", "client_id", old.ClientID, "user_id", old.UserID)
+			failure = "invalid refresh token"
+			return revokeGrant(ctx, q, grant.ID)
+		}
+		if err != nil {
+			return err
+		}
+		if record.ClientID != client.ID {
+			failure = "refresh token was issued to another client"
+			return revokeGrant(ctx, q, grant.ID)
+		}
+		if !s.now().Before(record.ExpiresAt) {
+			failure = "refresh token expired"
+			return nil
+		}
+		if err := q.TouchOAuthGrant(ctx, grant.ID); err != nil {
+			return err
+		}
+		resp, err = s.issueTokens(ctx, q, client.ID, record.UserID, record.WorkspaceID, grant.ID)
+		return err
+	})
 	if err != nil {
-		s.serverError(w, r, "issue tokens", err)
+		s.serverError(w, r, "refresh tokens", err)
+		return
+	}
+	if failure != "" {
+		oauthError(w, http.StatusBadRequest, "invalid_grant", failure)
 		return
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
 
 // issueTokens creates an access token (a session acting on workspaceID) and
-// a refresh token that keeps the same workspace when rotated.
-func (s *Server) issueTokens(ctx context.Context, clientID string, userID uuid.UUID, workspaceID *uuid.UUID, family uuid.UUID) (tokenResponse, error) {
+// a refresh token of the grant, which keeps the same workspace when rotated.
+func (s *Server) issueTokens(ctx context.Context, q *store.Queries, clientID string, userID uuid.UUID, workspaceID *uuid.UUID, grant uuid.UUID) (tokenResponse, error) {
 	access, err := auth.RandomToken()
 	if err != nil {
 		return tokenResponse{}, err
@@ -171,20 +219,20 @@ func (s *Server) issueTokens(ctx context.Context, clientID string, userID uuid.U
 		return tokenResponse{}, err
 	}
 	now := s.now()
-	if _, err := s.q.CreateOAuthSession(ctx, store.CreateOAuthSessionParams{
+	if _, err := q.CreateOAuthSession(ctx, store.CreateOAuthSessionParams{
 		UserID:        userID,
 		TokenHash:     auth.HashToken(access),
 		Client:        SessionClient,
 		ExpiresAt:     now.Add(s.cfg.AccessTokenTTL),
 		OauthClientID: &clientID,
-		OauthFamilyID: &family,
+		OauthFamilyID: &grant,
 		WorkspaceID:   workspaceID,
 	}); err != nil {
 		return tokenResponse{}, err
 	}
-	if err := s.q.CreateRefreshToken(ctx, store.CreateRefreshTokenParams{
+	if err := q.CreateRefreshToken(ctx, store.CreateRefreshTokenParams{
 		TokenHash:   auth.HashToken(refresh),
-		FamilyID:    family,
+		FamilyID:    grant,
 		ClientID:    clientID,
 		UserID:      userID,
 		Scope:       Scope,
@@ -202,13 +250,25 @@ func (s *Server) issueTokens(ctx context.Context, clientID string, userID uuid.U
 	}, nil
 }
 
-func (s *Server) revokeFamily(ctx context.Context, family uuid.UUID) {
-	if err := s.q.RevokeRefreshTokenFamily(ctx, family); err != nil {
-		s.logger.ErrorContext(ctx, "oauth: revoke refresh tokens", "error", err)
+// revokeGrant revokes a grant with its refresh tokens and deletes its access
+// token sessions, so the client can neither refresh nor call the API. q must
+// be bound to a transaction; the grant row is locked first, like refreshes
+// do, so concurrent flows cannot deadlock or outlive the revocation.
+func revokeGrant(ctx context.Context, q *store.Queries, grant uuid.UUID) error {
+	if err := q.RevokeOAuthGrant(ctx, grant); err != nil {
+		return err
 	}
-	if err := s.q.DeleteFamilySessions(ctx, &family); err != nil {
-		s.logger.ErrorContext(ctx, "oauth: delete family sessions", "error", err)
+	if err := q.RevokeRefreshTokenFamily(ctx, grant); err != nil {
+		return err
 	}
+	return q.DeleteFamilySessions(ctx, &grant)
+}
+
+// revoke runs revokeGrant in its own transaction.
+func (s *Server) revoke(ctx context.Context, grant uuid.UUID) error {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		return revokeGrant(ctx, s.q.WithTx(tx), grant)
+	})
 }
 
 // handleRevoke implements RFC 7009. It always answers 200 so clients cannot
@@ -230,18 +290,27 @@ func (s *Server) handleRevoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	hash := auth.HashToken(r.PostForm.Get("token"))
+	var grant *uuid.UUID
 	if record, err := s.q.GetRefreshToken(r.Context(), hash); err == nil && record.ClientID == client.ID {
-		s.revokeFamily(r.Context(), record.FamilyID)
+		grant = &record.FamilyID
 	} else if family, err := s.q.GetSessionFamily(r.Context(), hash); err == nil && family != nil {
-		s.revokeFamily(r.Context(), *family)
+		grant = family
+	}
+	if grant != nil {
+		if err := s.revoke(r.Context(), *grant); err != nil {
+			s.logger.ErrorContext(r.Context(), "oauth: revoke grant", "error", err)
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
 // PurgeExpired deletes expired authorization requests, codes, and refresh
-// tokens.
+// tokens, and the grants left without tokens.
 func (s *Server) PurgeExpired(ctx context.Context) error {
-	return s.q.DeleteExpiredOAuthRecords(ctx, s.now())
+	if err := s.q.DeleteExpiredOAuthRecords(ctx, s.now()); err != nil {
+		return err
+	}
+	return s.q.DeleteOrphanOAuthGrants(ctx)
 }
 
 func verifyPKCE(verifier, challenge string) bool {
