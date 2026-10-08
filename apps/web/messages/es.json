@@ -28,7 +28,8 @@
     "categories": "Categorías",
     "settings": "Ajustes",
     "signOut": "Cerrar sesión",
-    "subscriptions": "Suscripciones"
+    "subscriptions": "Suscripciones",
+    "budgets": "Presupuestos"
   },
   "auth": {
     "title": "Iniciar sesión",
@@ -226,7 +227,8 @@
     "exportTitle": "Exporta tus datos",
     "exportDescription": "Descarga todo lo de este espacio de trabajo: cuentas, categorías, transacciones, pagos recurrentes, presupuestos y miembros.",
     "exportJson": "Descargar JSON",
-    "exportCsv": "Descargar CSV (zip)"
+    "exportCsv": "Descargar CSV (zip)",
+    "subscriptionsDescription": "Pagos recurrentes y sugerencias detectadas."
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -240,7 +242,8 @@
     "pageTitle": "Algo salió mal",
     "retry": "Intentar de nuevo",
     "invalidWholeNumber": "Ingresa un número entero de 1 o más.",
-    "forbidden": "No tienes permiso para hacer eso."
+    "forbidden": "No tienes permiso para hacer eso.",
+    "invalidBudgetAmount": "Introduce un importe con los decimales de la moneda como máximo, o déjalo vacío para no tener presupuesto."
   },
   "subscriptions": {
     "title": "Suscripciones",
@@ -408,5 +411,37 @@
     "ownerHint": "A quién pertenece la cuenta. Todos los miembros pueden verla y usarla.",
     "sharedOption": "Compartida (cuenta conjunta)",
     "you": "{name} (tú)"
+  },
+  "budgets": {
+    "title": "Presupuestos",
+    "edit": "Editar presupuestos",
+    "setBudgets": "Definir presupuestos",
+    "emptyTitle": "Aún no hay presupuestos",
+    "emptyDescription": "Define un importe mensual por categoría para ver cuánto has gastado y cuánto te queda.",
+    "ownerHint": "Los presupuestos son del espacio de trabajo; gastado y comprometido solo cuentan las cuentas de esta vista.",
+    "budget": "Presupuesto",
+    "budgeted": "Presupuestado",
+    "spent": "Gastado",
+    "committed": "Comprometido",
+    "remaining": "Restante",
+    "overBy": "Excedido en",
+    "noBudget": "Sin presupuesto",
+    "uncategorized": "Sin categoría",
+    "inheritedFrom": "desde {month}",
+    "progress": "Presupuesto usado",
+    "used": "{percent}% usado",
+    "state": {
+      "ok": "En camino",
+      "near": "Cerca del límite",
+      "over": "Excedido"
+    },
+    "editHint": "Los importes que definas se aplican desde {month} en adelante, hasta que un mes posterior fije otro. Vacía un campo para quitar el presupuesto desde este mes.",
+    "applyAllSuggestions": "Aplicar todas las sugerencias",
+    "suggestionsHint": "Según la mediana de los últimos 3 meses. No se guarda nada hasta que guardes.",
+    "suggested": "Sugerido",
+    "useSuggestion": "Usar",
+    "useSuggestionFor": "Usar la sugerencia de {name}",
+    "noCategories": "Crea una cuenta y una categoría de gasto para definir presupuestos.",
+    "saved": "Presupuestos guardados"
   }
 }

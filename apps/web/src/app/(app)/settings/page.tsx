@@ -1,4 +1,4 @@
-import { ChevronRightIcon, LogOutIcon, TagIcon, UsersIcon } from "lucide-react";
+import { ChevronRightIcon, LogOutIcon, RepeatIcon, TagIcon, UsersIcon, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -19,6 +19,23 @@ import { ProfileForm } from "./profile-form";
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("settings");
   return { title: t("title") };
+}
+
+/** Link to a section that is not in the mobile tab bar. */
+function SectionLink({ href, icon: Icon, title, description }: { href: string; icon: LucideIcon; title: string; description: string }) {
+  return (
+    <Link
+      href={href}
+      className="flex min-h-17.5 items-center gap-3.5 rounded-3xl bg-card px-5 py-3 ring-1 ring-foreground/5 transition-colors hover:bg-accent"
+    >
+      <Icon className="size-5 shrink-0 text-primary" aria-hidden />
+      <span className="grid min-w-0 flex-1">
+        <span className="font-heading text-base font-bold">{title}</span>
+        <span className="text-sm text-muted-foreground">{description}</span>
+      </span>
+      <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+    </Link>
+  );
 }
 
 export default async function SettingsPage() {
@@ -96,17 +113,8 @@ export default async function SettingsPage() {
             </Link>
           )}
 
-          <Link
-            href="/categories"
-            className="flex min-h-17.5 items-center gap-3.5 rounded-3xl bg-card px-5 py-3 ring-1 ring-foreground/5 transition-colors hover:bg-accent"
-          >
-            <TagIcon className="size-5 shrink-0 text-primary" aria-hidden />
-            <span className="grid min-w-0 flex-1">
-              <span className="font-heading text-base font-bold">{t("nav.categories")}</span>
-              <span className="text-sm text-muted-foreground">{t("settings.categoriesDescription")}</span>
-            </span>
-            <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-          </Link>
+          <SectionLink href="/subscriptions" icon={RepeatIcon} title={t("nav.subscriptions")} description={t("settings.subscriptionsDescription")} />
+          <SectionLink href="/categories" icon={TagIcon} title={t("nav.categories")} description={t("settings.categoriesDescription")} />
 
           {workspace && <ExportDataCard />}
 

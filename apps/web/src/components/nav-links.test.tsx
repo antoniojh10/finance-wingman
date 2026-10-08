@@ -31,11 +31,17 @@ describe("TabLinks", () => {
     expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
   });
 
-  it("shows subscriptions and leaves categories to settings", () => {
+  it("shows budgets and leaves subscriptions and categories to settings", () => {
     renderWithIntl(<TabLinks />);
-    expect(screen.getByRole("link", { name: "Subscriptions" })).toHaveAttribute("href", "/subscriptions");
+    expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("href", "/budgets");
     expect(screen.getByRole("link", { name: "Accounts" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Subscriptions" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Categories" })).not.toBeInTheDocument();
+  });
+
+  it("keeps four sections around the add button", () => {
+    renderWithIntl(<TabLinks />);
+    expect(screen.getAllByRole("link")).toHaveLength(5);
   });
 
   it("adds transactions returning to the current page", () => {
@@ -48,10 +54,11 @@ describe("TabLinks", () => {
 });
 
 describe("SidebarLinks", () => {
-  it("keeps categories and adds subscriptions", () => {
+  it("lists budgets, categories and subscriptions", () => {
     renderWithIntl(<SidebarLinks />);
     expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/categories");
     expect(screen.getByRole("link", { name: "Subscriptions" })).toHaveAttribute("href", "/subscriptions");
+    expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("href", "/budgets");
   });
 
   it("includes settings", () => {
