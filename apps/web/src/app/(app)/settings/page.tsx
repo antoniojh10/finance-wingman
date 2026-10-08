@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { apiBaseUrl } from "@/lib/api/client";
 import { getCurrentSession } from "@/lib/session";
 
+import { ExportDataCard } from "./export-data-card";
 import { ProfileForm } from "./profile-form";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -106,6 +107,8 @@ export default async function SettingsPage() {
             </span>
             <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
           </Link>
+
+          {workspace && <ExportDataCard />}
 
           <Card>
             <CardHeader>
