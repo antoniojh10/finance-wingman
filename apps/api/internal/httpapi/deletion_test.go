@@ -109,7 +109,8 @@ func TestWorkspaceDeletionRequiresBrowserSession(t *testing.T) {
 
 	app.do(http.MethodPost, path, map[string]any{"name": "Home"}).expectError(http.StatusForbidden)
 	app.do(http.MethodDelete, path, nil).expectError(http.StatusForbidden)
-	if n := len(api.mail.Messages()); n != 1 {
-		t.Fatalf("only the sign-in email should have been sent, got %d", n)
+	// The sign-in code and the "app connected" notice; no deletion email.
+	if n := len(api.mail.Messages()); n != 2 {
+		t.Fatalf("only the sign-in and app connected emails should have been sent, got %d", n)
 	}
 }

@@ -49,7 +49,7 @@ func newTestAPI(t *testing.T) *testAPI {
 	recorder := &testutil.MailRecorder{}
 	authSvc := auth.NewService(pool, recorder, auth.Config{WebBaseURL: "http://web.test"}, logger)
 	svc := finance.NewService(pool, time.UTC)
-	oauthSrv := oauth.NewServer(pool, authSvc, oauth.Config{Issuer: testIssuer}, logger)
+	oauthSrv := oauth.NewServer(pool, authSvc, recorder, oauth.Config{Issuer: testIssuer, WebBaseURL: "http://web.test"}, logger)
 	mcpHandler := mcpserver.New(svc, Version).Handler(authSvc, testIssuer, oauthSrv.ResourceMetadataURL(), logger)
 
 	ctx := context.Background()

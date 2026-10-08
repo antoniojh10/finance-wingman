@@ -6,6 +6,7 @@ package workspace
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -52,6 +53,8 @@ type Config struct {
 	DeletionGracePeriod time.Duration
 	// Location is the time zone of the dates in deletion emails.
 	Location *time.Location
+	// Logger receives notification failures; slog.Default when nil.
+	Logger *slog.Logger
 }
 
 func (c Config) withDefaults() Config {
@@ -63,6 +66,9 @@ func (c Config) withDefaults() Config {
 	}
 	if c.DeletionGracePeriod == 0 {
 		c.DeletionGracePeriod = DefaultDeletionGracePeriod
+	}
+	if c.Logger == nil {
+		c.Logger = slog.Default()
 	}
 	if c.Location == nil {
 		c.Location = time.UTC
@@ -76,10 +82,13 @@ type Service struct {
 	mail mailer.Sender
 	cfg  Config
 	now  func() time.Time
+	// logger is cfg.Logger.
+	logger *slog.Logger
 }
 
 func NewService(pool *pgxpool.Pool, sender mailer.Sender, cfg Config) *Service {
-	return &Service{pool: pool, q: store.New(pool), mail: sender, cfg: cfg.withDefaults(), now: time.Now}
+	cfg = cfg.withDefaults()
+	return &Service{pool: pool, q: store.New(pool), mail: sender, cfg: cfg, now: time.Now, logger: cfg.Logger}
 }
 
 // SetClock overrides the time source; intended for tests.
