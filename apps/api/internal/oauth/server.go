@@ -67,6 +67,7 @@ func (c Config) withDefaults() Config {
 }
 
 type Server struct {
+	pool   *pgxpool.Pool
 	q      *store.Queries
 	auth   *auth.Service
 	cfg    Config
@@ -75,7 +76,7 @@ type Server struct {
 }
 
 func NewServer(pool *pgxpool.Pool, authSvc *auth.Service, cfg Config, logger *slog.Logger) *Server {
-	return &Server{q: store.New(pool), auth: authSvc, cfg: cfg.withDefaults(), logger: logger, now: time.Now}
+	return &Server{pool: pool, q: store.New(pool), auth: authSvc, cfg: cfg.withDefaults(), logger: logger, now: time.Now}
 }
 
 // SetClock overrides the time source; intended for tests.
