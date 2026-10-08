@@ -5,8 +5,10 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/testutil"
@@ -135,6 +137,79 @@ func TestSessionExpires(t *testing.T) {
 	}
 	if err := svc.PurgeExpired(ctx); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSessionLifetime(t *testing.T) {
+	t.Parallel()
+	svc, mail, c := newService(t)
+	ctx := auth.WithUserAgent(context.Background(), "  Firefox  ")
+
+	if err := svc.RequestLogin(ctx, "ana@example.com", ""); err != nil {
+		t.Fatal(err)
+	}
+	token, _ := mail.LastLogin(t)
+	session, err := svc.VerifyToken(ctx, token, auth.ClientWeb)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := c.Now().Add(auth.DefaultSessionTTL); session.ExpiresAt.Sub(want).Abs() > time.Millisecond {
+		t.Fatalf("expires at %v, want %v", session.ExpiresAt, want)
+	}
+	listed, err := svc.ListSessions(ctx, session.User.ID, session.ID)
+	if err != nil || len(listed) != 1 || listed[0].UserAgent != "Firefox" || !listed[0].Current {
+		t.Fatalf("ListSessions() = %+v, %v", listed, err)
+	}
+
+	// Using the session keeps it alive past the idle timeout...
+	for i := 0; i < 2; i++ {
+		c.Advance(auth.DefaultSessionIdleTimeout - time.Hour)
+		if _, err := svc.Authenticate(ctx, session.Token); err != nil {
+			t.Fatalf("active session after %d idle periods: %v", i+1, err)
+		}
+	}
+	// ...but not past its absolute lifetime.
+	c.Advance(auth.DefaultSessionTTL - 2*auth.DefaultSessionIdleTimeout + 3*time.Hour)
+	if _, err := svc.Authenticate(ctx, session.Token); !errors.Is(err, auth.ErrUnauthenticated) {
+		t.Fatalf("expected the session to expire, got %v", err)
+	}
+
+	// An unused session ends after the idle timeout, and is purged.
+	idle, err := svc.CreateSession(ctx, session.User.ID, auth.ClientWeb, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.Advance(auth.DefaultSessionIdleTimeout + time.Minute)
+	if _, err := svc.Authenticate(ctx, idle.Token); !errors.Is(err, auth.ErrUnauthenticated) {
+		t.Fatalf("expected the idle session to end, got %v", err)
+	}
+	if listed, err := svc.ListSessions(ctx, session.User.ID, idle.ID); err != nil || len(listed) != 0 {
+		t.Fatalf("idle sessions should not be listed: %+v, %v", listed, err)
+	}
+	if err := svc.PurgeExpired(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.RevokeSession(ctx, session.User.ID, idle.ID); !errors.Is(err, auth.ErrSessionNotFound) {
+		t.Fatalf("idle session should have been purged, got %v", err)
+	}
+}
+
+func TestUserAgentIsBounded(t *testing.T) {
+	t.Parallel()
+	svc, _, _ := newService(t)
+	users, _ := svc.ListUsers(context.Background())
+	long := strings.Repeat("é", 400) // 800 bytes
+	ctx := auth.WithUserAgent(context.Background(), long)
+	session, err := svc.CreateSession(ctx, users[0].ID, auth.ClientWeb, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	listed, err := svc.ListSessions(ctx, users[0].ID, session.ID)
+	if err != nil || len(listed) != 1 {
+		t.Fatalf("ListSessions() = %+v, %v", listed, err)
+	}
+	if ua := listed[0].UserAgent; len(ua) > 512 || !utf8.ValidString(ua) || !strings.HasPrefix(long, ua) {
+		t.Fatalf("user agent should be truncated to valid UTF-8, got %d bytes", len(ua))
 	}
 }
 

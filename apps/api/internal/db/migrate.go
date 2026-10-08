@@ -67,6 +67,15 @@ func (m *Migrator) Up(ctx context.Context) (int, error) {
 	return len(results), nil
 }
 
+// UpTo applies pending migrations up to and including version, e.g. to
+// test how a later migration treats existing data.
+func (m *Migrator) UpTo(ctx context.Context, version int64) error {
+	if _, err := m.provider.UpTo(ctx, version); err != nil {
+		return fmt.Errorf("migrate up to %d: %w", version, err)
+	}
+	return nil
+}
+
 // Down rolls back the most recently applied migration.
 func (m *Migrator) Down(ctx context.Context) error {
 	if _, err := m.provider.Down(ctx); err != nil {

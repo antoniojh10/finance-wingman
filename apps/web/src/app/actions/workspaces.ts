@@ -7,6 +7,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { failure, success } from "@/lib/action-errors";
 import { ApiError, createApiClient, unwrap, type ApiClient } from "@/lib/api/client";
 import { emailPattern, text, type FormState } from "@/lib/forms";
+import { sessionClientHeaders } from "@/lib/client-ip";
 import { authedApi, setSession } from "@/lib/session";
 import { isLocale } from "@/i18n/locales";
 
@@ -151,7 +152,7 @@ export async function acceptInvitation(_: AcceptInvitationState, formData: FormD
   if (!token) {
     return { error: t("invalid") };
   }
-  const { data, response } = await createApiClient().POST("/api/v1/invitations/accept", { body: { token } });
+  const { data, response } = await createApiClient(undefined, await sessionClientHeaders()).POST("/api/v1/invitations/accept", { body: { token } });
   if (!response.ok || !data?.token) {
     return { error: t("invalid") };
   }
