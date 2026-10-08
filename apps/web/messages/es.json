@@ -235,7 +235,8 @@
     "exportDescription": "Descarga todo lo de este espacio de trabajo: cuentas, categorías, transacciones, pagos recurrentes, presupuestos y miembros.",
     "exportJson": "Descargar JSON",
     "exportCsv": "Descargar CSV (zip)",
-    "subscriptionsDescription": "Pagos recurrentes y sugerencias detectadas."
+    "subscriptionsDescription": "Pagos recurrentes y sugerencias detectadas.",
+    "activityDescription": "Quién cambió qué, desde la web o un asistente de IA."
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -529,5 +530,105 @@
     "banner": "Tu cuenta se eliminará el {date}.",
     "bannerLink": "Revisar",
     "workspaces": "Tus espacios"
+  },
+  "activity": {
+    "title": "Actividad",
+    "description": "Cambios recientes en los datos de este espacio, los más nuevos primero. Solo se registra qué cambió, nunca importes ni descripciones.",
+    "empty": "Aún no hay actividad.",
+    "all": "Todo",
+    "filterMember": "Miembro",
+    "filterChannel": "Canal",
+    "filterEntity": "Tipo de registro",
+    "channels": {
+      "web": "App web",
+      "mcp": "Asistentes de IA"
+    },
+    "entityTypes": {
+      "transaction": "Transacciones",
+      "account": "Cuentas",
+      "category": "Categorías",
+      "budget": "Presupuestos",
+      "recurring_item": "Suscripciones",
+      "recurring_suggestion": "Sugerencias de suscripción",
+      "workspace": "Espacio"
+    },
+    "actions": {
+      "transaction": {
+        "created": "creó una transacción",
+        "updated": "actualizó una transacción",
+        "deleted": "eliminó una transacción"
+      },
+      "account": {
+        "created": "creó una cuenta",
+        "updated": "actualizó una cuenta",
+        "archived": "archivó una cuenta",
+        "unarchived": "restauró una cuenta",
+        "deleted": "eliminó una cuenta"
+      },
+      "category": {
+        "created": "creó una categoría",
+        "updated": "actualizó una categoría",
+        "archived": "archivó una categoría",
+        "unarchived": "restauró una categoría",
+        "deleted": "eliminó una categoría"
+      },
+      "budget": {
+        "set": "fijó un presupuesto",
+        "cleared": "quitó un presupuesto"
+      },
+      "recurring_item": {
+        "created": "creó una suscripción",
+        "updated": "actualizó una suscripción"
+      },
+      "recurring_suggestion": {
+        "dismissed": "descartó una sugerencia de suscripción"
+      },
+      "export": {
+        "requested": "solicitó una exportación de datos"
+      }
+    },
+    "unknownAction": "hizo \"{action}\" en {entity}",
+    "types": {
+      "expense": "Gasto",
+      "income": "Ingreso",
+      "transfer": "Transferencia",
+      "checking": "Corriente",
+      "savings": "Ahorros",
+      "credit_card": "Tarjeta de crédito",
+      "cash": "Efectivo",
+      "investment": "Inversión",
+      "other": "Otra"
+    },
+    "fields": {
+      "type": "Tipo",
+      "account_id": "Cuenta",
+      "amount": "Importe",
+      "destination_account_id": "Cuenta de destino",
+      "destination_amount": "Importe recibido",
+      "category_id": "Categoría",
+      "description": "Descripción",
+      "occurred_on": "Fecha",
+      "recurring_id": "Suscripción",
+      "recurring_due_on": "Periodo de la suscripción",
+      "name": "Nombre",
+      "color": "Color",
+      "icon": "Icono",
+      "initial_balance": "Saldo inicial",
+      "balance_as_of": "Saldo a fecha",
+      "owner": "Titular",
+      "notes": "Notas",
+      "interval_unit": "Unidad del intervalo",
+      "interval_count": "Intervalo",
+      "start_on": "Fecha de inicio",
+      "total_payments": "Pagos totales",
+      "status": "Estado"
+    },
+    "changedFields": "Cambió: {fields}",
+    "formerMember": "Antiguo miembro",
+    "viaClient": "vía {client}",
+    "viaMcp": "vía asistente de IA",
+    "loadMore": "Cargar más",
+    "loading": "Cargando…",
+    "loadFailed": "No se pudo cargar más actividad. Inténtalo de nuevo."
   }
 }

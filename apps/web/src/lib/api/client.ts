@@ -18,7 +18,8 @@ export type Session = Schemas["Session"];
 export type SessionWorkspace = Schemas["SessionWorkspace"];
 export type Membership = Schemas["Membership"];
 export type Member = Schemas["Member"];
-export type Invitation = Schemas["Invitation"];
+export type ActivityEntry = Schemas["ActivityEntry"];
+export type Invitation =Schemas["Invitation"];
 export type InvitationPreview = Schemas["InvitationPreview"];
 
 export type ApiClient = ReturnType<typeof createApiClient>;
