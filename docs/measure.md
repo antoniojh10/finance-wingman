@@ -7,7 +7,7 @@ data, and samples `docker stats` while idle and under load.
 
 ```bash
 make measure                                  # 512 MB / 0.5 CPU per app
-CPU_LIMIT=0.2 make measure                    # Seenode Basic CPU
+CPU_LIMIT=0.2 make measure                    # 0.2 CPU limit
 SKIP_BUILD=1 LOAD_SECONDS=60 CONCURRENCY=8 make measure
 ```
 

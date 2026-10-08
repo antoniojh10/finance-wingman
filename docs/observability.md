@@ -32,7 +32,7 @@ Both services use the standard OpenTelemetry environment variables:
 
 The API also accepts `PPROF_ADDR` (e.g. `localhost:6060`) to serve
 `net/http/pprof` on a separate listener. Never point it at the public port;
-on Railway or Seenode a second port is only reachable on the private network.
+on Railway a second port is only reachable on the private network.
 
 ## Local Grafana
 
