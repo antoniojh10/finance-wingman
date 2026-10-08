@@ -142,7 +142,7 @@ describe("workspace actions", () => {
   it("accepts an invitation and signs in as the invitee", async () => {
     const requests = mockApi([{ method: "POST", path: "/api/v1/invitations/accept", status: 200, body: session }]);
     await expect(acceptInvitation({}, form({ token: "inv_1" }))).rejects.toEqual(new RedirectError("/"));
-    expect(requests[0]).toMatchObject({ body: { token: "inv_1" }, auth: null });
+    expect(requests[0]).toMatchObject({ body: { token: "inv_1" }, auth: null, userAgent: "Mozilla/5.0 (Test Browser)" });
     expect(cookieJar.get("fw_session")?.value).toBe("tok_new");
   });
 

@@ -1,4 +1,4 @@
-import { ChevronRightIcon, LogOutIcon, TagIcon, UsersIcon } from "lucide-react";
+import { ChevronRightIcon, LogOutIcon, ShieldIcon, TagIcon, UsersIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -95,6 +95,18 @@ export default async function SettingsPage() {
               <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
             </Link>
           )}
+
+          <Link
+            href="/settings/security"
+            className="flex min-h-17.5 items-center gap-3.5 rounded-3xl bg-card px-5 py-3 ring-1 ring-foreground/5 transition-colors hover:bg-accent"
+          >
+            <ShieldIcon className="size-5 shrink-0 text-primary" aria-hidden />
+            <span className="grid min-w-0 flex-1">
+              <span className="font-heading text-base font-bold">{t("security.title")}</span>
+              <span className="text-sm text-muted-foreground">{t("security.settingsDescription")}</span>
+            </span>
+            <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+          </Link>
 
           <Link
             href="/categories"
