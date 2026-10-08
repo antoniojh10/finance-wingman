@@ -14,7 +14,12 @@ const MaxBatchSize = 100
 
 // withTx runs fn against a Service bound to a single database transaction.
 // The transaction is committed when fn returns nil and rolled back otherwise.
+// A service already bound to a transaction runs fn on it, so operations that
+// use withTx compose into a caller's transaction.
 func (s *Service) withTx(ctx context.Context, fn func(tx *Service) error) error {
+	if s.inTx {
+		return fn(s)
+	}
 	dbTx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -23,6 +28,7 @@ func (s *Service) withTx(ctx context.Context, fn func(tx *Service) error) error 
 
 	scoped := *s
 	scoped.q = s.q.WithTx(dbTx)
+	scoped.inTx = true
 	if err := fn(&scoped); err != nil {
 		return err
 	}

@@ -23,6 +23,8 @@ type Service struct {
 	q    *store.Queries
 	loc  *time.Location
 	now  func() time.Time
+	// inTx is set on the copy bound to a database transaction (see withTx).
+	inTx bool
 }
 
 // NewService builds a service. loc is the time zone used to resolve "today"

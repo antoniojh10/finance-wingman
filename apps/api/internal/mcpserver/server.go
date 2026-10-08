@@ -63,6 +63,13 @@ type Server struct {
 // bearer session.
 const tokenWorkspaceKey = "workspace_id"
 
+// TokenInfo.Extra keys holding the OAuth client behind the bearer session,
+// recorded with the changes it makes.
+const (
+	tokenClientIDKey   = "oauth_client_id"
+	tokenClientNameKey = "oauth_client_name"
+)
+
 const noWorkspaceMessage = "This connection is not linked to a workspace (the user may have left it). " +
 	"Ask the user to disconnect and reconnect the Finance Wingman connector, and to pick a workspace when signing in."
 
@@ -111,8 +118,13 @@ func (s *Server) Handler(authSvc *auth.Service, publicURL, resourceMetadataURL s
 			Expiration: session.ExpiresAt,
 			Scopes:     []string{"finance"},
 		}
+		info.Extra = map[string]any{}
 		if session.Workspace != nil {
-			info.Extra = map[string]any{tokenWorkspaceKey: session.Workspace.ID.String()}
+			info.Extra[tokenWorkspaceKey] = session.Workspace.ID.String()
+		}
+		if session.OAuthClient != nil {
+			info.Extra[tokenClientIDKey] = session.OAuthClient.ID
+			info.Extra[tokenClientNameKey] = session.OAuthClient.Name
 		}
 		return info, nil
 	}
@@ -197,11 +209,23 @@ func (s *Server) workspaceScope(next mcp.MethodHandler) mcp.MethodHandler {
 			return &mcp.CallToolResult{IsError: true, Content: []mcp.Content{&mcp.TextContent{Text: noWorkspaceMessage}}}, nil
 		}
 		ctx = db.WithWorkspace(ctx, id)
+		ctx = finance.WithChannel(ctx, tokenChannel(call))
 		if user, ok := s.actorOf(call); ok {
 			ctx = finance.WithActor(ctx, user)
 		}
 		return next(ctx, method, req)
 	}
+}
+
+// tokenChannel is the channel of a tool call: always MCP, with the OAuth
+// client when the token carries one.
+func tokenChannel(req *mcp.CallToolRequest) finance.Channel {
+	ch := finance.Channel{Kind: finance.ChannelMCP}
+	if req.Extra != nil && req.Extra.TokenInfo != nil {
+		ch.ClientID, _ = req.Extra.TokenInfo.Extra[tokenClientIDKey].(string)
+		ch.ClientName, _ = req.Extra.TokenInfo.Extra[tokenClientNameKey].(string)
+	}
+	return ch
 }
 
 func tokenWorkspace(req *mcp.CallToolRequest) (uuid.UUID, bool) {

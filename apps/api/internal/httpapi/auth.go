@@ -52,11 +52,24 @@ func authMiddleware(api huma.API, svc *auth.Service, logger *slog.Logger) func(h
 		}
 		ctx = huma.WithValue(ctx, sessionKey{}, session)
 		reqCtx := finance.WithActor(ctx.Context(), session.User.ID)
+		reqCtx = finance.WithChannel(reqCtx, sessionChannel(session))
 		if session.Workspace != nil {
 			reqCtx = db.WithWorkspace(reqCtx, session.Workspace.ID)
 		}
 		next(huma.WithContext(ctx, reqCtx))
 	}
+}
+
+// sessionChannel says where a session's changes come from, for the activity
+// log: OAuth sessions belong to MCP hosts, even when they call the REST API.
+func sessionChannel(session auth.Session) finance.Channel {
+	if session.OAuthClient != nil {
+		return finance.Channel{Kind: finance.ChannelMCP, ClientID: session.OAuthClient.ID, ClientName: session.OAuthClient.Name}
+	}
+	if session.Client != auth.ClientWeb {
+		return finance.Channel{Kind: finance.ChannelMCP}
+	}
+	return finance.Channel{Kind: finance.ChannelWeb}
 }
 
 // errNoWorkspace is returned by workspace-scoped operations when the session
