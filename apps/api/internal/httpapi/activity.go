@@ -12,7 +12,7 @@ import (
 type listActivityInput struct {
 	ActorID    string `query:"actor_id" format:"uuid" doc:"Only changes made by this member"`
 	Channel    string `query:"channel" enum:"web,mcp" doc:"Only changes made from the web app or from MCP clients"`
-	EntityType string `query:"entity_type" enum:"transaction" doc:"Only changes to this kind of record"`
+	EntityType string `query:"entity_type" enum:"transaction,account,category,budget,recurring_item,recurring_suggestion,workspace" doc:"Only changes to this kind of record"`
 	EntityID   string `query:"entity_id" format:"uuid" doc:"Only changes to this record"`
 	Cursor     string `query:"cursor" maxLength:"200" doc:"next_cursor of the previous page"`
 	Limit      int    `query:"limit" minimum:"1" maximum:"200" default:"50"`
@@ -25,7 +25,7 @@ func (h *financeHandlers) registerActivity(api huma.API) {
 		Path:        apiPrefix + "/activity",
 		Summary:     "List workspace activity",
 		Description: "Who changed what in the workspace, newest first, with the channel it came from (web app or MCP client). " +
-			"Entries hold metadata only (ids, type and the names of changed fields), never amounts or descriptions. " +
+			"Entries hold metadata only (ids, kind and the names of changed fields), never amounts or descriptions. " +
 			"Paginated with an opaque cursor: pass next_cursor as cursor until it is null.",
 		Tags: []string{"Activity"},
 	}, func(ctx context.Context, in *listActivityInput) (*bodyOutput[finance.ActivityPage], error) {

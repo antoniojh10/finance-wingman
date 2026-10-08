@@ -4,6 +4,11 @@ VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (workspace_id, category_id, currency, month)
 DO UPDATE SET amount_minor = EXCLUDED.amount_minor;
 
+-- GetBudgetRow returns the row a month itself holds for a category and
+-- currency, not the one it inherits. Not found when the month has none.
+-- name: GetBudgetRow :one
+SELECT amount_minor FROM budgets WHERE category_id = $1 AND currency = $2 AND month = $3;
+
 -- name: ListEffectiveBudgets :many
 -- The budget in force for the month per category and currency: the latest
 -- row on or before it. A null amount means the budget was cleared.

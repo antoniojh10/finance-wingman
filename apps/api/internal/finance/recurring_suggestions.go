@@ -288,13 +288,23 @@ func (s *Service) DismissRecurringSuggestion(ctx context.Context, in SuggestionK
 	if actor, ok := ActorFrom(ctx); ok {
 		p.DismissedBy = &actor
 	}
-	if err := s.q.DismissSuggestion(ctx, p); err != nil {
+	return s.withTx(ctx, func(tx *Service) error {
+		inserted, err := tx.q.DismissSuggestion(ctx, p)
 		if pgErrorCode(err) == pgForeignKeyViolation {
 			return Invalid("key", "account of the suggestion no longer exists")
 		}
-		return err
-	}
-	return nil
+		if err != nil {
+			return err
+		}
+		if inserted == 0 {
+			// Dismissed before: nothing changed.
+			return nil
+		}
+		// A suggestion has no id of its own; it is named by its account.
+		// The description it was detected from is not logged.
+		return tx.record(ctx, ActionSuggestionDismissed, EntityRecurringSuggestion, key.AccountID,
+			ActivityDetails{Type: key.Type, AccountID: &key.AccountID})
+	})
 }
 
 // MatchRecurringItem returns the best active recurring item for a

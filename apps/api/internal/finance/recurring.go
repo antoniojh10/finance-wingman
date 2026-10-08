@@ -308,7 +308,18 @@ func (s *Service) CreateRecurringItem(ctx context.Context, in CreateRecurringIte
 	if actor, ok := ActorFrom(ctx); ok {
 		params.CreatedBy = &actor
 	}
-	id, err := s.q.CreateRecurringItem(ctx, params)
+	var id uuid.UUID
+	err = s.withTx(ctx, func(tx *Service) error {
+		var err error
+		id, err = tx.q.CreateRecurringItem(ctx, params)
+		if err != nil {
+			return err
+		}
+		return tx.record(ctx, ActionRecurringCreated, EntityRecurringItem, id,
+			ActivityDetails{Type: in.Type, AccountID: &in.AccountID})
+	})
+	// The clash is looked up after the rollback: a failed statement leaves
+	// the database transaction unusable.
 	if pgErrorCode(err) == pgUniqueViolation {
 		return RecurringItem{}, s.recurringNameConflict(ctx, name, uuid.Nil)
 	}
@@ -404,9 +415,36 @@ func (s *Service) UpdateRecurringItem(ctx context.Context, id uuid.UUID, in Upda
 		p.Status = *in.Status
 	}
 
-	if err := s.q.UpdateRecurringItem(ctx, p); pgErrorCode(err) == pgUniqueViolation {
+	var changed []string
+	add := func(differs bool, field string) {
+		if differs {
+			changed = append(changed, field)
+		}
+	}
+	add(p.Name != cur.Name, "name")
+	add(!equalPtr(p.CategoryID, cur.CategoryID), "category_id")
+	add(p.Amount != cur.Amount, "amount")
+	add(p.Notes != cur.Notes, "notes")
+	add(p.IntervalUnit != cur.IntervalUnit, "interval_unit")
+	add(p.IntervalCount != cur.IntervalCount, "interval_count")
+	add(!p.StartOn.Equal(cur.StartOn), "start_on")
+	add(!equalPtr(p.TotalPayments, cur.TotalPayments), "total_payments")
+	add(p.Status != cur.Status, "status")
+
+	err = s.withTx(ctx, func(tx *Service) error {
+		if err := tx.q.UpdateRecurringItem(ctx, p); err != nil {
+			return err
+		}
+		if len(changed) == 0 {
+			return nil
+		}
+		return tx.record(ctx, ActionRecurringUpdated, EntityRecurringItem, id,
+			ActivityDetails{Type: cur.Type, AccountID: &cur.AccountID, Changed: changed})
+	})
+	if pgErrorCode(err) == pgUniqueViolation {
 		return RecurringItem{}, s.recurringNameConflict(ctx, p.Name, id)
-	} else if err != nil {
+	}
+	if err != nil {
 		return RecurringItem{}, err
 	}
 	return s.GetRecurringItem(ctx, id)

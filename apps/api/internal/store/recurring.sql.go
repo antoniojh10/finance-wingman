@@ -53,7 +53,7 @@ func (q *Queries) CreateRecurringItem(ctx context.Context, arg CreateRecurringIt
 	return id, err
 }
 
-const dismissSuggestion = `-- name: DismissSuggestion :exec
+const dismissSuggestion = `-- name: DismissSuggestion :execrows
 INSERT INTO recurring_dismissed_suggestions (account_id, type, description, dismissed_by)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT DO NOTHING
@@ -66,14 +66,17 @@ type DismissSuggestionParams struct {
 	DismissedBy *uuid.UUID
 }
 
-func (q *Queries) DismissSuggestion(ctx context.Context, arg DismissSuggestionParams) error {
-	_, err := q.db.Exec(ctx, dismissSuggestion,
+func (q *Queries) DismissSuggestion(ctx context.Context, arg DismissSuggestionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, dismissSuggestion,
 		arg.AccountID,
 		arg.Type,
 		arg.Description,
 		arg.DismissedBy,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const findOpenRecurringItemByName = `-- name: FindOpenRecurringItemByName :one

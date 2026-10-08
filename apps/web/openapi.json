@@ -208,6 +208,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "category_id": {
+            "description": "Category of a budget",
+            "format": "uuid",
+            "type": "string"
+          },
           "changed": {
             "description": "Fields modified by an update (names only, never values)",
             "items": {
@@ -215,12 +220,32 @@
             },
             "type": "array"
           },
+          "currency": {
+            "description": "ISO 4217 currency of an account or budget",
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
           "destination_account_id": {
             "format": "uuid",
             "type": "string"
           },
+          "format": {
+            "description": "File format of an export",
+            "enum": [
+              "json",
+              "csv"
+            ],
+            "type": "string"
+          },
+          "month": {
+            "description": "Month (YYYY-MM) a budget applies from",
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": "string"
+          },
           "type": {
-            "description": "Transaction type",
+            "description": "Kind of the record: transaction or recurring item type, account type or category kind",
             "examples": [
               "expense"
             ],
@@ -3690,7 +3715,7 @@
     },
     "/api/v1/activity": {
       "get": {
-        "description": "Who changed what in the workspace, newest first, with the channel it came from (web app or MCP client). Entries hold metadata only (ids, type and the names of changed fields), never amounts or descriptions. Paginated with an opaque cursor: pass next_cursor as cursor until it is null.",
+        "description": "Who changed what in the workspace, newest first, with the channel it came from (web app or MCP client). Entries hold metadata only (ids, kind and the names of changed fields), never amounts or descriptions. Paginated with an opaque cursor: pass next_cursor as cursor until it is null.",
         "operationId": "list-activity",
         "parameters": [
           {
@@ -3726,7 +3751,13 @@
             "schema": {
               "description": "Only changes to this kind of record",
               "enum": [
-                "transaction"
+                "transaction",
+                "account",
+                "category",
+                "budget",
+                "recurring_item",
+                "recurring_suggestion",
+                "workspace"
               ],
               "type": "string"
             }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,8 +25,44 @@ const (
 	ActionTransactionUpdated = "transaction.updated"
 	ActionTransactionDeleted = "transaction.deleted"
 
-	EntityTransaction = "transaction"
+	ActionAccountCreated    = "account.created"
+	ActionAccountUpdated    = "account.updated"
+	ActionAccountArchived   = "account.archived"
+	ActionAccountUnarchived = "account.unarchived"
+	ActionAccountDeleted    = "account.deleted"
+
+	ActionCategoryCreated    = "category.created"
+	ActionCategoryUpdated    = "category.updated"
+	ActionCategoryArchived   = "category.archived"
+	ActionCategoryUnarchived = "category.unarchived"
+	ActionCategoryDeleted    = "category.deleted"
+
+	ActionBudgetSet     = "budget.set"
+	ActionBudgetCleared = "budget.cleared"
+
+	ActionRecurringCreated = "recurring_item.created"
+	ActionRecurringUpdated = "recurring_item.updated"
+
+	ActionSuggestionDismissed = "recurring_suggestion.dismissed"
+
+	ActionExportRequested = "export.requested"
+
+	EntityTransaction         = "transaction"
+	EntityAccount             = "account"
+	EntityCategory            = "category"
+	EntityBudget              = "budget"
+	EntityRecurringItem       = "recurring_item"
+	EntityRecurringSuggestion = "recurring_suggestion"
+	EntityWorkspace           = "workspace"
 )
+
+// EntityTypes lists the kinds of record the log can name, in the order the
+// API documents them. Keep it in sync with the enum of the entity_type
+// query parameter.
+var EntityTypes = []string{
+	EntityTransaction, EntityAccount, EntityCategory, EntityBudget,
+	EntityRecurringItem, EntityRecurringSuggestion, EntityWorkspace,
+}
 
 // Channel says how a request reached the API: the web app or an MCP client,
 // with the OAuth client behind it when known.
@@ -56,9 +93,13 @@ func ChannelFrom(ctx context.Context) Channel {
 // touched. Never add amounts, descriptions, names or other values here; the
 // log must not reveal more than the ids it mentions.
 type ActivityDetails struct {
-	Type                 string     `json:"type,omitempty" doc:"Transaction type" example:"expense"`
+	Type                 string     `json:"type,omitempty" doc:"Kind of the record: transaction or recurring item type, account type or category kind" example:"expense"`
 	AccountID            *uuid.UUID `json:"account_id,omitempty" format:"uuid"`
 	DestinationAccountID *uuid.UUID `json:"destination_account_id,omitempty" format:"uuid"`
+	CategoryID           *uuid.UUID `json:"category_id,omitempty" format:"uuid" doc:"Category of a budget"`
+	Currency             string     `json:"currency,omitempty" doc:"ISO 4217 currency of an account or budget" example:"MXN"`
+	Month                string     `json:"month,omitempty" pattern:"^\\d{4}-\\d{2}$" doc:"Month (YYYY-MM) a budget applies from"`
+	Format               string     `json:"format,omitempty" enum:"json,csv" doc:"File format of an export"`
 	Changed              []string   `json:"changed,omitempty" doc:"Fields modified by an update (names only, never values)"`
 }
 
@@ -119,14 +160,20 @@ func (s *Service) record(ctx context.Context, action, entityType string, entityI
 	return s.q.InsertActivity(ctx, params)
 }
 
+// RecordExport logs that the workspace data was exported. The export is
+// not a change to a record, so the entry names the workspace itself.
+func (s *Service) RecordExport(ctx context.Context, workspaceID uuid.UUID, format string) error {
+	return s.record(ctx, ActionExportRequested, EntityWorkspace, workspaceID, ActivityDetails{Format: format})
+}
+
 // ListActivity returns the workspace activity newest first, a page at a
 // time.
 func (s *Service) ListActivity(ctx context.Context, f ActivityFilter) (ActivityPage, error) {
 	if f.Channel != nil && *f.Channel != ChannelWeb && *f.Channel != ChannelMCP {
 		return ActivityPage{}, Invalid("channel", "must be web or mcp")
 	}
-	if f.EntityType != nil && *f.EntityType != EntityTransaction {
-		return ActivityPage{}, Invalid("entity_type", "must be transaction")
+	if f.EntityType != nil && !slices.Contains(EntityTypes, *f.EntityType) {
+		return ActivityPage{}, Invalid("entity_type", "must be one of "+strings.Join(EntityTypes, ", "))
 	}
 	limit := DefaultPageSize
 	if f.Limit > 0 {
