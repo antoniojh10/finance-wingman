@@ -148,6 +148,7 @@ func run(args []string, logger *slog.Logger) error {
 			Workspaces: workspaceSvc,
 			OAuth:      oauthSrv,
 			MCP:        mcpHandler,
+			HSTS:       strings.HasPrefix(cfg.PublicURL, "https://"),
 		})
 		return serve(ctx, cfg, logger, handler)
 	case "users":
