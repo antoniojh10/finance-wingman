@@ -5,7 +5,17 @@ import type { ActivityEntry } from "@/lib/api/client";
  * over time: add the type here (and its label under `activity.entityTypes`)
  * to make it filterable. Types missing from this list still render in the feed.
  */
-export const ACTIVITY_ENTITY_TYPES = ["transaction"] as const;
+export const ACTIVITY_ENTITY_TYPES = [
+  "transaction",
+  "account",
+  "category",
+  "budget",
+  "recurring_item",
+  "recurring_suggestion",
+  "workspace",
+] as const;
+
+export type ActivityEntityType = (typeof ACTIVITY_ENTITY_TYPES)[number];
 
 export const ACTIVITY_CHANNELS = ["web", "mcp"] as const;
 export type ActivityChannel = (typeof ACTIVITY_CHANNELS)[number];
@@ -18,7 +28,7 @@ export type ActivityQuery = {
   /** Member who made the change. */
   actor_id?: string;
   channel?: ActivityChannel;
-  entity_type?: string;
+  entity_type?: ActivityEntityType;
 };
 
 /** Sanitizes activity search params, dropping invalid values. */
@@ -92,4 +102,33 @@ export function accountNamesFor(entry: ActivityEntry, names: AccountNames): { ac
     account: accountId ? names[accountId] : undefined,
     destination: destinationId ? names[destinationId] : undefined,
   };
+}
+
+/** Category names by id, resolved by the page like account names. */
+export type CategoryNames = Record<string, string>;
+
+/**
+ * Names of the records an entry points at: the account(s) in its details, the
+ * entity itself for accounts, and the category (budgets use the category id as
+ * their entity id). Ids that no longer resolve are skipped.
+ */
+export function entryNames(
+  entry: ActivityEntry,
+  accounts: AccountNames,
+  categories: CategoryNames,
+): { account?: string; destination?: string; category?: string } {
+  const { account, destination } = accountNamesFor(entry, accounts);
+  const categoryId = entry.details.category_id ?? (entry.entity_type === "category" || entry.entity_type === "budget" ? entry.entity_id : undefined);
+  return {
+    account: account ?? (entry.entity_type === "account" ? accounts[entry.entity_id] : undefined),
+    destination,
+    category: categoryId ? categories[categoryId] : undefined,
+  };
+}
+
+const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** Whether a string is a YYYY-MM month. */
+export function isMonth(value: string): boolean {
+  return monthPattern.test(value);
 }

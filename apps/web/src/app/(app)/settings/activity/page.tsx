@@ -18,12 +18,14 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
   const t = await getTranslations("activity");
   const query = parseActivityQuery(await searchParams);
   const api = await authedApi();
-  const [page, accountsRes, members] = await Promise.all([
+  const [page, accountsRes, categoriesRes, members] = await Promise.all([
     fetchActivityPage(query),
     // Archived accounts are included: old entries still point at them.
     api.GET("/api/v1/accounts", { params: { query: { include_archived: true } } }),
+    api.GET("/api/v1/categories", { params: { query: { include_archived: true } } }),
     getAccountOwners(),
   ]);
+  const categoryNames = Object.fromEntries(expectData(categoriesRes).items.map((c) => [c.id, c.name]));
   const accountNames = Object.fromEntries(
     expectData(accountsRes).items.map((a) => {
       const option = toAccountOption(a, members.length > 1);
@@ -37,7 +39,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
       <div className="grid gap-5">
         <p className="text-sm text-muted-foreground">{t("description")}</p>
         <ActivityFilters query={query} members={members} />
-        <ActivityFeed key={activityHref(query, {})} initialItems={page.items} initialCursor={page.nextCursor} query={query} accountNames={accountNames} />
+        <ActivityFeed key={activityHref(query, {})} initialItems={page.items} initialCursor={page.nextCursor} query={query} accountNames={accountNames} categoryNames={categoryNames} />
       </div>
     </>
   );

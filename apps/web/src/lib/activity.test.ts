@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { accountNamesFor, actionLabel, activityHref, entityTypeLabel, fieldLabel, humanize, parseActivityQuery, type Translate } from "./activity";
+import { accountNamesFor, actionLabel, activityHref, entityTypeLabel, entryNames, fieldLabel, humanize, isMonth, parseActivityQuery, type Translate } from "./activity";
 import type { ActivityEntry } from "./api/client";
 
 const messages: Record<string, string> = {
@@ -59,13 +59,32 @@ describe("labels", () => {
   });
 
   it("falls back to a generic sentence for unknown actions and entity types", () => {
-    expect(actionLabel(t, "budget.updated", "budget")).toBe('did "budget updated" on budget');
+    expect(actionLabel(t, "goal.reached", "goal")).toBe(`did "goal reached" on goal`);
     expect(entityTypeLabel(t, "recurring_item")).toBe("recurring item");
     expect(fieldLabel(t, "estimated_amount")).toBe("estimated amount");
   });
 
   it("humanizes identifiers", () => {
     expect(humanize("export.requested")).toBe("export requested");
+  });
+});
+
+describe("entryNames", () => {
+  const base = { entity_id: "x", details: {} } as unknown as ActivityEntry;
+
+  it("resolves accounts, the account itself and budget categories", () => {
+    expect(entryNames({ ...base, entity_type: "account", entity_id: "a1" }, { a1: "Checking" }, {}).account).toBe("Checking");
+    expect(entryNames({ ...base, entity_type: "budget", entity_id: "c1" }, {}, { c1: "Food" }).category).toBe("Food");
+    expect(entryNames({ ...base, entity_type: "transaction", details: { category_id: "c2" } }, {}, { c2: "Rent" }).category).toBe("Rent");
+    expect(entryNames({ ...base, entity_type: "category", entity_id: "gone" }, {}, {}).category).toBeUndefined();
+  });
+});
+
+describe("isMonth", () => {
+  it("accepts YYYY-MM only", () => {
+    expect(isMonth("2026-10")).toBe(true);
+    expect(isMonth("2026-13")).toBe(false);
+    expect(isMonth("2026-10-01")).toBe(false);
   });
 });
 

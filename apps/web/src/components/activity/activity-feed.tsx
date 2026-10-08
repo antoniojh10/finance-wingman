@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { loadMoreActivity } from "@/app/actions/activity";
 import { Button } from "@/components/ui/button";
-import type { AccountNames, ActivityQuery } from "@/lib/activity";
+import type { AccountNames, ActivityQuery, CategoryNames } from "@/lib/activity";
 import type { ActivityEntry } from "@/lib/api/client";
 
 import { ActivityItem } from "./activity-item";
@@ -19,11 +19,13 @@ export function ActivityFeed({
   initialCursor,
   query,
   accountNames,
+  categoryNames,
 }: {
   initialItems: ActivityEntry[];
   initialCursor: string | null;
   query: ActivityQuery;
   accountNames: AccountNames;
+  categoryNames: CategoryNames;
 }) {
   const t = useTranslations("activity");
   const [items, setItems] = useState(initialItems);
@@ -60,7 +62,7 @@ export function ActivityFeed({
     <div className="grid gap-3">
       <ul className="grid gap-2.5">
         {items.map((entry) => (
-          <ActivityItem key={entry.id} entry={entry} accountNames={accountNames} />
+          <ActivityItem key={entry.id} entry={entry} accountNames={accountNames} categoryNames={categoryNames} />
         ))}
       </ul>
       {failed && (

@@ -24,7 +24,7 @@ describe("fetchActivityPage", () => {
 describe("loadMoreActivity", () => {
   it("passes the cursor and re-validates the filters", async () => {
     const requests = mockApi([{ method: "GET", path: "/api/v1/activity", status: 200, body: { items: [], limit: 25, next_cursor: null } }]);
-    const page = await loadMoreActivity({ channel: "mcp", entity_type: "unicorn", actor_id: "nope" }, "c2");
+    const page = await loadMoreActivity({ channel: "mcp", entity_type: "unicorn" as never, actor_id: "nope" }, "c2");
     expect(page).toEqual({ items: [], nextCursor: null });
     expect(requests[0].path).toBe("/api/v1/activity?channel=mcp&cursor=c2&limit=25");
   });

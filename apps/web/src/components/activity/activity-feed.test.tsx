@@ -33,20 +33,20 @@ beforeEach(() => {
 
 describe("ActivityFeed", () => {
   it("shows an empty state", () => {
-    renderWithIntl(<ActivityFeed initialItems={[]} initialCursor={null} query={{}} accountNames={{}} />);
+    renderWithIntl(<ActivityFeed initialItems={[]} initialCursor={null} query={{}} accountNames={{}} categoryNames={{}} />);
     expect(screen.getByTestId("activity-empty")).toHaveTextContent("No activity yet.");
     expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 
   it("has no Load more on the last page", () => {
-    renderWithIntl(<ActivityFeed initialItems={[entry("1")]} initialCursor={null} query={{}} accountNames={{}} />);
+    renderWithIntl(<ActivityFeed initialItems={[entry("1")]} initialCursor={null} query={{}} accountNames={{}} categoryNames={{}} />);
     expect(screen.getAllByTestId("activity-item")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 
   it("appends the next page with the cursor and the active filters", async () => {
     loadMoreActivity.mockResolvedValue({ items: [entry("2")], nextCursor: null });
-    renderWithIntl(<ActivityFeed initialItems={[entry("1")]} initialCursor="cur1" query={{ channel: "mcp" }} accountNames={{}} />);
+    renderWithIntl(<ActivityFeed initialItems={[entry("1")]} initialCursor="cur1" query={{ channel: "mcp" }} accountNames={{}} categoryNames={{}} />);
     await userEvent.click(screen.getByRole("button", { name: "Load more" }));
     await waitFor(() => expect(screen.getAllByTestId("activity-item")).toHaveLength(2));
     expect(loadMoreActivity).toHaveBeenCalledWith({ channel: "mcp" }, "cur1");
@@ -57,7 +57,7 @@ describe("ActivityFeed", () => {
     loadMoreActivity.mockImplementation(async () => {
       throw new Error("boom");
     });
-    renderWithIntl(<ActivityFeed initialItems={[entry("1")]} initialCursor="cur1" query={{}} accountNames={{}} />);
+    renderWithIntl(<ActivityFeed initialItems={[entry("1")]} initialCursor="cur1" query={{}} accountNames={{}} categoryNames={{}} />);
     await userEvent.click(screen.getByRole("button", { name: "Load more" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load more activity");
     expect(screen.getByRole("button", { name: "Load more" })).toBeEnabled();

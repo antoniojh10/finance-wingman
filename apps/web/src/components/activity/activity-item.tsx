@@ -2,25 +2,34 @@ import { BotIcon, GlobeIcon } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
-import { accountNamesFor, actionLabel, fieldLabel, type AccountNames, type Translate } from "@/lib/activity";
+import { actionLabel, entryNames, fieldLabel, isMonth, type AccountNames, type CategoryNames, type Translate } from "@/lib/activity";
 import type { ActivityEntry } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
 /**
  * One line of the feed: who did what, through which channel and when. MCP
  * changes are highlighted and name the client. The log keeps ids only, so
- * account names come from `accountNames` and are left out when unknown.
+ * account and category names come from the maps and are left out when unknown.
  */
-export function ActivityItem({ entry, accountNames }: { entry: ActivityEntry; accountNames: AccountNames }) {
+export function ActivityItem({
+  entry,
+  accountNames,
+  categoryNames,
+}: {
+  entry: ActivityEntry;
+  accountNames: AccountNames;
+  categoryNames: CategoryNames;
+}) {
   const t = useTranslations("activity") as unknown as Translate;
   const format = useFormatter();
   const isMcp = entry.channel === "mcp";
   const actorName = entry.actor ? entry.actor.name.trim() || entry.actor.email : t("formerMember");
-  const { account, destination } = accountNamesFor(entry, accountNames);
-  const { type, changed } = entry.details;
+  const { account, destination, category } = entryNames(entry, accountNames, categoryNames);
+  const { type, changed, currency, month, format: fileFormat } = entry.details;
   const typeLabel = type && t.has(`types.${type}`) ? t(`types.${type}`) : undefined;
   const accountText = account && destination ? `${account} → ${destination}` : account;
-  const facts = [typeLabel, accountText].filter(Boolean).join(" · ");
+  const monthText = month && isMonth(month) ? format.dateTime(new Date(`${month}-01T00:00:00Z`), { month: "long", year: "numeric", timeZone: "UTC" }) : undefined;
+  const facts = [typeLabel, accountText, category, currency, monthText, fileFormat?.toUpperCase()].filter(Boolean).join(" · ");
   const ChannelIcon = isMcp ? BotIcon : GlobeIcon;
 
   return (

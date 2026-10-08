@@ -11,8 +11,7 @@ export async function fetchActivityPage(query: ActivityQuery, cursor?: string): 
   const api = await authedApi();
   const page = unwrap(
     await api.GET("/api/v1/activity", {
-      // The generated enum only lists the entity types the API knows today.
-      params: { query: { ...query, entity_type: query.entity_type as "transaction" | undefined, cursor, limit: ACTIVITY_PAGE_SIZE } },
+      params: { query: { ...query, cursor, limit: ACTIVITY_PAGE_SIZE } },
     }),
   );
   return { items: page.items, nextCursor: page.next_cursor };
