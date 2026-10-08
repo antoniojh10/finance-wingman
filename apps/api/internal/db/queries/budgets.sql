@@ -44,3 +44,17 @@ WHERE r.type = 'expense'
   AND r.status = 'active'
   AND (sqlc.narg('owner_id')::uuid IS NULL OR a.owner_user_id = sqlc.narg('owner_id'))
   AND (NOT sqlc.arg('shared_only')::boolean OR a.owner_user_id IS NULL);
+
+-- name: ListAllBudgets :many
+-- Every stored budget row, including cleared ones (null amount), for exports.
+SELECT
+    b.category_id,
+    c.name AS category_name,
+    b.currency,
+    cur.minor_units,
+    b.month,
+    b.amount_minor
+FROM budgets b
+JOIN categories c ON c.id = b.category_id
+JOIN currencies cur ON cur.code = b.currency
+ORDER BY b.month, c.name, b.currency;

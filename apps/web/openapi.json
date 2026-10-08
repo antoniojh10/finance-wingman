@@ -3699,6 +3699,81 @@
         ]
       }
     },
+    "/api/v1/export": {
+      "get": {
+        "description": "Downloads accounts, categories, transactions, recurring items, budgets and member names/emails of the current workspace. Amounts are decimals in the currency of their row, not minor units. format=json returns one document with schema_version 1; format=csv returns a zip with one CSV file per entity (members, accounts, categories, transactions, recurring_items, budgets). Any member can export. The response is streamed.",
+        "operationId": "export-data",
+        "parameters": [
+          {
+            "description": "json: one document. csv: a zip with one CSV file per entity",
+            "explode": false,
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "default": "json",
+              "description": "json: one document. csv: a zip with one CSV file per entity",
+              "enum": [
+                "json",
+                "csv"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
+              "application/zip": {
+                "schema": {
+                  "contentMediaType": "application/octet-stream",
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "The export file",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Export all the data of the workspace",
+        "tags": [
+          "Export"
+        ]
+      }
+    },
     "/api/v1/invitations/accept": {
       "post": {
         "description": "Adds the invitee to the workspace (creating their user if needed) and returns a session acting on it. The token proves ownership of the invited address, like a magic link.",

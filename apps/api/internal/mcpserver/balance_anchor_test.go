@@ -64,6 +64,13 @@ func TestMCPEditableAnchor(t *testing.T) {
 	}
 }
 
+func TestMCPInstructionsPointToWebExport(t *testing.T) {
+	t.Parallel()
+	if !strings.Contains(instructions, "Export your data") {
+		t.Fatal("server instructions must say that exports live in the web app")
+	}
+}
+
 func TestMCPInstructionsExplainAnchor(t *testing.T) {
 	t.Parallel()
 	if !strings.Contains(instructions, "balance_as_of") {

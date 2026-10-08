@@ -106,6 +106,9 @@ func build(deps Deps) (chi.Router, huma.API) {
 		scoped := huma.NewGroup(api)
 		scoped.UseMiddleware(requireWorkspace(api))
 		registerFinance(scoped, deps.Finance, deps.Logger)
+		if deps.Workspaces != nil {
+			registerExport(scoped, deps.Finance, deps.Workspaces, deps.Logger)
+		}
 	}
 
 	return router, api
