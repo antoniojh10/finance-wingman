@@ -59,6 +59,44 @@ func (q *Queries) AddWorkspaceMember(ctx context.Context, arg AddWorkspaceMember
 	return err
 }
 
+const cancelWorkspaceDeletion = `-- name: CancelWorkspaceDeletion :execrows
+UPDATE workspaces SET deletion_scheduled_for = NULL, deletion_requested_by = NULL
+WHERE id = $1 AND deletion_scheduled_for IS NOT NULL
+`
+
+func (q *Queries) CancelWorkspaceDeletion(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, cancelWorkspaceDeletion, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const claimDueWorkspaceDeletion = `-- name: ClaimDueWorkspaceDeletion :one
+SELECT id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by FROM workspaces
+WHERE deletion_scheduled_for <= $1
+ORDER BY deletion_scheduled_for
+LIMIT 1
+FOR UPDATE SKIP LOCKED
+`
+
+// Picks one workspace whose grace period is over and locks it, skipping
+// workspaces another API instance is already deleting. A cancellation
+// waits for the lock and then finds nothing to cancel.
+func (q *Queries) ClaimDueWorkspaceDeletion(ctx context.Context, deletionScheduledFor *time.Time) (Workspace, error) {
+	row := q.db.QueryRow(ctx, claimDueWorkspaceDeletion, deletionScheduledFor)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletionRequestedBy,
+	)
+	return i, err
+}
+
 const clearSessionsWorkspace = `-- name: ClearSessionsWorkspace :exec
 UPDATE sessions SET workspace_id = NULL WHERE workspace_id = $1 AND user_id = $2
 `
@@ -142,7 +180,7 @@ func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationPara
 }
 
 const createWorkspace = `-- name: CreateWorkspace :one
-INSERT INTO workspaces (name) VALUES ($1) RETURNING id, name, created_at, updated_at
+INSERT INTO workspaces (name) VALUES ($1) RETURNING id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by
 `
 
 func (q *Queries) CreateWorkspace(ctx context.Context, name string) (Workspace, error) {
@@ -153,6 +191,8 @@ func (q *Queries) CreateWorkspace(ctx context.Context, name string) (Workspace, 
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletionRequestedBy,
 	)
 	return i, err
 }
@@ -163,6 +203,33 @@ DELETE FROM workspace_invitations WHERE expires_at < $1 AND accepted_at IS NULL
 
 func (q *Queries) DeleteExpiredInvitations(ctx context.Context, expiresAt time.Time) error {
 	_, err := q.db.Exec(ctx, deleteExpiredInvitations, expiresAt)
+	return err
+}
+
+const deleteWorkspace = `-- name: DeleteWorkspace :execrows
+DELETE FROM workspaces WHERE id = $1
+`
+
+// Deletes the workspace with all its finance data, members, invitations
+// and connected apps (ON DELETE CASCADE).
+func (q *Queries) DeleteWorkspace(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteWorkspace, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteWorkspaceAppSessions = `-- name: DeleteWorkspaceAppSessions :exec
+DELETE FROM sessions WHERE workspace_id = $1 AND oauth_family_id IS NOT NULL
+`
+
+// Access tokens of apps connected to the workspace. Their grants go with
+// the workspace (ON DELETE CASCADE), but sessions only lose their workspace,
+// so they are deleted first. Browser sessions are kept: they just stop
+// acting on the workspace.
+func (q *Queries) DeleteWorkspaceAppSessions(ctx context.Context, workspaceID *uuid.UUID) error {
+	_, err := q.db.Exec(ctx, deleteWorkspaceAppSessions, workspaceID)
 	return err
 }
 
@@ -228,7 +295,7 @@ func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (s
 }
 
 const getWorkspace = `-- name: GetWorkspace :one
-SELECT id, name, created_at, updated_at FROM workspaces WHERE id = $1
+SELECT id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by FROM workspaces WHERE id = $1
 `
 
 func (q *Queries) GetWorkspace(ctx context.Context, id uuid.UUID) (Workspace, error) {
@@ -239,6 +306,8 @@ func (q *Queries) GetWorkspace(ctx context.Context, id uuid.UUID) (Workspace, er
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletionRequestedBy,
 	)
 	return i, err
 }
@@ -309,7 +378,7 @@ func (q *Queries) ListOpenInvitations(ctx context.Context, workspaceID uuid.UUID
 }
 
 const listUserWorkspaces = `-- name: ListUserWorkspaces :many
-SELECT w.id, w.name, w.created_at, m.role
+SELECT w.id, w.name, w.created_at, w.deletion_scheduled_for, m.role
 FROM workspace_members m
 JOIN workspaces w ON w.id = m.workspace_id
 WHERE m.user_id = $1
@@ -317,10 +386,11 @@ ORDER BY lower(w.name), w.created_at
 `
 
 type ListUserWorkspacesRow struct {
-	ID        uuid.UUID
-	Name      string
-	CreatedAt time.Time
-	Role      string
+	ID                   uuid.UUID
+	Name                 string
+	CreatedAt            time.Time
+	DeletionScheduledFor *time.Time
+	Role                 string
 }
 
 func (q *Queries) ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]ListUserWorkspacesRow, error) {
@@ -336,6 +406,7 @@ func (q *Queries) ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]L
 			&i.ID,
 			&i.Name,
 			&i.CreatedAt,
+			&i.DeletionScheduledFor,
 			&i.Role,
 		); err != nil {
 			return nil, err
@@ -349,7 +420,7 @@ func (q *Queries) ListUserWorkspaces(ctx context.Context, userID uuid.UUID) ([]L
 }
 
 const listWorkspaceMembers = `-- name: ListWorkspaceMembers :many
-SELECT u.id, u.email, u.name, m.role, m.created_at
+SELECT u.id, u.email, u.name, u.locale, m.role, m.created_at
 FROM workspace_members m
 JOIN users u ON u.id = m.user_id
 WHERE m.workspace_id = $1
@@ -360,6 +431,7 @@ type ListWorkspaceMembersRow struct {
 	ID        uuid.UUID
 	Email     string
 	Name      string
+	Locale    string
 	Role      string
 	CreatedAt time.Time
 }
@@ -377,6 +449,7 @@ func (q *Queries) ListWorkspaceMembers(ctx context.Context, workspaceID uuid.UUI
 			&i.ID,
 			&i.Email,
 			&i.Name,
+			&i.Locale,
 			&i.Role,
 			&i.CreatedAt,
 		); err != nil {
@@ -461,7 +534,7 @@ func (q *Queries) RenameClashingMemberAccounts(ctx context.Context, ownerUserID 
 }
 
 const renameWorkspace = `-- name: RenameWorkspace :one
-UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at, updated_at
+UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by
 `
 
 type RenameWorkspaceParams struct {
@@ -477,6 +550,8 @@ func (q *Queries) RenameWorkspace(ctx context.Context, arg RenameWorkspaceParams
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletionRequestedBy,
 	)
 	return i, err
 }
@@ -513,6 +588,33 @@ type RevokeOpenInvitationsForEmailParams struct {
 func (q *Queries) RevokeOpenInvitationsForEmail(ctx context.Context, arg RevokeOpenInvitationsForEmailParams) error {
 	_, err := q.db.Exec(ctx, revokeOpenInvitationsForEmail, arg.WorkspaceID, arg.Email)
 	return err
+}
+
+const scheduleWorkspaceDeletion = `-- name: ScheduleWorkspaceDeletion :one
+UPDATE workspaces SET deletion_scheduled_for = $2, deletion_requested_by = $3
+WHERE id = $1 AND deletion_scheduled_for IS NULL
+RETURNING id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by
+`
+
+type ScheduleWorkspaceDeletionParams struct {
+	ID                   uuid.UUID
+	DeletionScheduledFor *time.Time
+	DeletionRequestedBy  *uuid.UUID
+}
+
+// Schedules the workspace for deletion unless it already is.
+func (q *Queries) ScheduleWorkspaceDeletion(ctx context.Context, arg ScheduleWorkspaceDeletionParams) (Workspace, error) {
+	row := q.db.QueryRow(ctx, scheduleWorkspaceDeletion, arg.ID, arg.DeletionScheduledFor, arg.DeletionRequestedBy)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletionRequestedBy,
+	)
+	return i, err
 }
 
 const updateMemberRole = `-- name: UpdateMemberRole :execrows

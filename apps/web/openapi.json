@@ -1686,6 +1686,11 @@
             "format": "date-time",
             "type": "string"
           },
+          "deletion_scheduled_for": {
+            "description": "When the workspace will be deleted; omitted unless a deletion is scheduled",
+            "format": "date-time",
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -3040,6 +3045,11 @@
             "type": "string"
           },
           "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletion_scheduled_for": {
+            "description": "When the workspace will be deleted; omitted unless a deletion is scheduled",
             "format": "date-time",
             "type": "string"
           },
@@ -5519,6 +5529,93 @@
           }
         },
         "summary": "Rename a workspace",
+        "tags": [
+          "Workspaces"
+        ]
+      }
+    },
+    "/api/v1/workspaces/{id}/deletion": {
+      "delete": {
+        "description": "Owners only, from a signed-in browser session.",
+        "operationId": "cancel-workspace-deletion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Cancel a workspace's scheduled deletion",
+        "tags": [
+          "Workspaces"
+        ]
+      },
+      "post": {
+        "description": "Owners only, from a signed-in browser session. The body repeats the workspace's exact name to confirm. The workspace and all its data (accounts, transactions, categories, budgets, subscriptions, invitations and connected apps) are deleted once the grace period (7 days) is over; until then it stays usable and any owner can cancel. Every member is emailed.",
+        "operationId": "schedule-workspace-deletion",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceNameBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Schedule a workspace for deletion",
         "tags": [
           "Workspaces"
         ]

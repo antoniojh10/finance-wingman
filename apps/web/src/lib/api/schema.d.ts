@@ -812,6 +812,30 @@ export interface paths {
         patch: operations["rename-workspace"];
         trace?: never;
     };
+    "/api/v1/workspaces/{id}/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Schedule a workspace for deletion
+         * @description Owners only, from a signed-in browser session. The body repeats the workspace's exact name to confirm. The workspace and all its data (accounts, transactions, categories, budgets, subscriptions, invitations and connected apps) are deleted once the grace period (7 days) is over; until then it stays usable and any owner can cancel. Every member is emailed.
+         */
+        post: operations["schedule-workspace-deletion"];
+        /**
+         * Cancel a workspace's scheduled deletion
+         * @description Owners only, from a signed-in browser session.
+         */
+        delete: operations["cancel-workspace-deletion"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces/{id}/invitations": {
         parameters: {
             query?: never;
@@ -1653,6 +1677,11 @@ export interface components {
             readonly $schema?: string;
             /** Format: date-time */
             created_at: string;
+            /**
+             * Format: date-time
+             * @description When the workspace will be deleted; omitted unless a deletion is scheduled
+             */
+            deletion_scheduled_for?: string;
             id: string;
             name: string;
             /** @enum {string} */
@@ -2252,6 +2281,11 @@ export interface components {
             readonly $schema?: string;
             /** Format: date-time */
             created_at: string;
+            /**
+             * Format: date-time
+             * @description When the workspace will be deleted; omitted unless a deletion is scheduled
+             */
+            deletion_scheduled_for?: string;
             id: string;
             name: string;
         };
@@ -4009,6 +4043,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Workspace"];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "schedule-workspace-deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceNameBody"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Workspace"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "cancel-workspace-deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {

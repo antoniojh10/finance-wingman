@@ -196,10 +196,12 @@ type User struct {
 }
 
 type Workspace struct {
-	ID        uuid.UUID
-	Name      string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID                   uuid.UUID
+	Name                 string
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	DeletionScheduledFor *time.Time
+	DeletionRequestedBy  *uuid.UUID
 }
 
 type WorkspaceInvitation struct {
