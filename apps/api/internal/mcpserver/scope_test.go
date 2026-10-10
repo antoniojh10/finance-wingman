@@ -15,6 +15,7 @@ import (
 var readTools = []string{
 	"list_accounts", "list_categories", "get_summary", "list_transactions", "list_recurring",
 	"list_upcoming_recurring", "list_recurring_suggestions", "get_budget_status", "suggest_budgets",
+	"get_monthly_spending",
 }
 
 // connect opens another client session on the harness server, so the

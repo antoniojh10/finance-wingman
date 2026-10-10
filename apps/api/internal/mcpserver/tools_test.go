@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -135,7 +136,7 @@ func TestToolsAreListed(t *testing.T) {
 	for _, tool := range res.Tools {
 		got[tool.Name] = tool
 	}
-	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction", "create_account", "create_category", "create_categories", "create_accounts", "add_transactions", "update_account", "update_category", "update_transaction", "update_transactions", "list_recurring", "create_recurring", "update_recurring", "list_upcoming_recurring", "mark_recurring_paid", "list_recurring_suggestions", "accept_recurring_suggestion", "dismiss_recurring_suggestion", "link_transaction_to_recurring", "get_budget_status", "set_budgets", "suggest_budgets"} {
+	for _, name := range []string{"add_expense", "add_income", "add_transfer", "list_accounts", "list_categories", "get_summary", "list_transactions", "delete_transaction", "create_account", "create_category", "create_categories", "create_accounts", "add_transactions", "update_account", "update_category", "update_transaction", "update_transactions", "list_recurring", "create_recurring", "update_recurring", "list_upcoming_recurring", "mark_recurring_paid", "list_recurring_suggestions", "accept_recurring_suggestion", "dismiss_recurring_suggestion", "link_transaction_to_recurring", "get_budget_status", "set_budgets", "suggest_budgets", "get_monthly_spending"} {
 		if got[name] == nil {
 			t.Errorf("missing tool %s", name)
 		}
@@ -554,4 +555,170 @@ func TestUpdateCategoryErrors(t *testing.T) {
 	h.category("Other", "expense")
 	h.category("Other", "income")
 	h.mustFail("update_category", map[string]any{"category": "Other", "name": "Misc"}, "pass the id instead")
+}
+
+// expenseOn records an expense straight through the service so it can be
+// dated in a past month. A nil category is an uncategorized expense.
+func (h *harness) expenseOn(account finance.Account, category *finance.Category, date string, amount int64) {
+	h.t.Helper()
+	in := finance.TransactionInput{Type: finance.TypeExpense, AccountID: account.ID, Amount: amount, OccurredOn: date}
+	if category != nil {
+		in.CategoryID = &category.ID
+	}
+	if _, err := h.svc.CreateTransaction(h.ctx, in); err != nil {
+		h.t.Fatal(err)
+	}
+}
+
+func findMonthlyCategory(t *testing.T, cur monthlyCurrencyOut, name string) monthlyCategoryOut {
+	t.Helper()
+	for _, c := range cur.Categories {
+		if c.Category == name {
+			return c
+		}
+	}
+	t.Fatalf("no category %s in %+v", name, cur)
+	return monthlyCategoryOut{}
+}
+
+func findMonthlyCurrency(t *testing.T, out monthlySpendingOut, code string) monthlyCurrencyOut {
+	t.Helper()
+	for _, c := range out.Currencies {
+		if c.Currency == code {
+			return c
+		}
+	}
+	t.Fatalf("no currency %s in %+v", code, out)
+	return monthlyCurrencyOut{}
+}
+
+func TestGetMonthlySpending(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	card := h.account("Card", "MXN")
+	euro := h.account("Euro", "EUR")
+	food := h.category("Food", "expense")
+	fun := h.category("Fun", "expense")
+	salary := h.category("Salary", "income")
+
+	h.expenseOn(card, &food, monthOffset(-2).Format("2006-01")+"-05", 10000)
+	h.expenseOn(card, &food, currentMonth()+"-01", 4025)
+	h.expenseOn(card, nil, currentMonth()+"-02", 500)
+	h.expenseOn(euro, &fun, currentMonth()+"-03", 1000)
+	// Income is not spending.
+	if _, err := h.svc.CreateTransaction(h.ctx, finance.TransactionInput{Type: finance.TypeIncome, AccountID: card.ID, Amount: 90000, CategoryID: &salary.ID, OccurredOn: currentMonth() + "-04"}); err != nil {
+		t.Fatal(err)
+	}
+
+	var out monthlySpendingOut
+	text := h.mustCall("get_monthly_spending", map[string]any{"months": 3}, &out)
+	if len(out.Months) != 3 || out.Months[2] != currentMonth() || out.Months[0] != monthOffset(-2).Format("2006-01") {
+		t.Fatalf("unexpected months %v", out.Months)
+	}
+	if !strings.Contains(text, "MXN") || !strings.Contains(text, "- Food: 100.00, 0.00, 40.25") {
+		t.Fatalf("text does not show the Food row: %q", text)
+	}
+
+	mxn := findMonthlyCurrency(t, out, "MXN")
+	if mxn.PartialMonth != currentMonth() {
+		t.Fatalf("unexpected partial month: %+v", mxn)
+	}
+	if !slices.Equal(mxn.Totals, []string{"100.00", "0.00", "45.25"}) {
+		t.Fatalf("MXN totals = %v", mxn.Totals)
+	}
+	foodRow := findMonthlyCategory(t, mxn, "Food")
+	if !slices.Equal(foodRow.Totals, []string{"100.00", "0.00", "40.25"}) || foodRow.Budgets[2] != nil {
+		t.Fatalf("unexpected Food row: %+v", foodRow)
+	}
+	if un := findMonthlyCategory(t, mxn, "Uncategorized"); un.Totals[2] != "5.00" {
+		t.Fatalf("unexpected uncategorized row: %+v", un)
+	}
+	if mxn.Categories[0].Category != "Food" {
+		t.Fatalf("largest category should come first: %+v", mxn.Categories)
+	}
+	if mxn.Budgets[2] != nil {
+		t.Fatalf("no budget set, budgets should be null: %+v", mxn.Budgets)
+	}
+	if eur := findMonthlyCurrency(t, out, "EUR"); !slices.Equal(eur.Totals, []string{"0.00", "0.00", "10.00"}) {
+		t.Fatalf("EUR totals = %v", eur.Totals)
+	}
+
+	h.setBudget("Food", "MXN", 50)
+	h.mustCall("get_monthly_spending", map[string]any{"months": 3}, &out)
+	mxn = findMonthlyCurrency(t, out, "MXN")
+	if got := findMonthlyCategory(t, mxn, "Food").Budgets; got[2] == nil || *got[2] != "50.00" || got[0] != nil {
+		t.Fatalf("Food budgets = %v", got)
+	}
+	if mxn.Budgets[2] == nil || *mxn.Budgets[2] != "50.00" {
+		t.Fatalf("currency budgets = %v", mxn.Budgets)
+	}
+}
+
+func TestGetMonthlySpendingDefaultsAndCurrencyFilter(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	card := h.account("Card", "MXN")
+	h.account("Euro", "EUR")
+	food := h.category("Food", "expense")
+	h.expenseOn(card, &food, currentMonth()+"-01", 1000)
+
+	var out monthlySpendingOut
+	h.mustCall("get_monthly_spending", map[string]any{}, &out)
+	if len(out.Months) != 6 {
+		t.Fatalf("default window should be 6 months, got %v", out.Months)
+	}
+	h.mustCall("get_monthly_spending", map[string]any{"currency": "mxn", "months": 12}, &out)
+	if len(out.Months) != 12 || len(out.Currencies) != 1 || out.Currencies[0].Currency != "MXN" {
+		t.Fatalf("currency filter failed: %+v", out)
+	}
+}
+
+func TestGetMonthlySpendingOwnerFilter(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	shared := h.account("Joint", "MXN")
+	food := h.category("Food", "expense")
+	h.expenseOn(shared, &food, currentMonth()+"-01", 1500)
+	h.setBudget("Food", "MXN", 100)
+
+	var out monthlySpendingOut
+	h.mustCall("get_monthly_spending", map[string]any{"months": 3, "owner": "shared"}, &out)
+	mxn := findMonthlyCurrency(t, out, "MXN")
+	if mxn.Totals[2] != "15.00" {
+		t.Fatalf("shared totals = %v", mxn.Totals)
+	}
+	if mxn.Budgets[2] != nil || findMonthlyCategory(t, mxn, "Food").Budgets[2] != nil {
+		t.Fatalf("budgets must be null with an owner filter: %+v", mxn)
+	}
+	h.mustFail("get_monthly_spending", map[string]any{"owner": "nobody"}, "no workspace member matches")
+}
+
+func TestGetMonthlySpendingErrors(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	card := h.account("Card", "MXN")
+	food := h.category("Food", "expense")
+	h.expenseOn(card, &food, currentMonth()+"-01", 1000)
+
+	h.mustFail("get_monthly_spending", map[string]any{"months": 4}, "months must be 3, 6 or 12, got 4")
+	h.mustFail("get_monthly_spending", map[string]any{"months": -1}, "months must be 3, 6 or 12")
+	h.mustFail("get_monthly_spending", map[string]any{"currency": "ZZZ"}, "unsupported currency")
+	h.mustFail("get_monthly_spending", map[string]any{"currency": "EUR"}, "currencies with expenses in that period: MXN")
+}
+
+func TestGetMonthlySpendingEmptyWorkspace(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	text := h.mustCall("get_monthly_spending", map[string]any{}, nil)
+	if !strings.Contains(text, "No expenses in this period") {
+		t.Fatalf("unexpected empty text: %q", text)
+	}
+	h.mustFail("get_monthly_spending", map[string]any{"currency": "MXN"}, "no expenses in MXN")
+}
+
+func TestGetMonthlySpendingAllowedWithReadOnlyScope(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.readOnly = true
+	h.mustCall("get_monthly_spending", map[string]any{}, nil)
 }
