@@ -44,6 +44,7 @@ Guidelines:
 - If the user does not name an account and several exist, ask which one to use.
 - There is no tool to export or download all the data. If the user wants a copy of their data, tell them to use "Export your data" (JSON or CSV) in the Settings page of the Finance Wingman web app.
 - Dates use YYYY-MM-DD and default to today.
+- get_monthly_spending shows expenses per category and month (3, 6 or 12 months, per currency) with the budget per month, to compare periods such as "which categories went up compared to the summer?".
 - Summaries are per currency; never add amounts from different currencies together.`
 
 type Server struct {
@@ -98,6 +99,7 @@ func New(fin *finance.Service, version string) *Server {
 	s.registerRecurringTools()
 	s.registerRecurringSuggestionTools()
 	s.registerBudgetTools()
+	s.registerMonthlyTools()
 	return s
 }
 
