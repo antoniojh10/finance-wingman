@@ -56,8 +56,8 @@ describe("MonthlyChart", () => {
     renderChart();
     expect(screen.getByText("€1.4K")).toBeInTheDocument();
     expect(screen.getByText("Period total")).toBeInTheDocument();
-    expect(screen.getByTestId("average-line")).toHaveTextContent("average €1.5K");
-    expect(screen.getByTestId("budget-line")).toHaveTextContent("budget €1.4K");
+    expect(screen.getByTestId("average-key")).toHaveTextContent("average €1.5K");
+    expect(screen.getByTestId("budget-key")).toHaveTextContent("budget €1.5K");
     expect(screen.getByTestId("reports-subtitle")).toHaveTextContent("August 2026 – October 2026 · expenses only (no transfers) · EUR");
   });
 
@@ -78,6 +78,7 @@ describe("MonthlyChart", () => {
     expect(screen.getAllByText("100%").length).toBeGreaterThan(0);
     expect(screen.queryByTestId("average-line")).not.toBeInTheDocument();
     expect(screen.queryByTestId("budget-line")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("reference-lines")).not.toBeInTheDocument();
   });
 
   it("toggles categories from the legend and drops them from the totals", async () => {
@@ -104,7 +105,7 @@ describe("MonthlyChart", () => {
     const legend = screen.getByRole("group", { name: /Categories/ });
     await user.click(within(legend).getByRole("button", { name: "Food" }));
     await user.click(within(legend).getByRole("button", { name: /^Other/ }));
-    expect(screen.getByTestId("budget-line")).toHaveTextContent("Rent budget €950");
+    expect(screen.getByTestId("budget-key")).toHaveTextContent("Rent budget €1.0K");
   });
 
   it("lists the categories folded into Other on its chip", () => {

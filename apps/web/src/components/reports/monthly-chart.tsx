@@ -101,6 +101,8 @@ export function MonthlyChart({
   })();
 
   const share = scale === "share";
+  // The key names the budget of the latest month that has one.
+  const latestBudget = view.budgetLine?.findLast((b) => b !== null) ?? null;
   const height = width < 520 ? 300 : 360;
   const margin = { top: 24, right: 8, bottom: 40, left: width < 520 ? 44 : 58 };
   const innerW = width - margin.left - margin.right;
@@ -269,65 +271,57 @@ export function MonthlyChart({
             );
           })}
 
-          {!share && view.average > 0 && <AverageLine y={y(view.average)} left={margin.left} right={width - margin.right} label={t("averageLine", { amount: compact(view.average) })} />}
-          {!share && view.budgetLine && (
-            <BudgetLine
-              budgets={view.budgetLine}
-              y={y}
-              left={margin.left}
-              band={band}
-              label={(amount) => (view.budgetSeries ? t("categoryBudgetLine", { name: view.budgetSeries.name, amount: compact(amount) }) : t("budgetLine", { amount: compact(amount) }))}
-            />
-          )}
+          {!share && view.average > 0 && <AverageLine y={y(view.average)} left={margin.left} right={width - margin.right} />}
+          {!share && view.budgetLine && <BudgetLine budgets={view.budgetLine} y={y} left={margin.left} band={band} />}
         </svg>
         {hover && detail && (
           <ChartTooltip detail={detail} x={hover.x} y={hover.y} containerWidth={width} money={money} monthLabel={monthName(detail.month)} />
         )}
       </div>
+      {!share && (view.average > 0 || latestBudget !== null) && (
+        // Reference lines are named here rather than inside the chart, where
+        // their labels would collide with the bar totals.
+        <ul className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs" data-testid="reference-lines">
+          {view.average > 0 && (
+            <li className="flex items-center gap-2" data-testid="average-key">
+              <svg aria-hidden width={22} height={4} className="overflow-visible">
+                <line x1={0} x2={22} y1={2} y2={2} stroke="var(--foreground)" strokeWidth={1.5} strokeDasharray="5 4" strokeOpacity={0.55} />
+              </svg>
+              {t("averageLine", { amount: compact(view.average) })}
+            </li>
+          )}
+          {latestBudget !== null && (
+            <li className="flex items-center gap-2 text-expense" data-testid="budget-key">
+              <svg aria-hidden width={22} height={4} className="overflow-visible">
+                <line x1={0} x2={22} y1={2} y2={2} stroke="var(--expense)" strokeWidth={2} strokeOpacity={0.85} />
+              </svg>
+              {view.budgetSeries
+                ? t("categoryBudgetLine", { name: view.budgetSeries.name, amount: compact(latestBudget) })
+                : t("budgetLine", { amount: compact(latestBudget) })}
+            </li>
+          )}
+        </ul>
+      )}
       <p className="text-xs text-muted-foreground">{t("hint")}</p>
     </div>
   );
 }
 
-function AverageLine({ y, left, right, label }: { y: number; left: number; right: number; label: string }) {
-  const labelWidth = label.length * 6.6 + 10;
+function AverageLine({ y, left, right }: { y: number; left: number; right: number }) {
   return (
     <g pointerEvents="none" data-testid="average-line">
       <line x1={left} x2={right} y1={y} y2={y} stroke="var(--foreground)" strokeWidth={1.5} strokeDasharray="5 4" strokeOpacity={0.55} />
-      <rect x={right - labelWidth} y={y - 18} width={labelWidth} height={15} rx={4} fill="var(--card)" fillOpacity={0.85} />
-      <text x={right - 4} y={y - 7} textAnchor="end" className="fill-foreground font-mono text-[11px] font-medium">
-        {label}
-      </text>
     </g>
   );
 }
 
 /** The budget as a step line: one segment per month, where that month has a budget. */
-function BudgetLine({
-  budgets,
-  y,
-  left,
-  band,
-  label,
-}: {
-  budgets: (number | null)[];
-  y: (value: number) => number;
-  left: number;
-  band: number;
-  label: (amount: number) => string;
-}) {
-  const firstIndex = budgets.findIndex((b) => b !== null);
-  const text = label(budgets[firstIndex] ?? 0);
-  const labelWidth = text.length * 6.6 + 10;
+function BudgetLine({ budgets, y, left, band }: { budgets: (number | null)[]; y: (value: number) => number; left: number; band: number }) {
   return (
     <g pointerEvents="none" data-testid="budget-line">
       {budgets.map((amount, i) =>
         amount === null ? null : <line key={i} x1={left + band * i} x2={left + band * (i + 1)} y1={y(amount)} y2={y(amount)} stroke="var(--expense)" strokeWidth={2} strokeOpacity={0.85} />,
       )}
-      <rect x={left + band * firstIndex + 2} y={y(budgets[firstIndex] ?? 0) - 18} width={labelWidth} height={15} rx={4} fill="var(--card)" fillOpacity={0.85} />
-      <text x={left + band * firstIndex + 6} y={y(budgets[firstIndex] ?? 0) - 7} className="fill-expense font-mono text-[11px] font-medium">
-        {text}
-      </text>
     </g>
   );
 }
