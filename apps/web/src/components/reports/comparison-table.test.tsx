@@ -34,7 +34,7 @@ describe("ComparisonTable", () => {
     expect(within(food).getByTestId("comparison-average")).toHaveTextContent(/43[.,]33/);
     expect(within(food).getByTestId("comparison-delta")).toHaveTextContent("+38%");
     expect(within(food).getByTestId("comparison-delta")).toHaveAttribute("data-tone", "up");
-    expect(screen.getByRole("columnheader", { name: "Δ Sep" })).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader", { name: "Δ Sep" })).toHaveLength(2);
   });
 
   it("ends with a total row", () => {
@@ -54,8 +54,8 @@ describe("ComparisonTable", () => {
     renderTable();
     expect(screen.getByText("(in progress)")).toBeInTheDocument();
     const cells = within(screen.getByTestId("comparison-row-c1")).getAllByRole("cell");
-    expect(cells[0].getAttribute("style")).toContain("color-mix");
-    expect(cells[3].getAttribute("style")).toBeNull();
+    expect(cells[2].getAttribute("style")).toContain("color-mix");
+    expect(cells[5].getAttribute("style")).toBeNull();
   });
 
   it("keeps the owner filter in the links and drops the current month when hidden", () => {
@@ -66,5 +66,30 @@ describe("ComparisonTable", () => {
     );
     expect(screen.queryByText("(in progress)")).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: /Oct/ })).not.toBeInTheDocument();
+  });
+
+  it("orders Average and Δ right after the category on phones and last from md up", () => {
+    renderTable();
+    const classes = (el: Element) => el.className;
+    const mobile = (cls: string) => cls.includes("md:hidden");
+    const desktop = (cls: string) => cls.includes("hidden") && cls.includes("md:table-cell");
+
+    const headers = screen.getAllByRole("columnheader").map(classes);
+    expect(mobile(headers[1])).toBe(true);
+    expect(mobile(headers[2])).toBe(true);
+    expect(desktop(headers[headers.length - 2])).toBe(true);
+    expect(desktop(headers[headers.length - 1])).toBe(true);
+
+    for (const id of ["comparison-row-c1", "comparison-total"]) {
+      const row = screen.getByTestId(id);
+      const cells = Array.from(row.children).map(classes);
+      expect(row.querySelector('[data-testid="comparison-average-mobile"]')).toBe(row.children[1]);
+      expect(row.querySelector('[data-testid="comparison-delta-mobile"]')).toBe(row.children[2]);
+      expect(mobile(cells[1]) && mobile(cells[2])).toBe(true);
+      expect(row.querySelector('[data-testid="comparison-average"]')).toBe(row.children[row.children.length - 2]);
+      expect(row.querySelector('[data-testid="comparison-delta"]')).toBe(row.children[row.children.length - 1]);
+      expect(desktop(cells[cells.length - 2]) && desktop(cells[cells.length - 1])).toBe(true);
+      expect(row.children).toHaveLength(headers.length);
+    }
   });
 });
