@@ -1,4 +1,5 @@
 import type { components } from "@/lib/api/schema";
+import { monthRange } from "@/lib/dates";
 import { parseOwner } from "@/lib/owners";
 
 // Data shaping for the monthly spending report. Everything here is pure so
@@ -120,7 +121,7 @@ function sumBudgets(lists: (number | null)[][], length: number): (number | null)
  */
 export function buildReport(
   data: MonthlyCurrency,
-  options: { months: number; includeCurrent: boolean; labels: ShapeLabels; topN?: number },
+  options: { months: number; includeCurrent: boolean; labels: ShapeLabels; topN?: number; keepUncategorized?: boolean },
 ): ReportShape {
   const topN = options.topN ?? TOP_CATEGORIES;
   const end = options.includeCurrent ? data.months.length : data.months.length - 1;
@@ -146,7 +147,7 @@ export function buildReport(
     .sort((a, b) => b.total - a.total);
 
   const named = rows.filter((r) => r.id !== null);
-  const top = named.slice(0, topN);
+  const top = options.keepUncategorized ? rows.filter((r) => r.id === null || named.slice(0, topN).includes(r)) : named.slice(0, topN);
   const rest = rows.filter((r) => !top.includes(r));
   const series: Series[] = top.map((r) => ({
     key: r.key,
@@ -273,6 +274,95 @@ export function formatCompact(amount: number, currency: string, minorUnits: numb
   return new Intl.NumberFormat(locale, { style: "currency", currency, notation: "compact", maximumFractionDigits: 1 }).format(
     amount / 10 ** minorUnits,
   );
+}
+
+export type ComparisonRow = {
+  /** The category id or "uncategorized"; null for the total row. */
+  key: string | null;
+  /** The category id; null for uncategorized and the total row. */
+  categoryId: string | null;
+  name: string;
+  color: string | null;
+  values: number[];
+  /** Mean over the closed months. */
+  average: number;
+  /** Fraction above (+) or below (-) the average for the last closed month; null without one or without an average. */
+  delta: number | null;
+  /** Highest closed-month value of the row, the reference for the cell shading. */
+  max: number;
+};
+
+export type Comparison = {
+  months: string[];
+  partialIndex: number;
+  /** Index of the last closed month, or -1 when there is none. */
+  lastClosedIndex: number;
+  rows: ComparisonRow[];
+  total: ComparisonRow;
+};
+
+function comparisonRow(
+  base: Pick<ComparisonRow, "key" | "categoryId" | "name" | "color">,
+  values: number[],
+  partialIndex: number,
+  lastClosedIndex: number,
+): ComparisonRow {
+  const closed = values.filter((_, i) => i !== partialIndex);
+  const average = closed.length === 0 ? 0 : closed.reduce((a, b) => a + b, 0) / closed.length;
+  return {
+    ...base,
+    values,
+    average,
+    delta: lastClosedIndex < 0 || average <= 0 ? null : values[lastClosedIndex] / average - 1,
+    max: Math.max(0, ...closed),
+  };
+}
+
+/** The category x month grid of the comparison table: every category, none folded into "Other". */
+export function buildComparison(data: MonthlyCurrency, options: { months: number; includeCurrent: boolean; labels: ShapeLabels }): Comparison {
+  const shape = buildReport(data, { ...options, topN: Number.POSITIVE_INFINITY, keepUncategorized: true });
+  const lastClosedIndex = shape.months.map((_, i) => i).findLast((i) => i !== shape.partialIndex) ?? -1;
+  const rows = shape.series.map((s) =>
+    comparisonRow(
+      { key: s.key, categoryId: s.key === "uncategorized" ? null : s.key, name: s.name, color: s.color },
+      s.values,
+      shape.partialIndex,
+      lastClosedIndex,
+    ),
+  );
+  const totals = shape.months.map((_, i) => rows.reduce((sum, r) => sum + r.values[i], 0));
+  const total = comparisonRow({ key: null, categoryId: null, name: "", color: null }, totals, shape.partialIndex, lastClosedIndex);
+  return { months: shape.months, partialIndex: shape.partialIndex, lastClosedIndex, rows, total };
+}
+
+/** Fraction (0-1) of the row's highest closed month that a value represents; the month in progress is never shaded. */
+export function heatShare(row: ComparisonRow, index: number, partialIndex: number): number {
+  return index === partialIndex || row.max <= 0 ? 0 : Math.min(1, row.values[index] / row.max);
+}
+
+/** A delta beyond +-10% is worth colouring. */
+export function deltaTone(delta: number | null): "up" | "down" | null {
+  if (delta === null) {
+    return null;
+  }
+  return delta > 0.1 ? "up" : delta < -0.1 ? "down" : null;
+}
+
+/**
+ * Transactions list for the expenses of one month, optionally of one
+ * category. Uncategorized expenses cannot be filtered on their own, so that
+ * row and the total row list every expense of the month.
+ */
+export function monthTransactionsHref(month: string, categoryId: string | null, owner?: string): string {
+  const { from, to } = monthRange(month);
+  const params = new URLSearchParams({ type: "expense", from, to });
+  if (categoryId) {
+    params.set("category_id", categoryId);
+  }
+  if (owner) {
+    params.set("owner", owner);
+  }
+  return `/transactions?${params.toString()}`;
 }
 
 /** Short month name for the x axis, e.g. "Oct". */

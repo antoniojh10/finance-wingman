@@ -97,4 +97,13 @@ describe("ReportsView", () => {
     expect(screen.getByTestId("reports-empty")).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Currency" })).not.toBeInTheDocument();
   });
+
+  it("shows the comparison table below the chart, and not without expenses", () => {
+    const { unmount } = renderView([currency("EUR", 1000)]);
+    expect(screen.getByRole("heading", { name: "Comparison by category" })).toBeInTheDocument();
+    expect(screen.getByTestId("reports-table")).toBeInTheDocument();
+    unmount();
+    renderView([currency("EUR", 0)]);
+    expect(screen.queryByTestId("reports-table")).not.toBeInTheDocument();
+  });
 });

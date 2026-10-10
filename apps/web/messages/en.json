@@ -661,6 +661,15 @@
     "tipVsAverage": "Vs. its average",
     "hint": "Hover, tap or focus a segment for details. Hidden categories do not count in the totals. The solid line is the budget of the visible categories; leave a single one visible to see its own. The top 7 categories are shown; the rest and uncategorized expenses are grouped as Other.",
     "emptyTitle": "No expenses in this period",
-    "emptyDescription": "Record some expenses, or pick a longer period, to see them month by month."
+    "emptyDescription": "Record some expenses, or pick a longer period, to see them month by month.",
+    "tableTitle": "Comparison by category",
+    "tableHint": "Shading is relative to each category's highest closed month. The change compares the last closed month with the average of the closed months. Amounts open that month's expenses (uncategorized and the total list every expense of the month).",
+    "tableCaption": "Monthly expenses by category, with average and change",
+    "tableCategory": "Category",
+    "tableTotal": "Total",
+    "tableAverage": "Average",
+    "tableDelta": "Δ {month}",
+    "tableDeltaNone": "Δ",
+    "tablePartialNote": "Month in progress; it does not count in the average."
   }
 }

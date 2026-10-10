@@ -661,6 +661,15 @@
     "tipVsAverage": "Frente a su media",
     "hint": "Pasa el cursor, toca o enfoca un tramo para ver el detalle. Las categorías ocultas no cuentan en los totales. La línea continua es el presupuesto de las categorías visibles; deja una sola para ver el suyo. Se muestran las 7 categorías más grandes; el resto y los gastos sin categoría se agrupan en Otras.",
     "emptyTitle": "No hay gastos en este periodo",
-    "emptyDescription": "Registra algunos gastos, o elige un periodo más largo, para verlos mes a mes."
+    "emptyDescription": "Registra algunos gastos, o elige un periodo más largo, para verlos mes a mes.",
+    "tableTitle": "Comparativa por categoría",
+    "tableHint": "El sombreado es relativo al mes cerrado más alto de cada categoría. La variación compara el último mes cerrado con la media de los meses cerrados. Cada importe abre los gastos de ese mes (sin categoría y el total listan todos los gastos del mes).",
+    "tableCaption": "Gastos mensuales por categoría, con media y variación",
+    "tableCategory": "Categoría",
+    "tableTotal": "Total",
+    "tableAverage": "Media",
+    "tableDelta": "Δ {month}",
+    "tableDeltaNone": "Δ",
+    "tablePartialNote": "Mes en curso; no cuenta en la media."
   }
 }
