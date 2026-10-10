@@ -6,6 +6,7 @@ import {
   describePoint,
   formatCompact,
   monthlyRequest,
+  axisTicks,
   niceMax,
   parseReportsQuery,
   reportsHref,
@@ -227,6 +228,14 @@ describe("axis helpers", () => {
     expect(niceMax(0)).toBe(1);
     expect(niceMax(1470)).toBe(1500);
     expect(niceMax(1600)).toBe(2000);
+  });
+
+  it("splits the axis into round steps", () => {
+    expect(axisTicks(300000)).toEqual([0, 100000, 200000, 300000]);
+    expect(axisTicks(400000)).toEqual([0, 100000, 200000, 300000, 400000]);
+    expect(axisTicks(150000)).toEqual([0, 50000, 100000, 150000]);
+    expect(axisTicks(250000)).toEqual([0, 50000, 100000, 150000, 200000, 250000]);
+    expect(axisTicks(1)).toEqual([0, 0.25, 0.5, 0.75, 1]);
   });
 
   it("formats compact amounts in minor units", () => {

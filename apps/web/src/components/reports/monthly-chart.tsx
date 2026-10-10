@@ -7,6 +7,7 @@ import { intlLocale, isLocale } from "@/i18n/locales";
 import { formatMonth } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import {
+  axisTicks,
   buildReport,
   computeView,
   describePoint,
@@ -114,7 +115,7 @@ export function MonthlyChart({
   const y = (value: number) => margin.top + innerH - (Math.min(value, yMax) / yMax) * innerH;
   const band = innerW / shape.months.length;
   const barWidth = Math.min(64, band * (shape.months.length > 6 ? 0.62 : 0.5));
-  const ticks = [0, 1, 2, 3, 4].map((k) => (yMax * k) / 4);
+  const ticks = axisTicks(yMax);
   const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
 
   const showAt = (series: Series, index: number, event: React.PointerEvent | React.FocusEvent<SVGElement>) => {

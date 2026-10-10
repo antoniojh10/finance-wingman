@@ -269,6 +269,20 @@ export function niceMax(value: number): number {
   return step * power;
 }
 
+/**
+ * Axis ticks from 0 to `max`, in 3 to 6 steps whose size is a round
+ * number (1, 2, 2.5 or 5 times a power of ten), e.g. 0, 1K, 2K, 3K
+ * rather than 0, 750, 1.5K.
+ */
+export function axisTicks(max: number): number[] {
+  const isRound = (step: number) => {
+    const mantissa = step / 10 ** Math.floor(Math.log10(step));
+    return [1, 2, 2.5, 5].some((m) => Math.abs(mantissa - m) < 1e-9);
+  };
+  const count = [4, 3, 5, 6].find((n) => isRound(max / n)) ?? 4;
+  return Array.from({ length: count + 1 }, (_, k) => (max * k) / count);
+}
+
 /** Short amount for axes and bar totals, e.g. "€1.2K". */
 export function formatCompact(amount: number, currency: string, minorUnits: number, locale: string): string {
   return new Intl.NumberFormat(locale, { style: "currency", currency, notation: "compact", maximumFractionDigits: 1 }).format(
