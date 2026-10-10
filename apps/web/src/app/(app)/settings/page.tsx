@@ -1,4 +1,4 @@
-import { ChevronRightIcon, HistoryIcon, LogOutIcon, RepeatIcon, ShieldIcon, TagIcon, UsersIcon, type LucideIcon } from "lucide-react";
+import { ChartColumnStackedIcon, ChevronRightIcon, HistoryIcon, LogOutIcon, RepeatIcon, ShieldIcon, TagIcon, UsersIcon, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -115,6 +115,7 @@ export default async function SettingsPage() {
 
           <SectionLink href="/settings/security" icon={ShieldIcon} title={t("security.title")} description={t("security.settingsDescription")} />
           <SectionLink href="/settings/activity" icon={HistoryIcon} title={t("activity.title")} description={t("settings.activityDescription")} />
+          <SectionLink href="/reports" icon={ChartColumnStackedIcon} title={t("nav.reports")} description={t("settings.reportsDescription")} />
           <SectionLink href="/subscriptions" icon={RepeatIcon} title={t("nav.subscriptions")} description={t("settings.subscriptionsDescription")} />
           <SectionLink href="/categories" icon={TagIcon} title={t("nav.categories")} description={t("settings.categoriesDescription")} />
 

@@ -39,6 +39,11 @@ describe("TabLinks", () => {
     expect(screen.queryByRole("link", { name: "Categories" })).not.toBeInTheDocument();
   });
 
+  it("leaves reports to settings so the bar keeps four sections", () => {
+    renderWithIntl(<TabLinks />);
+    expect(screen.queryByRole("link", { name: "Reports" })).not.toBeInTheDocument();
+  });
+
   it("keeps four sections around the add button", () => {
     renderWithIntl(<TabLinks />);
     expect(screen.getAllByRole("link")).toHaveLength(5);
@@ -59,6 +64,11 @@ describe("SidebarLinks", () => {
     expect(screen.getByRole("link", { name: "Categories" })).toHaveAttribute("href", "/categories");
     expect(screen.getByRole("link", { name: "Subscriptions" })).toHaveAttribute("href", "/subscriptions");
     expect(screen.getByRole("link", { name: "Budgets" })).toHaveAttribute("href", "/budgets");
+  });
+
+  it("lists reports", () => {
+    renderWithIntl(<SidebarLinks />);
+    expect(screen.getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
   });
 
   it("includes settings", () => {

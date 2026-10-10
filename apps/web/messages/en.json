@@ -29,7 +29,8 @@
     "settings": "Settings",
     "signOut": "Sign out",
     "subscriptions": "Subscriptions",
-    "budgets": "Budgets"
+    "budgets": "Budgets",
+    "reports": "Reports"
   },
   "auth": {
     "title": "Sign in",
@@ -236,7 +237,8 @@
     "exportJson": "Download JSON",
     "exportCsv": "Download CSV (zip)",
     "subscriptionsDescription": "Recurring payments and detected suggestions.",
-    "activityDescription": "Who changed what, from the web or an AI assistant."
+    "activityDescription": "Who changed what, from the web or an AI assistant.",
+    "reportsDescription": "Compare your spending by category, month by month."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -630,5 +632,35 @@
     "loadMore": "Load more",
     "loading": "Loading…",
     "loadFailed": "Couldn't load more activity. Try again."
+  },
+  "reports": {
+    "title": "Reports",
+    "period": "Period",
+    "periodOption": "{count} months",
+    "currency": "Currency",
+    "scale": "Scale",
+    "scaleAmount": "Amount",
+    "scaleShare": "% of month",
+    "includeCurrent": "Include the current month",
+    "ownerHint": "Budgets are workspace-wide, so the budget line is hidden when viewing a single owner.",
+    "chartTitle": "Monthly spending by category",
+    "subtitle": "{from} – {to} · expenses only (no transfers) · {currency}",
+    "statTotal": "Period total",
+    "statAverage": "Monthly average (closed months)",
+    "statHighest": "Highest month · {month}",
+    "legendLabel": "Categories (press to hide or show)",
+    "otherCount": "{name} ({count})",
+    "chartLabel": "Stacked bar chart of monthly spending by category",
+    "inProgress": "in progress",
+    "inProgressShort": "in progress",
+    "averageLine": "average {amount}",
+    "budgetLine": "budget {amount}",
+    "categoryBudgetLine": "{name} budget {amount}",
+    "tipShare": "Of the month",
+    "tipAverage": "Category average",
+    "tipVsAverage": "Vs. its average",
+    "hint": "Hover, tap or focus a segment for details. Hidden categories do not count in the totals. The solid line is the budget of the visible categories; leave a single one visible to see its own. The top 7 categories are shown; the rest and uncategorized expenses are grouped as Other.",
+    "emptyTitle": "No expenses in this period",
+    "emptyDescription": "Record some expenses, or pick a longer period, to see them month by month."
   }
 }
