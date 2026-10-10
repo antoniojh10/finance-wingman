@@ -85,3 +85,75 @@ func (q *Queries) SummaryByCategory(ctx context.Context, arg SummaryByCategoryPa
 	}
 	return items, nil
 }
+
+const summaryMonthlyExpenses = `-- name: SummaryMonthlyExpenses :many
+SELECT
+    a.currency,
+    t.category_id,
+    c.name AS category_name,
+    c.color AS category_color,
+    c.archived_at AS category_archived_at,
+    date_trunc('month', t.occurred_on)::date AS month,
+    sum(t.amount)::bigint AS total
+FROM transactions t
+JOIN accounts a ON a.id = t.account_id
+LEFT JOIN categories c ON c.id = t.category_id
+WHERE t.type = 'expense'
+  AND t.occurred_on BETWEEN $1 AND $2
+  AND ($3::uuid IS NULL OR a.owner_user_id = $3)
+  AND (NOT $4::boolean OR a.owner_user_id IS NULL)
+GROUP BY a.currency, t.category_id, c.name, c.color, c.archived_at, date_trunc('month', t.occurred_on)
+`
+
+type SummaryMonthlyExpensesParams struct {
+	FromDate   time.Time
+	ToDate     time.Time
+	OwnerID    *uuid.UUID
+	SharedOnly bool
+}
+
+type SummaryMonthlyExpensesRow struct {
+	Currency           string
+	CategoryID         *uuid.UUID
+	CategoryName       *string
+	CategoryColor      *string
+	CategoryArchivedAt *time.Time
+	Month              time.Time
+	Total              int64
+}
+
+// Expenses per currency, category and calendar month in a date range.
+// Uncategorized expenses come back with a null category. Income and
+// transfers are not expenses.
+func (q *Queries) SummaryMonthlyExpenses(ctx context.Context, arg SummaryMonthlyExpensesParams) ([]SummaryMonthlyExpensesRow, error) {
+	rows, err := q.db.Query(ctx, summaryMonthlyExpenses,
+		arg.FromDate,
+		arg.ToDate,
+		arg.OwnerID,
+		arg.SharedOnly,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SummaryMonthlyExpensesRow{}
+	for rows.Next() {
+		var i SummaryMonthlyExpensesRow
+		if err := rows.Scan(
+			&i.Currency,
+			&i.CategoryID,
+			&i.CategoryName,
+			&i.CategoryColor,
+			&i.CategoryArchivedAt,
+			&i.Month,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
