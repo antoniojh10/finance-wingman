@@ -29,7 +29,8 @@
     "settings": "Ajustes",
     "signOut": "Cerrar sesión",
     "subscriptions": "Suscripciones",
-    "budgets": "Presupuestos"
+    "budgets": "Presupuestos",
+    "reports": "Informes"
   },
   "auth": {
     "title": "Iniciar sesión",
@@ -236,7 +237,8 @@
     "exportJson": "Descargar JSON",
     "exportCsv": "Descargar CSV (zip)",
     "subscriptionsDescription": "Pagos recurrentes y sugerencias detectadas.",
-    "activityDescription": "Quién cambió qué, desde la web o un asistente de IA."
+    "activityDescription": "Quién cambió qué, desde la web o un asistente de IA.",
+    "reportsDescription": "Compara tus gastos por categoría, mes a mes."
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -630,5 +632,35 @@
     "loadMore": "Cargar más",
     "loading": "Cargando…",
     "loadFailed": "No se pudo cargar más actividad. Inténtalo de nuevo."
+  },
+  "reports": {
+    "title": "Informes",
+    "period": "Periodo",
+    "periodOption": "{count} meses",
+    "currency": "Moneda",
+    "scale": "Escala",
+    "scaleAmount": "Importe",
+    "scaleShare": "% del mes",
+    "includeCurrent": "Incluir el mes en curso",
+    "ownerHint": "Los presupuestos son del espacio de trabajo, así que la línea de presupuesto se oculta al ver a un solo propietario.",
+    "chartTitle": "Gasto mensual por categoría",
+    "subtitle": "{from} – {to} · solo gastos (sin transferencias) · {currency}",
+    "statTotal": "Total del periodo",
+    "statAverage": "Media mensual (meses cerrados)",
+    "statHighest": "Mes más alto · {month}",
+    "legendLabel": "Categorías (pulsa para ocultar o mostrar)",
+    "otherCount": "{name} ({count})",
+    "chartLabel": "Gráfica de barras apiladas del gasto mensual por categoría",
+    "inProgress": "en curso",
+    "inProgressShort": "en curso",
+    "averageLine": "media {amount}",
+    "budgetLine": "presupuesto {amount}",
+    "categoryBudgetLine": "presupuesto {name} {amount}",
+    "tipShare": "Del total del mes",
+    "tipAverage": "Media de la categoría",
+    "tipVsAverage": "Frente a su media",
+    "hint": "Pasa el cursor, toca o enfoca un tramo para ver el detalle. Las categorías ocultas no cuentan en los totales. La línea continua es el presupuesto de las categorías visibles; deja una sola para ver el suyo. Se muestran las 7 categorías más grandes; el resto y los gastos sin categoría se agrupan en Otras.",
+    "emptyTitle": "No hay gastos en este periodo",
+    "emptyDescription": "Registra algunos gastos, o elige un periodo más largo, para verlos mes a mes."
   }
 }
