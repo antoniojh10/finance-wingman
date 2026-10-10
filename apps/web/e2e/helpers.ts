@@ -139,3 +139,62 @@ export async function openWorkspaceMenu(page: Page): Promise<void> {
 export async function expectWorkspace(page: Page, name: string): Promise<void> {
   await expect(page.getByRole("button", { name: "Switch workspace" }).filter({ visible: true }).first()).toContainText(name);
 }
+
+export type SeededCategory = { name: string; id: string; base: number };
+
+/**
+ * Seeds `months` months of expenses through the REST API, authenticated with
+ * the session cookie of `page`: one account, one expense per category per
+ * month, and one uncategorized expense per month. Amounts are deterministic.
+ * The current month only gets dates on its first day, so none is in the future.
+ */
+export async function seedExpenseHistory(
+  page: Page,
+  options: { suffix: string; currency: string; months: number; categories: { name: string; base: number }[] },
+): Promise<{ accountName: string; categories: SeededCategory[] }> {
+  const token = (await page.context().cookies()).find((c) => c.name === "fw_session")?.value;
+  if (!token) throw new Error("no session cookie to seed with");
+  const api = `http://localhost:${apiPort}/api/v1`;
+  const headers = { Authorization: `Bearer ${token}` };
+  const post = async (route: string, data: unknown) => {
+    const res = await page.request.fetch(`${api}${route}`, { method: "POST", headers, data });
+    expect(res.ok(), `POST ${route}: ${await res.text()}`).toBeTruthy();
+    return res.json();
+  };
+
+  const accountName = `Seed account ${options.suffix}`;
+  const account = await post("/accounts", {
+    name: accountName,
+    type: "checking",
+    currency: options.currency,
+    initial_balance: 0,
+    balance_as_of: "2000-01-01",
+  });
+
+  const { items } = await post("/categories/batch", {
+    items: options.categories.map((c) => ({ name: c.name, kind: "expense" })),
+  });
+  const idByName = new Map<string, string>(items.map((c: { id: string; name: string }) => [c.name, c.id]));
+  const categories = options.categories.map((c) => ({ name: c.name, base: c.base, id: idByName.get(c.name) as string }));
+
+  const today = new Date();
+  const transactions: Record<string, unknown>[] = [];
+  for (let back = options.months - 1; back >= 0; back--) {
+    const day = (n: number) => new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - back, n)).toISOString().slice(0, 10);
+    categories.forEach((c, index) => {
+      // Varies by month and category so the chart has a shape; always positive.
+      const factor = 0.8 + (((back * 37 + index * 11) % 40) / 100);
+      transactions.push({
+        type: "expense",
+        account_id: account.id,
+        amount: Math.round(c.base * factor * 100),
+        category_id: c.id,
+        description: `${c.name} ${back}`,
+        occurred_on: day(back === 0 ? 1 : 5 + ((index * 7 + back * 3) % 15)),
+      });
+    });
+    transactions.push({ type: "expense", account_id: account.id, amount: 1250, description: `Cash ${back}`, occurred_on: day(back === 0 ? 1 : 2) });
+  }
+  await post("/transactions/batch", { items: transactions });
+  return { accountName, categories };
+}
