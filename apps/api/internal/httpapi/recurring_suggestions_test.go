@@ -3,6 +3,7 @@ package httpapi
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 )
@@ -273,24 +274,30 @@ func TestMatchRecurringItem(t *testing.T) {
 	api := newTestAPI(t)
 	account := api.createAccount("Card", "MXN", 0)
 	other := api.createAccount("Other", "MXN", 0)
+	// Monthly items starting on the 1st two months ago, paid on their second
+	// due date: day 1 never gets clamped by short months.
+	now := time.Now().UTC()
+	firstDue := time.Date(now.Year(), now.Month()-2, 1, 0, 0, 0, 0, time.UTC)
+	startOn := firstDue.Format(time.DateOnly)
+	paidOn := firstDue.AddDate(0, 1, 0).Format(time.DateOnly)
 	netflix := api.createRecurring(map[string]any{
-		"name": "Netflix", "type": "expense", "account_id": account.ID, "amount": 18900, "interval_unit": "month", "start_on": daysFromToday(-40),
+		"name": "Netflix", "type": "expense", "account_id": account.ID, "amount": 18900, "interval_unit": "month", "start_on": startOn,
 	})
 	api.createRecurring(map[string]any{
-		"name": "Netflix Premium", "type": "expense", "account_id": account.ID, "amount": 29900, "interval_unit": "month", "start_on": daysFromToday(-40),
+		"name": "Netflix Premium", "type": "expense", "account_id": account.ID, "amount": 29900, "interval_unit": "month", "start_on": startOn,
 	})
 	api.createRecurring(map[string]any{
-		"name": "Netflix Family", "type": "expense", "account_id": other.ID, "amount": 100, "interval_unit": "month", "start_on": daysFromToday(-40),
+		"name": "Netflix Family", "type": "expense", "account_id": other.ID, "amount": 100, "interval_unit": "month", "start_on": startOn,
 	})
 	pay := func(desc string, amount int64, account finance.Account) finance.Transaction {
 		return api.createTransaction(map[string]any{
-			"type": "expense", "account_id": account.ID, "amount": amount, "description": desc, "occurred_on": daysFromToday(-9),
+			"type": "expense", "account_id": account.ID, "amount": amount, "description": desc, "occurred_on": paidOn,
 		})
 	}
 
 	tx := pay("NETFLIX.COM 8812", 19500, account)
 	m := api.recurringMatch(tx.ID.String())
-	if m.Item == nil || m.Item.ID != netflix.ID || m.PeriodDueOn == nil || *m.PeriodDueOn != daysFromToday(-9) {
+	if m.Item == nil || m.Item.ID != netflix.ID || m.PeriodDueOn == nil || *m.PeriodDueOn != paidOn {
 		t.Fatalf("expected the Netflix item and its closest period: %+v %v", m.Item, m.PeriodDueOn)
 	}
 
