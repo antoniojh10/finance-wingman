@@ -729,6 +729,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/summary/monthly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly spending by category
+         * @description Expenses per currency, category and calendar month for the last 3, 6 or 12 months, the current (partial) one included, with the budgets in force. Transfers and income are excluded.
+         */
+        get: operations["get-monthly-summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/transactions": {
         parameters: {
             query?: never;
@@ -1887,6 +1907,48 @@ export interface components {
             name: string;
             /** @enum {string} */
             role: "owner" | "member";
+        };
+        MonthlyCategory: {
+            archived: boolean;
+            /** @description Budget in force per month, in minor units; null where the category has none, or everywhere when an owner filter is applied */
+            budgets: (number | null)[];
+            /** @description Null for uncategorized expenses */
+            category_id: string | null;
+            color: string | null;
+            /** @description Null for uncategorized expenses */
+            name: string | null;
+            /** @description Expenses per month, in minor units; one value per entry of months */
+            totals: number[];
+        };
+        MonthlyCurrency: {
+            /** @description Sum of the budgets in force per month for the currency, in minor units; null where none is set, or everywhere when an owner filter is applied */
+            budgets: (number | null)[];
+            /** @description Categories with expenses in the window, largest period total first */
+            categories: components["schemas"]["MonthlyCategory"][];
+            /** @example MXN */
+            currency: string;
+            /**
+             * Format: int64
+             * @example 2
+             */
+            minor_units: number;
+            /** @description Calendar months (YYYY-MM), oldest first, ending with the current one */
+            months: string[];
+            /** @description The month still in progress (the last one), whose figures are not final */
+            partial_month: string;
+            /** @description Total expenses per month, in minor units */
+            totals: number[];
+        };
+        MonthlySummary: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/MonthlySummary.json
+             */
+            readonly $schema?: string;
+            currencies: components["schemas"]["MonthlyCurrency"][];
+            /** @description Calendar months (YYYY-MM), oldest first, ending with the current one */
+            months: string[];
         };
         RecurringCurrencySummary: {
             /** @example MXN */
@@ -4027,6 +4089,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Summary"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-monthly-summary": {
+        parameters: {
+            query?: {
+                /** @description Calendar months to cover, the current one included: 3, 6 or 12 */
+                months?: number;
+                /** @description Limit to accounts of this owner: "me", "shared" or a member's user id; omit for the whole workspace. Budgets are null when an owner is given */
+                owner?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonthlySummary"];
                 };
             };
             /** @description Error */

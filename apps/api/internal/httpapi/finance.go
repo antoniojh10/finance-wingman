@@ -484,7 +484,31 @@ type summaryInput struct {
 	Owner string `query:"owner" doc:"Limit to accounts of this owner: \"me\", \"shared\" or a member's user id; omit for the whole workspace"`
 }
 
+type monthlySummaryInput struct {
+	Months int    `query:"months" default:"6" doc:"Calendar months to cover, the current one included: 3, 6 or 12"`
+	Owner  string `query:"owner" doc:"Limit to accounts of this owner: \"me\", \"shared\" or a member's user id; omit for the whole workspace. Budgets are null when an owner is given"`
+}
+
 func (h *financeHandlers) registerSummary(api huma.API) {
+	huma.Register(api, huma.Operation{
+		OperationID: "get-monthly-summary",
+		Method:      http.MethodGet,
+		Path:        apiPrefix + "/summary/monthly",
+		Summary:     "Monthly spending by category",
+		Description: "Expenses per currency, category and calendar month for the last 3, 6 or 12 months, the current (partial) one included, with the budgets in force. Transfers and income are excluded.",
+		Tags:        []string{"Summary"},
+	}, func(ctx context.Context, in *monthlySummaryInput) (*bodyOutput[finance.MonthlySummary], error) {
+		owner, err := finance.ParseOwnerFilter(ctx, "query.owner", in.Owner)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		summary, err := h.svc.MonthlySpending(ctx, in.Months, owner)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		return &bodyOutput[finance.MonthlySummary]{Body: summary}, nil
+	})
+
 	huma.Register(api, huma.Operation{
 		OperationID: "get-summary",
 		Method:      http.MethodGet,

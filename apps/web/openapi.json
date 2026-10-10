@@ -2032,6 +2032,160 @@
         ],
         "type": "object"
       },
+      "MonthlyCategory": {
+        "additionalProperties": false,
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          },
+          "budgets": {
+            "description": "Budget in force per month, in minor units; null where the category has none, or everywhere when an owner filter is applied",
+            "items": {
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "type": "array"
+          },
+          "category_id": {
+            "description": "Null for uncategorized expenses",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "description": "Null for uncategorized expenses",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "totals": {
+            "description": "Expenses per month, in minor units; one value per entry of months",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "category_id",
+          "name",
+          "color",
+          "archived",
+          "totals",
+          "budgets"
+        ],
+        "type": "object"
+      },
+      "MonthlyCurrency": {
+        "additionalProperties": false,
+        "properties": {
+          "budgets": {
+            "description": "Sum of the budgets in force per month for the currency, in minor units; null where none is set, or everywhere when an owner filter is applied",
+            "items": {
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "type": "array"
+          },
+          "categories": {
+            "description": "Categories with expenses in the window, largest period total first",
+            "items": {
+              "$ref": "#/components/schemas/MonthlyCategory"
+            },
+            "type": "array"
+          },
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "months": {
+            "description": "Calendar months (YYYY-MM), oldest first, ending with the current one",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "partial_month": {
+            "description": "The month still in progress (the last one), whose figures are not final",
+            "pattern": "^\\d{4}-\\d{2}$",
+            "type": "string"
+          },
+          "totals": {
+            "description": "Total expenses per month, in minor units",
+            "items": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "currency",
+          "minor_units",
+          "months",
+          "partial_month",
+          "categories",
+          "totals",
+          "budgets"
+        ],
+        "type": "object"
+      },
+      "MonthlySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/MonthlySummary.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/MonthlyCurrency"
+            },
+            "type": "array"
+          },
+          "months": {
+            "description": "Calendar months (YYYY-MM), oldest first, ending with the current one",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "months",
+          "currencies"
+        ],
+        "type": "object"
+      },
       "RecurringCurrencySummary": {
         "additionalProperties": false,
         "properties": {
@@ -5572,6 +5726,62 @@
           }
         },
         "summary": "Income and expense summary",
+        "tags": [
+          "Summary"
+        ]
+      }
+    },
+    "/api/v1/summary/monthly": {
+      "get": {
+        "description": "Expenses per currency, category and calendar month for the last 3, 6 or 12 months, the current (partial) one included, with the budgets in force. Transfers and income are excluded.",
+        "operationId": "get-monthly-summary",
+        "parameters": [
+          {
+            "description": "Calendar months to cover, the current one included: 3, 6 or 12",
+            "explode": false,
+            "in": "query",
+            "name": "months",
+            "schema": {
+              "default": 6,
+              "description": "Calendar months to cover, the current one included: 3, 6 or 12",
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Limit to accounts of this owner: \"me\", \"shared\" or a member's user id; omit for the whole workspace. Budgets are null when an owner is given",
+            "explode": false,
+            "in": "query",
+            "name": "owner",
+            "schema": {
+              "description": "Limit to accounts of this owner: \"me\", \"shared\" or a member's user id; omit for the whole workspace. Budgets are null when an owner is given",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlySummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Monthly spending by category",
         "tags": [
           "Summary"
         ]
