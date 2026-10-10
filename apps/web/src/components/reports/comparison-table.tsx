@@ -44,6 +44,26 @@ export function ComparisonTable({
   const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0, signDisplay: "exceptZero" });
   const lastClosed = grid.lastClosedIndex >= 0 ? formatShortMonth(grid.months[grid.lastClosedIndex], locale) : null;
 
+  const deltaLabel = lastClosed ? t("tableDelta", { month: lastClosed }) : t("tableDeltaNone");
+
+  // Average and Δ are rendered twice: right after the category on phones and
+  // after the months from md up. The unused copy is display:none, so it is
+  // hidden from assistive tech too.
+  const summaryCells = (row: ComparisonRow, tone: ReturnType<typeof deltaTone>, visibility: string, suffix: string) => (
+    <>
+      <TableCell className={cn("text-right tabular-nums", visibility)} data-testid={`comparison-average${suffix}`}>
+        {row.average > 0 ? money(row.average) : "—"}
+      </TableCell>
+      <TableCell
+        className={cn("text-right tabular-nums", visibility, tone === "up" && "text-expense", tone === "down" && "text-income")}
+        data-testid={`comparison-delta${suffix}`}
+        data-tone={tone ?? undefined}
+      >
+        {row.delta === null ? "—" : percent.format(row.delta)}
+      </TableCell>
+    </>
+  );
+
   const renderRow = (row: ComparisonRow, isTotal: boolean) => {
     const tone = deltaTone(row.delta);
     return (
@@ -54,6 +74,7 @@ export function ComparisonTable({
             <span className="truncate">{isTotal ? t("tableTotal") : row.name}</span>
           </span>
         </TableHead>
+        {summaryCells(row, tone, "md:hidden", "-mobile")}
         {row.values.map((value, i) => {
           const share = isTotal ? 0 : heatShare(row, i, grid.partialIndex);
           return (
@@ -75,16 +96,7 @@ export function ComparisonTable({
             </TableCell>
           );
         })}
-        <TableCell className="text-right tabular-nums" data-testid="comparison-average">
-          {row.average > 0 ? money(row.average) : "—"}
-        </TableCell>
-        <TableCell
-          className={cn("text-right tabular-nums", tone === "up" && "text-expense", tone === "down" && "text-income")}
-          data-testid="comparison-delta"
-          data-tone={tone ?? undefined}
-        >
-          {row.delta === null ? "—" : percent.format(row.delta)}
-        </TableCell>
+        {summaryCells(row, tone, "hidden md:table-cell", "")}
       </TableRow>
     );
   };
@@ -97,6 +109,8 @@ export function ComparisonTable({
         <TableHeader>
           <TableRow>
             <TableHead className={STICKY}>{t("tableCategory")}</TableHead>
+            <TableHead className="text-right md:hidden">{t("tableAverage")}</TableHead>
+            <TableHead className="text-right md:hidden">{deltaLabel}</TableHead>
             {grid.months.map((month, i) => (
               <TableHead key={month} className="text-right" data-partial={i === grid.partialIndex ? "true" : undefined}>
                 {formatShortMonth(month, locale)}
@@ -108,8 +122,8 @@ export function ComparisonTable({
                 )}
               </TableHead>
             ))}
-            <TableHead className="text-right">{t("tableAverage")}</TableHead>
-            <TableHead className="text-right">{lastClosed ? t("tableDelta", { month: lastClosed }) : t("tableDeltaNone")}</TableHead>
+            <TableHead className="hidden text-right md:table-cell">{t("tableAverage")}</TableHead>
+            <TableHead className="hidden text-right md:table-cell">{deltaLabel}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
