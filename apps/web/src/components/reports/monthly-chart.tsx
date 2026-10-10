@@ -7,6 +7,7 @@ import { intlLocale, isLocale } from "@/i18n/locales";
 import { formatMonth } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import {
+  axisTicks,
   buildReport,
   computeView,
   describePoint,
@@ -65,11 +66,14 @@ export function MonthlyChart({
   months,
   includeCurrent,
   scale,
+  compact: dense = false,
 }: {
   data: MonthlyCurrency;
   months: number;
   includeCurrent: boolean;
   scale: ReportsScale;
+  /** The dashboard variant: shorter, without the totals row, reference lines and hint. */
+  compact?: boolean;
 }) {
   const t = useTranslations("reports");
   const common = useTranslations("common");
@@ -103,7 +107,7 @@ export function MonthlyChart({
   const share = scale === "share";
   // The key names the budget of the latest month that has one.
   const latestBudget = view.budgetLine?.findLast((b) => b !== null) ?? null;
-  const height = width < 520 ? 300 : 360;
+  const height = dense ? 220 : width < 520 ? 300 : 360;
   const margin = { top: 24, right: 8, bottom: 40, left: width < 520 ? 44 : 58 };
   const innerW = width - margin.left - margin.right;
   const innerH = height - margin.top - margin.bottom;
@@ -111,7 +115,7 @@ export function MonthlyChart({
   const y = (value: number) => margin.top + innerH - (Math.min(value, yMax) / yMax) * innerH;
   const band = innerW / shape.months.length;
   const barWidth = Math.min(64, band * (shape.months.length > 6 ? 0.62 : 0.5));
-  const ticks = [0, 1, 2, 3, 4].map((k) => (yMax * k) / 4);
+  const ticks = axisTicks(yMax);
   const percent = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
 
   const showAt = (series: Series, index: number, event: React.PointerEvent | React.FocusEvent<SVGElement>) => {
@@ -142,14 +146,16 @@ export function MonthlyChart({
         <p className="text-[13px] text-muted-foreground" data-testid="reports-subtitle">
           {t("subtitle", { from: monthName(first), to: monthName(last), currency: shape.currency })}
         </p>
-        <dl className="flex flex-wrap gap-x-6 gap-y-1.5">
-          {stats.map((stat) => (
-            <div key={stat.label} className="grid">
-              <dd className="font-mono text-lg font-medium tabular-nums">{stat.value}</dd>
-              <dt className="text-xs text-muted-foreground">{stat.label}</dt>
-            </div>
-          ))}
-        </dl>
+        {!dense && (
+          <dl className="flex flex-wrap gap-x-6 gap-y-1.5">
+            {stats.map((stat) => (
+              <div key={stat.label} className="grid">
+                <dd className="font-mono text-lg font-medium tabular-nums">{stat.value}</dd>
+                <dt className="text-xs text-muted-foreground">{stat.label}</dt>
+              </div>
+            ))}
+          </dl>
+        )}
       </div>
 
       <div role="group" aria-label={t("legendLabel")} className="flex flex-wrap gap-1.5">
@@ -271,14 +277,14 @@ export function MonthlyChart({
             );
           })}
 
-          {!share && view.average > 0 && <AverageLine y={y(view.average)} left={margin.left} right={width - margin.right} />}
-          {!share && view.budgetLine && <BudgetLine budgets={view.budgetLine} y={y} left={margin.left} band={band} />}
+          {!share && !dense && view.average > 0 && <AverageLine y={y(view.average)} left={margin.left} right={width - margin.right} />}
+          {!share && !dense && view.budgetLine && <BudgetLine budgets={view.budgetLine} y={y} left={margin.left} band={band} />}
         </svg>
         {hover && detail && (
           <ChartTooltip detail={detail} x={hover.x} y={hover.y} containerWidth={width} money={money} monthLabel={monthName(detail.month)} />
         )}
       </div>
-      {!share && (view.average > 0 || latestBudget !== null) && (
+      {!share && !dense && (view.average > 0 || latestBudget !== null) && (
         // Reference lines are named here rather than inside the chart, where
         // their labels would collide with the bar totals.
         <ul className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs" data-testid="reference-lines">
@@ -302,7 +308,7 @@ export function MonthlyChart({
           )}
         </ul>
       )}
-      <p className="text-xs text-muted-foreground">{t("hint")}</p>
+      {!dense && <p className="text-xs text-muted-foreground">{t("hint")}</p>}
     </div>
   );
 }

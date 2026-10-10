@@ -7,6 +7,7 @@ import { BalanceOverview } from "@/components/dashboard/balance-overview";
 import { BudgetsCard } from "@/components/dashboard/budgets-card";
 import { MonthPicker } from "@/components/dashboard/month-picker";
 import { OwnerFilter } from "@/components/owner-filter";
+import { SpendingTrendCard, TREND_MONTHS } from "@/components/dashboard/spending-trend-card";
 import { SubscriptionsCard } from "@/components/dashboard/subscriptions-card";
 import { PageHeader } from "@/components/page-header";
 import { TransactionList } from "@/components/transactions/transaction-list";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { monthOf, monthRange, parseMonth, today } from "@/lib/dates";
 import { accountLabel, parseOwner } from "@/lib/owners";
+import { parseReportsQuery, reportsHref } from "@/lib/reports";
 import { authedApi, expectData, getAccountOwners, getCurrentUser } from "@/lib/session";
 import { toAccountOption, toCategoryOption, toRecurringNames, toRecurringOption, toTransactionRow } from "@/lib/view-models";
 import { NEW_ACCOUNT_HREF } from "@/components/accounts/new-account-dialog";
@@ -43,7 +45,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const owner = parseOwner(params.owner);
 
   const api = await authedApi();
-  const [summaryRes, accountsRes, categoriesRes, recentRes, upcomingRes, committedRes, recurringRes, suggestionsRes, budgetsRes, owners, user] = await Promise.all([
+  const [summaryRes, accountsRes, categoriesRes, recentRes, upcomingRes, committedRes, recurringRes, suggestionsRes, budgetsRes, trendRes, owners, user] = await Promise.all([
     api.GET("/api/v1/summary", { params: { query: { from, to, owner } } }),
     api.GET("/api/v1/accounts", { params: { query: { owner } } }),
     api.GET("/api/v1/categories"),
@@ -53,6 +55,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     api.GET("/api/v1/recurring"),
     api.GET("/api/v1/recurring/suggestions"),
     api.GET("/api/v1/budgets", { params: { query: { month, owner } } }),
+    api.GET("/api/v1/summary/monthly", { params: { query: { months: TREND_MONTHS, owner } } }),
     getAccountOwners(),
     getCurrentUser(),
   ]);
@@ -101,6 +104,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       />
 
       <BudgetsCard currencies={expectData(budgetsRes).currencies} href={`/budgets?${new URLSearchParams({ month, ...(owner && { owner }) })}`} />
+
+      <SpendingTrendCard currencies={expectData(trendRes).currencies} href={reportsHref(parseReportsQuery({}), { owner })} />
 
       <section className="grid gap-2.5" aria-labelledby="accounts-heading">
         <div className="flex items-center justify-between px-1">
