@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { OwnerOption } from "@/lib/owners";
 import { buildReport, type MonthlyCurrency, type ReportsQuery } from "@/lib/reports";
 
+import { ComparisonTable } from "./comparison-table";
 import { MonthlyChart } from "./monthly-chart";
 import { ReportsFilters } from "./reports-filters";
 
@@ -54,6 +55,18 @@ export function ReportsView({
           )}
         </CardContent>
       </Card>
+      {selected && hasExpenses && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              <h2>{t("tableTitle")}</h2>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ComparisonTable key={selected.currency} data={selected} months={query.months} includeCurrent={query.includeCurrent} owner={query.owner} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
