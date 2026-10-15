@@ -507,6 +507,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/groceries/basket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monthly basket cost per store
+         * @description The basket is the average monthly quantity of each product over the last full months. Each store is valued with its cheapest variant of every product; stores missing prices are flagged. Includes the best single store and the split basket (each product at its cheapest store).
+         */
+        get: operations["get-groceries-basket"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groceries/breakdown": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Grocery spending of a month
+         * @description Receipts of the month per currency: total, average receipt, spend by product group and store, top 10 products, how much of the lines is mapped to products, and the Groceries category expenses to compare with.
+         */
+        get: operations["get-groceries-breakdown"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groceries/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare supermarket prices
+         * @description Matrix of products (or brands) by store with the cheapest latest unit price of the last 180 days, per currency. Observations older than 60 days are flagged stale.
+         */
+        get: operations["compare-grocery-stores"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/groceries/groups": {
         parameters: {
             query?: never;
@@ -543,6 +603,47 @@ export interface paths {
         head?: never;
         /** Update a product group */
         patch: operations["update-product-group"];
+        trace?: never;
+    };
+    "/api/v1/groceries/price-checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List price checks
+         * @description Prices seen in a store without buying, newest first (at most 200).
+         */
+        get: operations["list-price-checks"];
+        put?: never;
+        /**
+         * Record a price check
+         * @description Notes the pack price of a variant at a store. The unit price is the pack price divided by the pack size (loose variants: the price per compare unit).
+         */
+        post: operations["create-price-check"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groceries/price-checks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a price check */
+        delete: operations["delete-price-check"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/groceries/products": {
@@ -587,6 +688,26 @@ export interface paths {
          * @description Renames it, changes its group, compare unit or display multiplier, or archives/unarchives it.
          */
         patch: operations["update-grocery-product"];
+        trace?: never;
+    };
+    "/api/v1/groceries/products/{id}/prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Prices of a product
+         * @description Latest unit price of each variant at each store and the monthly average unit price of the last 12 months.
+         */
+        get: operations["get-product-prices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/groceries/products/{id}/variants": {
@@ -1355,6 +1476,89 @@ export interface components {
             /** @description Pass as cursor to get the next page; null on the last page */
             next_cursor: string | null;
         };
+        Basket: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Basket.json
+             */
+            readonly $schema?: string;
+            currencies: components["schemas"]["CurrencyBasket"][];
+            /**
+             * Format: date
+             * @description First day of the first full month in the basket window
+             */
+            from: string;
+            /** Format: int64 */
+            months: number;
+            /**
+             * Format: date
+             * @description Last day of the last full month in the basket window
+             */
+            to: string;
+        };
+        BasketBestStore: {
+            /** Format: int64 */
+            cost_minor: number;
+            name: string;
+            store_id: string;
+        };
+        BasketMissing: {
+            name: string;
+            product_id: string;
+        };
+        BasketProduct: {
+            /** @enum {string} */
+            compare_unit: "kg" | "l" | "unit";
+            /** Format: int32 */
+            display_multiplier: number;
+            /**
+             * Format: double
+             * @description Average bought amount per month, in compare units
+             */
+            monthly_quantity: number;
+            name: string;
+            /**
+             * Format: int64
+             * @description Average monthly spend on the product
+             */
+            paid_minor: number;
+            product_id: string;
+        };
+        BasketSplit: {
+            /**
+             * Format: int64
+             * @description Monthly cost buying each priced product at its cheapest store
+             */
+            cost_minor: number;
+            lines: components["schemas"]["BasketSplitLine"][];
+            /** @description Products without a price at any store, left out of the split */
+            unpriced_products: components["schemas"]["BasketMissing"][];
+        };
+        BasketSplitLine: {
+            /** Format: int64 */
+            cost_minor: number;
+            name: string;
+            product_id: string;
+            store_id: string;
+            store_name: string;
+            /** Format: double */
+            unit_price_minor: number;
+        };
+        BasketStore: {
+            /** @description True when every basket product has a price at this store; otherwise cost_minor is not comparable */
+            complete: boolean;
+            /**
+             * Format: int64
+             * @description Monthly cost of the priced products using the store's cheapest variant of each
+             */
+            cost_minor: number;
+            missing_products: components["schemas"]["BasketMissing"][];
+            name: string;
+            /** Format: int64 */
+            priced_count: number;
+            store_id: string;
+        };
         BatchInputCreateAccountInputBody: {
             /**
              * Format: uri
@@ -1384,6 +1588,58 @@ export interface components {
             readonly $schema?: string;
             /** @description Items to create (1 to 100). All are created or none are */
             items: components["schemas"]["TransactionInput"][];
+        };
+        Breakdown: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Breakdown.json
+             */
+            readonly $schema?: string;
+            currencies: components["schemas"]["CurrencyBreakdown"][];
+            /** @example 2026-09 */
+            month: string;
+        };
+        BreakdownGroup: {
+            color: string | null;
+            /**
+             * Format: uuid
+             * @description Null: lines without a product or products without a group
+             */
+            group_id: string | null;
+            is_food: boolean | null;
+            name: string | null;
+            /**
+             * Format: double
+             * @description Percentage of lines_total_minor
+             */
+            share_pct: number;
+            /** Format: int64 */
+            total_minor: number;
+        };
+        BreakdownProduct: {
+            /** @enum {string} */
+            compare_unit: "kg" | "l" | "unit";
+            name: string;
+            product_id: string;
+            /**
+             * Format: double
+             * @description Bought amount in compare units
+             */
+            quantity: number;
+            /** Format: int64 */
+            spend_minor: number;
+        };
+        BreakdownStore: {
+            name: string;
+            /** Format: int64 */
+            receipt_count: number;
+            store_id: string;
+            /**
+             * Format: int64
+             * @description Sum of the receipt totals
+             */
+            total_minor: number;
         };
         BudgetCurrency: {
             /**
@@ -1610,6 +1866,41 @@ export interface components {
             /** Format: int64 */
             transaction_count: number;
         };
+        CompareRow: {
+            /**
+             * Format: uuid
+             * @description Cheapest store; null when only one store has a price
+             */
+            best_store_id: string | null;
+            /** @description Set at brand level */
+            brand: string | null;
+            /** @description Best price per store id; stores without a price are absent */
+            cells: {
+                [key: string]: components["schemas"]["PriceCell"];
+            };
+            /** @enum {string} */
+            compare_unit: "kg" | "l" | "unit";
+            /** Format: int32 */
+            display_multiplier: number;
+            /**
+             * Format: double
+             * @description (most expensive / cheapest - 1) * 100 over the stores with a price
+             */
+            max_diff_pct: number | null;
+            product_id: string;
+            product_name: string;
+        };
+        Comparison: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Comparison.json
+             */
+            readonly $schema?: string;
+            currencies: components["schemas"]["CurrencyComparison"][];
+            /** @enum {string} */
+            level: "product" | "brand";
+        };
         Connection: {
             /** @description Name the app registered with; empty when it gave none */
             client_name: string;
@@ -1673,6 +1964,31 @@ export interface components {
             /** @enum {string} */
             kind: "expense" | "income";
             name: string;
+        };
+        CreatePriceCheckInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/CreatePriceCheckInput.json
+             */
+            readonly $schema?: string;
+            /** @example EUR */
+            currency: string;
+            note?: string;
+            /**
+             * Format: date
+             * @description Defaults to today; cannot be in the future
+             */
+            observed_on?: string;
+            /**
+             * Format: int64
+             * @description Price of the whole pack in minor units
+             */
+            price_minor: number;
+            /** Format: uuid */
+            store_id: string;
+            /** Format: uuid */
+            variant_id: string;
         };
         CreateProductGroupInput: {
             /**
@@ -1793,6 +2109,80 @@ export interface components {
             name: string;
             /** @example $ */
             symbol: string;
+        };
+        CurrencyBasket: {
+            /** @description Cheapest store among those pricing every product */
+            best_single_store?: components["schemas"]["BasketBestStore"];
+            currency: string;
+            /**
+             * Format: int64
+             * @description Average monthly spend on the basket products
+             */
+            paid_minor: number;
+            products: components["schemas"]["BasketProduct"][];
+            split: components["schemas"]["BasketSplit"];
+            stores: components["schemas"]["BasketStore"][];
+        };
+        CurrencyBreakdown: {
+            /**
+             * Format: int64
+             * @description Lines already mapped to a product
+             */
+            assigned_minor: number;
+            /**
+             * Format: int64
+             * @description Receipt total divided by the receipt count, rounded
+             */
+            average_receipt_minor: number;
+            by_group: components["schemas"]["BreakdownGroup"][];
+            by_store: components["schemas"]["BreakdownStore"][];
+            /**
+             * Format: double
+             * @description assigned_minor as a percentage of lines_total_minor
+             */
+            coverage_pct: number;
+            /** @example EUR */
+            currency: string;
+            /**
+             * Format: int64
+             * @description Lines of products in food groups
+             */
+            food_minor: number;
+            /**
+             * Format: int64
+             * @description Expenses of the Groceries category in the month, null when the category does not exist
+             */
+            groceries_category_minor: number | null;
+            /**
+             * Format: int64
+             * @description Sum of the receipt lines (what the group and coverage figures are based on)
+             */
+            lines_total_minor: number;
+            /**
+             * Format: int64
+             * @description Lines of products in non-food groups
+             */
+            non_food_minor: number;
+            /** Format: int64 */
+            receipt_count: number;
+            /** @description Top 10 products by spend */
+            top_products: components["schemas"]["BreakdownProduct"][];
+            /**
+             * Format: int64
+             * @description Sum of the receipt totals of the month
+             */
+            total_minor: number;
+            /**
+             * Format: int64
+             * @description Lines not mapped to a product yet
+             */
+            unassigned_minor: number;
+        };
+        CurrencyComparison: {
+            currency: string;
+            rows: components["schemas"]["CompareRow"][];
+            /** @description Columns: non-archived stores with prices in the last 180 days */
+            stores: components["schemas"]["StoreRef"][];
         };
         CurrencySummary: {
             /**
@@ -2036,6 +2426,15 @@ export interface components {
             readonly $schema?: string;
             items: components["schemas"]["Membership"][];
         };
+        ListOutputPriceCheckBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputPriceCheckBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["PriceCheck"][];
+        };
         ListOutputProductBody: {
             /**
              * Format: uri
@@ -2212,6 +2611,89 @@ export interface components {
             /** @description Calendar months (YYYY-MM), oldest first, ending with the current one */
             months: string[];
         };
+        PriceCell: {
+            brand: string;
+            /**
+             * Format: double
+             * @description unit_price_minor times the product's display multiplier
+             */
+            display_unit_price: number;
+            /** Format: date */
+            observed_on: string;
+            pack_label: string | null;
+            /** Format: double */
+            pack_size: number | null;
+            /** @enum {string} */
+            source: "receipt" | "price_check";
+            /** @description Observed more than 60 days ago */
+            stale: boolean;
+            store_id: string;
+            /**
+             * Format: double
+             * @description Minor units per compare unit
+             */
+            unit_price_minor: number;
+            /** @description Variant with the lowest unit price at this store */
+            variant_id: string;
+        };
+        PriceCheck: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/PriceCheck.json
+             */
+            readonly $schema?: string;
+            brand: string;
+            /** @enum {string} */
+            compare_unit: "kg" | "l" | "unit";
+            /** Format: date-time */
+            created_at: string;
+            currency: string;
+            /**
+             * Format: double
+             * @description unit_price_minor times the product's display multiplier
+             */
+            display_unit_price: number;
+            id: string;
+            note: string | null;
+            /** Format: date */
+            observed_on: string;
+            pack_label: string | null;
+            /**
+             * Format: int64
+             * @description Price of the whole pack (of one compare unit when the variant is loose)
+             */
+            price_minor: number;
+            product_id: string;
+            product_name: string;
+            store_id: string;
+            store_name: string;
+            /**
+             * Format: double
+             * @description price_minor divided by the pack size, per compare unit
+             */
+            unit_price_minor: number;
+            variant_id: string;
+        };
+        PricePoint: {
+            /** Format: double */
+            display_unit_price: number;
+            /** @example 2026-09 */
+            month: string;
+            /** Format: int64 */
+            observations: number;
+            /**
+             * Format: double
+             * @description Average of the month's observations
+             */
+            unit_price_minor: number;
+        };
+        PriceSeries: {
+            currency: string;
+            points: components["schemas"]["PricePoint"][];
+            store_id: string;
+            store_name: string;
+        };
         Product: {
             /**
              * Format: uri
@@ -2263,6 +2745,21 @@ export interface components {
             position: number;
             /** Format: date-time */
             updated_at: string;
+        };
+        ProductPrices: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ProductPrices.json
+             */
+            readonly $schema?: string;
+            /** @enum {string} */
+            compare_unit: "kg" | "l" | "unit";
+            /** Format: int32 */
+            display_multiplier: number;
+            name: string;
+            product_id: string;
+            variants: components["schemas"]["VariantPrices"][];
         };
         RecurringCurrencySummary: {
             /** @example MXN */
@@ -2563,6 +3060,24 @@ export interface components {
             name: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        StorePrice: {
+            currency: string;
+            /** Format: double */
+            display_unit_price: number;
+            /** Format: date */
+            observed_on: string;
+            /** @enum {string} */
+            source: "receipt" | "price_check";
+            stale: boolean;
+            store_id: string;
+            store_name: string;
+            /** Format: double */
+            unit_price_minor: number;
+        };
+        StoreRef: {
+            id: string;
+            name: string;
         };
         SuggestionKeyInput: {
             /**
@@ -2937,6 +3452,22 @@ export interface components {
             store_id: string | null;
             /** Format: date-time */
             updated_at: string;
+        };
+        VariantPrices: {
+            brand: string;
+            /** @description Average unit price per month over the last 12 months */
+            history: components["schemas"]["PriceSeries"][];
+            /** @description Latest price per store and currency */
+            latest: components["schemas"]["StorePrice"][];
+            pack_label: string | null;
+            /** Format: double */
+            pack_size: number | null;
+            /**
+             * Format: uuid
+             * @description Store whose own brand this is
+             */
+            store_id: string | null;
+            variant_id: string;
         };
         VerifyInputBody: {
             /**
@@ -4093,6 +4624,108 @@ export interface operations {
             };
         };
     };
+    "get-groceries-basket": {
+        parameters: {
+            query?: {
+                /** @description Full calendar months, the current one excluded, averaged into the basket */
+                months?: number;
+                /** @description Only this ISO 4217 currency */
+                currency?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Basket"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-groceries-breakdown": {
+        parameters: {
+            query?: {
+                /** @description Calendar month YYYY-MM; defaults to the current month */
+                month?: string;
+                /** @description Only this ISO 4217 currency */
+                currency?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Breakdown"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "compare-grocery-stores": {
+        parameters: {
+            query?: {
+                /** @description product: cheapest variant per store; brand: manufacturer brands sold in at least two stores */
+                level?: "product" | "brand";
+                /** @description Only this ISO 4217 currency */
+                currency?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comparison"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
     "list-product-groups": {
         parameters: {
             query?: never;
@@ -4178,6 +4811,104 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProductGroup"];
                 };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-price-checks": {
+        parameters: {
+            query?: {
+                /** @description Only checks of this variant */
+                variant_id?: string;
+                /** @description Only checks of this product */
+                product_id?: string;
+                /** @description Only checks at this store */
+                store_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputPriceCheckBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-price-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePriceCheckInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PriceCheck"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-price-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Error */
             default: {
@@ -4279,6 +5010,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-product-prices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductPrices"];
                 };
             };
             /** @description Error */

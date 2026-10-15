@@ -152,7 +152,7 @@ func run(args []string, logger *slog.Logger) error {
 			DB:         pool,
 			Auth:       authSvc,
 			Finance:    financeSvc,
-			Groceries:  groceries.NewService(pool),
+			Groceries:  groceries.NewService(pool).WithLocation(cfg.Location),
 			Workspaces: workspaceSvc,
 			OAuth:      oauthSrv,
 			MCP:        mcpHandler,

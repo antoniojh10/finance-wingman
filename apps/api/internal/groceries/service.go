@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/jackc/pgx/v5"
@@ -33,10 +34,34 @@ const (
 type Service struct {
 	pool *pgxpool.Pool
 	q    *store.Queries
+	loc  *time.Location
+	now  func() time.Time
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, q: store.New(pool)}
+	return &Service{pool: pool, q: store.New(pool), loc: time.UTC, now: time.Now}
+}
+
+// WithLocation sets the time zone used to resolve "today" and the current
+// month (UTC by default) and returns the service.
+func (s *Service) WithLocation(loc *time.Location) *Service {
+	if loc != nil {
+		s.loc = loc
+	}
+	return s
+}
+
+// WithClock replaces the clock; meant for tests.
+func (s *Service) WithClock(now func() time.Time) *Service {
+	s.now = now
+	return s
+}
+
+// insightsToday returns the current date in the service time zone, at
+// midnight UTC so it compares with date columns.
+func (s *Service) insightsToday() time.Time {
+	y, m, d := s.now().In(s.loc).Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
 // ErrorKind classifies a domain error for the transport layers.
