@@ -198,3 +198,55 @@ export async function seedExpenseHistory(
   await post("/transactions/batch", { items: transactions });
   return { accountName, categories };
 }
+
+export type GroceryLineSeed = { text: string; amount: number; quantity?: number };
+export type GroceryProductSeed = { line: string; product: string; brand?: string; packSize?: number; compareUnit?: "kg" | "l" | "unit" };
+export type SeededReceipt = { id: string; store: string; lines: { id: string; raw_text: string; product_name?: string | null }[] };
+
+/**
+ * Seeds the groceries module through the REST API, authenticated with the
+ * session cookie of `page`. Stores are created by name when missing, and
+ * lines whose text the store already knows come back assigned (alias).
+ * Amounts are minor units; receipts are in EUR and dated today so they show
+ * in the current month.
+ */
+export function groceryApi(page: Page) {
+  const post = async (route: string, data: unknown) => {
+    const token = (await page.context().cookies()).find((c) => c.name === "fw_session")?.value;
+    if (!token) throw new Error("no session cookie to seed with");
+    const res = await page.request.fetch(`http://localhost:${apiPort}/api/v1/groceries${route}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      data,
+    });
+    expect(res.ok(), `POST ${route}: ${await res.text()}`).toBeTruthy();
+    return res.json();
+  };
+
+  return {
+    /** A receipt of `store` whose total is the sum of its lines. */
+    async createReceipt(store: string, lines: GroceryLineSeed[]): Promise<SeededReceipt> {
+      const receipt = await post("/receipts", {
+        store_name: store,
+        purchased_on: new Date().toISOString().slice(0, 10),
+        currency: "EUR",
+        total: lines.reduce((sum, line) => sum + line.amount, 0),
+        source: "manual",
+        lines: lines.map((line) => ({ raw_text: line.text, amount: line.amount, quantity: line.quantity })),
+      });
+      return { id: receipt.id, store, lines: receipt.lines };
+    },
+    /** Assigns lines (by raw text) to products that are found or created by name. */
+    async assign(receipt: SeededReceipt, products: GroceryProductSeed[]): Promise<void> {
+      await post(`/receipts/${receipt.id}/assign`, {
+        assignments: products.map((p) => {
+          const line = receipt.lines.find((l) => l.raw_text === p.line);
+          if (!line) throw new Error(`no line "${p.line}" in the receipt`);
+          return { line_id: line.id, product: p.product, brand: p.brand, pack_size: p.packSize, compare_unit: p.compareUnit ?? "unit" };
+        }),
+      });
+    },
+  };
+}
+
+export const openGroceries = (page: Page) => openFromSettings(page, /groceries/i);
