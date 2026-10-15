@@ -16,6 +16,7 @@ export type ReceiptWarning = components["schemas"]["Warning"];
 export const GROCERIES_TABS = [
   { key: "summary", href: "/groceries" },
   { key: "receipts", href: "/groceries/receipts" },
+  { key: "products", href: "/groceries/products" },
 ] as const;
 
 export type GroceriesTabKey = (typeof GROCERIES_TABS)[number]["key"];

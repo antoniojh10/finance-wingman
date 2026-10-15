@@ -683,7 +683,8 @@
     "tabs": {
       "label": "Groceries sections",
       "summary": "Summary",
-      "receipts": "Receipts"
+      "receipts": "Receipts",
+      "products": "Products"
     },
     "summaryPlaceholder": "The monthly grocery summary is coming soon.",
     "receipts": {
@@ -761,6 +762,149 @@
       "save": "Save assignment",
       "saving": "Saving…",
       "cancel": "Cancel"
+    },
+    "products": {
+      "title": "Products",
+      "search": "Search products",
+      "searchButton": "Search",
+      "new": "New product",
+      "empty": "No products yet. They appear when you assign receipt lines, or create the first one here.",
+      "emptySearch": "No products match your search.",
+      "noGroup": "No group",
+      "archived": "Archived",
+      "variantCount": "{count, plural, =0 {no variants} one {# variant} other {# variants}}",
+      "unit": {
+        "per": "{unit, select, kg {per kg} l {per litre} other {per unit}}",
+        "perDozen": "per dozen",
+        "perMany": "per {count} {unit, select, kg {kg} l {litres} other {units}}"
+      },
+      "form": {
+        "createTitle": "New product",
+        "editTitle": "Edit product",
+        "description": "A product is what you would buy at any store, like whole milk. Brands and packs are its variants.",
+        "name": "Name",
+        "namePlaceholder": "e.g. Whole milk",
+        "group": "Group",
+        "groupNone": "No group",
+        "compareUnit": "Compare prices by",
+        "unit": {
+          "kg": "Kilogram",
+          "l": "Litre",
+          "unit": "Unit"
+        },
+        "multiplier": "Show price per",
+        "multiplierHint": "1 normally; 12 shows eggs per dozen.",
+        "created": "Product created.",
+        "updated": "Product updated."
+      },
+      "detail": {
+        "back": "Back to products",
+        "edit": "Edit",
+        "archive": "Archive",
+        "restore": "Restore",
+        "archiveTitle": "Archive this product?",
+        "archiveDescription": "It is hidden from the list and from new assignments. Receipts and prices are kept, and you can restore it.",
+        "restoreTitle": "Restore this product?",
+        "restoreDescription": "It will appear again in the list and in assignments.",
+        "archived": "Product archived.",
+        "restored": "Product restored."
+      },
+      "variants": {
+        "heading": "Brands and packs",
+        "description": "Latest price at each store, cheapest first.",
+        "add": "Add variant",
+        "empty": "No variants yet. Add a brand and pack, or assign a receipt line to this product.",
+        "colVariant": "Variant",
+        "colStore": "Store",
+        "colPack": "Pack price",
+        "colUnit": "Price {unit}",
+        "storeBrand": "Store brand",
+        "best": "Best price",
+        "stale": "Outdated",
+        "loose": "Loose",
+        "sourceReceipt": "receipt",
+        "sourceCheck": "price check",
+        "noPrice": "No price yet",
+        "packPriceInline": "pack {price}",
+        "deleteTitle": "Delete {name}?",
+        "deleteDescription": "Its receipt lines keep their text and go back to unassigned. Price checks of this variant are removed.",
+        "deleted": "Variant deleted."
+      },
+      "variantForm": {
+        "createTitle": "Add variant",
+        "editTitle": "Edit variant",
+        "description": "A brand in a specific pack. Use the same name for unbranded products.",
+        "brand": "Brand",
+        "brandHint": "Use “Generic” for unbranded or loose.",
+        "packLabel": "Pack label",
+        "packLabelPlaceholder": "e.g. 4×125 g",
+        "packSize": "Pack size ({unit, select, kg {kg} l {litres} other {units}})",
+        "packSizeHint": "Empty if sold loose.",
+        "storeBrand": "Store brand of",
+        "storeBrandHint": "Only for a chain's own brand, such as Hacendado.",
+        "storeNone": "Manufacturer brand (any store)",
+        "created": "Variant added.",
+        "updated": "Variant updated."
+      },
+      "history": {
+        "heading": "Price history",
+        "description": "Average price per month for one brand at one store.",
+        "empty": "There is no price history yet. It builds up from receipts and price checks.",
+        "selector": "Variant and store",
+        "chartLabel": "Monthly price of {name}, {unit}",
+        "observations": "{count, plural, one {# observation} other {# observations}}",
+        "note": "Price {unit}, average of the month."
+      },
+      "priceCheck": {
+        "heading": "Add a price check",
+        "description": "Saw a price at a store without buying? Note it to keep comparisons current.",
+        "variant": "Brand and pack",
+        "variantPlaceholder": "Choose a variant",
+        "store": "Store",
+        "storePlaceholder": "Choose a store",
+        "price": "Pack price",
+        "priceHint": "What the pack costs on the shelf.",
+        "currency": "Currency",
+        "date": "Date",
+        "note": "Note",
+        "notePlaceholder": "e.g. 2 for 1 offer",
+        "save": "Save price",
+        "saving": "Saving…",
+        "saved": "Price saved.",
+        "noVariants": "Add a variant with a pack size to record its price.",
+        "noStores": "Add a store below to record prices."
+      },
+      "admin": {
+        "heading": "Stores and groups",
+        "description": "Stores are chains, such as Mercadona. Groups organize your products.",
+        "stores": "Stores",
+        "groups": "Groups",
+        "noStores": "No stores yet. They are created from receipts, or add one below.",
+        "newStore": "New store",
+        "newGroup": "New group",
+        "storeName": "Store name",
+        "groupName": "Group name",
+        "add": "Add",
+        "added": "Added.",
+        "save": "Save",
+        "cancel": "Cancel",
+        "renamed": "Renamed.",
+        "rename": "Rename {name}",
+        "archive": "Archive {name}",
+        "restore": "Restore {name}",
+        "archived": "Store archived.",
+        "restored": "Store restored.",
+        "archivedChip": "Archived",
+        "nonFood": "Non-food",
+        "isFood": "Food group"
+      },
+      "errors": {
+        "invalidCurrency": "Enter a 3-letter currency code.",
+        "productExists": "A product with this name already exists.",
+        "variantExists": "This brand and pack already exist for the product.",
+        "storeExists": "A store with this name already exists.",
+        "groupExists": "A group with this name already exists."
+      }
     }
   }
 }
