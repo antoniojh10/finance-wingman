@@ -84,13 +84,14 @@ export function PriceHistoryChart({ series, initialKey, unitLabel }: { series: H
               <circle cx={x(point.month)} cy={y(point.value)} r={4} fill="var(--card)" stroke="var(--chart-1)" strokeWidth={2.5} tabIndex={0} role="img" aria-label={`${formatShortMonth(point.month, locale)} ${point.month.slice(0, 4)}: ${money(point.value)}`}>
                 <title>{`${point.month}: ${money(point.value)} (${t("observations", { count: point.observations })})`}</title>
               </circle>
-              {i % perLabel === 0 && (
+              {(current.points.length - 1 - i) % perLabel === 0 && (
                 <text x={x(point.month)} y={height - margin.bottom + 18} textAnchor="middle" className="fill-muted-foreground font-mono text-[11px]">
                   {formatShortMonth(point.month, locale)}
                 </text>
               )}
               {i === current.points.length - 1 && (
-                <text x={Math.min(x(point.month), width - margin.right - 24)} y={y(point.value) - 11} textAnchor="middle" className="fill-foreground font-mono text-[11px] font-medium">
+                // The latest price sits above the point, or below it when the line comes down to it.
+                <text x={Math.min(x(point.month), width - margin.right - 24)} y={y(point.value) + (i > 0 && current.points[i - 1].value > point.value ? 20 : -11)} textAnchor="middle" className="fill-foreground font-mono text-[11px] font-medium">
                   {money(point.value)}
                 </text>
               )}
