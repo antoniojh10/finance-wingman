@@ -34,7 +34,7 @@ function roundedTop(x: number, y: number, w: number, h: number, r: number): stri
 }
 
 /** The width of an element, following resizes; `fallback` where it cannot be measured. */
-function useWidth<T extends HTMLElement>(fallback: number): [React.RefObject<T | null>, number] {
+export function useWidth<T extends HTMLElement>(fallback: number): [React.RefObject<T | null>, number] {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(fallback);
   useEffect(() => {

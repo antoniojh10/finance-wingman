@@ -683,7 +683,8 @@
     "tabs": {
       "label": "Secciones de compras",
       "summary": "Resumen",
-      "receipts": "Tickets"
+      "receipts": "Tickets",
+      "products": "Productos"
     },
     "overview": {
       "empty": "Todavía no hay datos de compras. Añade tickets (envía una foto a Claude) y anota precios en tienda para ver en qué se va el dinero y qué súper es más barato.",
@@ -833,6 +834,149 @@
       "save": "Guardar asignación",
       "saving": "Guardando…",
       "cancel": "Cancelar"
+    },
+    "products": {
+      "title": "Productos",
+      "search": "Buscar productos",
+      "searchButton": "Buscar",
+      "new": "Nuevo producto",
+      "empty": "Aún no hay productos. Aparecen al asignar líneas de tickets, o crea el primero aquí.",
+      "emptySearch": "Ningún producto coincide con la búsqueda.",
+      "noGroup": "Sin grupo",
+      "archived": "Archivado",
+      "variantCount": "{count, plural, =0 {sin variantes} one {# variante} other {# variantes}}",
+      "unit": {
+        "per": "{unit, select, kg {por kg} l {por litro} other {por unidad}}",
+        "perDozen": "por docena",
+        "perMany": "por {count} {unit, select, kg {kg} l {litros} other {unidades}}"
+      },
+      "form": {
+        "createTitle": "Nuevo producto",
+        "editTitle": "Editar producto",
+        "description": "Un producto es lo que comprarías en cualquier súper, como la leche entera. Las marcas y formatos son sus variantes.",
+        "name": "Nombre",
+        "namePlaceholder": "p. ej. Leche entera",
+        "group": "Grupo",
+        "groupNone": "Sin grupo",
+        "compareUnit": "Comparar precios por",
+        "unit": {
+          "kg": "Kilogramo",
+          "l": "Litro",
+          "unit": "Unidad"
+        },
+        "multiplier": "Mostrar precio por",
+        "multiplierHint": "1 normalmente; 12 muestra los huevos por docena.",
+        "created": "Producto creado.",
+        "updated": "Producto actualizado."
+      },
+      "detail": {
+        "back": "Volver a productos",
+        "edit": "Editar",
+        "archive": "Archivar",
+        "restore": "Restaurar",
+        "archiveTitle": "¿Archivar este producto?",
+        "archiveDescription": "Se oculta de la lista y de las nuevas asignaciones. Los tickets y precios se conservan y puedes restaurarlo.",
+        "restoreTitle": "¿Restaurar este producto?",
+        "restoreDescription": "Volverá a aparecer en la lista y en las asignaciones.",
+        "archived": "Producto archivado.",
+        "restored": "Producto restaurado."
+      },
+      "variants": {
+        "heading": "Marcas y formatos",
+        "description": "Último precio en cada súper, del más barato al más caro.",
+        "add": "Añadir variante",
+        "empty": "Aún no hay variantes. Añade una marca y formato, o asigna una línea de ticket a este producto.",
+        "colVariant": "Variante",
+        "colStore": "Súper",
+        "colPack": "Precio del pack",
+        "colUnit": "Precio {unit}",
+        "storeBrand": "Marca blanca",
+        "best": "Mejor precio",
+        "stale": "Desactualizado",
+        "loose": "A granel",
+        "sourceReceipt": "ticket",
+        "sourceCheck": "precio visto",
+        "noPrice": "Sin precio todavía",
+        "packPriceInline": "pack {price}",
+        "deleteTitle": "¿Eliminar {name}?",
+        "deleteDescription": "Sus líneas de ticket conservan el texto y vuelven a quedar sin asignar. Se eliminan los precios vistos de esta variante.",
+        "deleted": "Variante eliminada."
+      },
+      "variantForm": {
+        "createTitle": "Añadir variante",
+        "editTitle": "Editar variante",
+        "description": "Una marca en un formato concreto. Usa el mismo nombre para productos sin marca.",
+        "brand": "Marca",
+        "brandHint": "Usa «Generic» para productos sin marca o a granel.",
+        "packLabel": "Etiqueta del formato",
+        "packLabelPlaceholder": "p. ej. 4×125 g",
+        "packSize": "Tamaño del pack ({unit, select, kg {kg} l {litros} other {unidades}})",
+        "packSizeHint": "Vacío si se vende a granel.",
+        "storeBrand": "Marca blanca de",
+        "storeBrandHint": "Solo para la marca propia de una cadena, como Hacendado.",
+        "storeNone": "Marca de fabricante (cualquier súper)",
+        "created": "Variante añadida.",
+        "updated": "Variante actualizada."
+      },
+      "history": {
+        "heading": "Historial de precios",
+        "description": "Precio medio por mes de una marca en un súper.",
+        "empty": "Aún no hay historial de precios. Se forma con tickets y precios vistos.",
+        "selector": "Variante y súper",
+        "chartLabel": "Precio mensual de {name}, {unit}",
+        "observations": "{count, plural, one {# observación} other {# observaciones}}",
+        "note": "Precio {unit}, media del mes."
+      },
+      "priceCheck": {
+        "heading": "Añadir un precio visto",
+        "description": "¿Has visto un precio en un súper sin comprar? Anótalo para mantener las comparaciones al día.",
+        "variant": "Marca y formato",
+        "variantPlaceholder": "Elige una variante",
+        "store": "Súper",
+        "storePlaceholder": "Elige un súper",
+        "price": "Precio del pack",
+        "priceHint": "Lo que cuesta el pack en la estantería.",
+        "currency": "Moneda",
+        "date": "Fecha",
+        "note": "Nota",
+        "notePlaceholder": "p. ej. oferta 2x1",
+        "save": "Guardar precio",
+        "saving": "Guardando…",
+        "saved": "Precio guardado.",
+        "noVariants": "Añade una variante con tamaño de pack para anotar su precio.",
+        "noStores": "Añade un súper más abajo para anotar precios."
+      },
+      "admin": {
+        "heading": "Súpers y grupos",
+        "description": "Los súpers son cadenas, como Mercadona. Los grupos organizan tus productos.",
+        "stores": "Súpers",
+        "groups": "Grupos",
+        "noStores": "Aún no hay súpers. Se crean desde los tickets, o añade uno abajo.",
+        "newStore": "Nuevo súper",
+        "newGroup": "Nuevo grupo",
+        "storeName": "Nombre del súper",
+        "groupName": "Nombre del grupo",
+        "add": "Añadir",
+        "added": "Añadido.",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "renamed": "Nombre cambiado.",
+        "rename": "Renombrar {name}",
+        "archive": "Archivar {name}",
+        "restore": "Restaurar {name}",
+        "archived": "Súper archivado.",
+        "restored": "Súper restaurado.",
+        "archivedChip": "Archivado",
+        "nonFood": "No alimentación",
+        "isFood": "Grupo de alimentación"
+      },
+      "errors": {
+        "invalidCurrency": "Introduce un código de moneda de 3 letras.",
+        "productExists": "Ya existe un producto con este nombre.",
+        "variantExists": "Esta marca y formato ya existen en el producto.",
+        "storeExists": "Ya existe un súper con este nombre.",
+        "groupExists": "Ya existe un grupo con este nombre."
+      }
     }
   }
 }
