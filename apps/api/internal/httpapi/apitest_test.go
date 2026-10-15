@@ -16,6 +16,7 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/groceries"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/testutil"
@@ -84,6 +85,7 @@ func newTestAPI(t *testing.T) *testAPI {
 			DB:         pool,
 			Auth:       authSvc,
 			Finance:    svc,
+			Groceries:  groceries.NewService(pool),
 			Workspaces: workspaces,
 			OAuth:      oauthSrv,
 			MCP:        mcpHandler,
