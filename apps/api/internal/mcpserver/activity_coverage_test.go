@@ -115,6 +115,19 @@ func toolMutations() []toolMutation {
 			return map[string]any{"key": h.suggestions()[0].Key},
 				[]string{finance.ActionRecurringCreated, finance.ActionTransactionUpdated, finance.ActionTransactionUpdated, finance.ActionTransactionUpdated}
 		}},
+		// Groceries data is not part of the finance activity log: only the
+		// expense that add_receipt creates is logged.
+		{"add_receipt", func(h *harness) (map[string]any, []string) {
+			h.account("Cash", "MXN")
+			return map[string]any{"store": "Mercadona", "date": "2026-10-10", "total": 5, "account": "Cash"}, created
+		}},
+		{"assign_receipt_lines", func(h *harness) (map[string]any, []string) {
+			r, _ := h.receipt(map[string]any{
+				"store": "Mercadona", "date": "2026-10-10", "total": 5, "currency": "EUR",
+				"lines": []any{map[string]any{"text": "LECHE", "amount": 5}},
+			})
+			return map[string]any{"receipt_id": r.ID, "assignments": []any{map[string]any{"line": 1, "product": "Milk", "compare_unit": "l"}}}, nil
+		}},
 		{"dismiss_recurring_suggestion", func(h *harness) (map[string]any, []string) {
 			card := h.account("Card", "MXN")
 			h.seedMonthly(card, "Netflix", nil, 1000, 1000, 1000)

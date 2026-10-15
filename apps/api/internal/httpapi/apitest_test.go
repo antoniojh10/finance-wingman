@@ -51,7 +51,7 @@ func newTestAPI(t *testing.T) *testAPI {
 	authSvc := auth.NewService(pool, recorder, auth.Config{WebBaseURL: "http://web.test"}, logger)
 	svc := finance.NewService(pool, time.UTC)
 	oauthSrv := oauth.NewServer(pool, authSvc, recorder, oauth.Config{Issuer: testIssuer, WebBaseURL: "http://web.test"}, logger)
-	mcpHandler := mcpserver.New(svc, Version).Handler(authSvc, testIssuer, oauthSrv.ResourceMetadataURL(), logger)
+	mcpHandler := mcpserver.New(svc, groceries.NewService(pool, svc), Version).Handler(authSvc, testIssuer, oauthSrv.ResourceMetadataURL(), logger)
 
 	ctx := context.Background()
 	owner, err := authSvc.AddUser(ctx, "owner@example.com", "Owner")

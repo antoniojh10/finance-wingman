@@ -15,6 +15,7 @@ import (
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/groceries"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/testutil"
 )
 
@@ -39,7 +40,7 @@ func newHarness(t *testing.T) *harness {
 	ctx := context.Background()
 	pool := testutil.NewDatabase(t, true)
 	svc := finance.NewService(pool, time.UTC)
-	server := New(svc, "test")
+	server := New(svc, groceries.NewService(pool, svc), "test")
 	workspaceID := testutil.NewWorkspace(t, pool, "Home")
 	server.workspaceOf = func(*mcp.CallToolRequest) (uuid.UUID, bool) { return workspaceID, true }
 	h := &harness{t: t, server: server, svc: svc, pool: pool, ctx: db.WithWorkspace(ctx, workspaceID), workspaceID: workspaceID}
