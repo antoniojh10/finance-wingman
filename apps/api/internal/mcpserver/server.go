@@ -47,7 +47,7 @@ Guidelines:
 - Dates use YYYY-MM-DD and default to today.
 - get_monthly_spending shows expenses per category and month (3, 6 or 12 months, per currency) with the budget per month, to compare periods such as "which categories went up compared to the summer?".
 - Summaries are per currency; never add amounts from different currencies together.
-- Grocery receipts: when the user shares a supermarket receipt (photo or text), read the store, date, total and every line, then call add_receipt (pass account to also record the expense, or transaction_id to link one that exists). Use the existing store name from list_grocery_catalog: a store is a chain, not a branch. Lines seen before are matched automatically; for the rest, propose a product, brand and pack to the user, reusing existing catalog names, and call assign_receipt_lines only after they confirm. Whole and semi-skimmed milk are different products. Mention any warning (total or lines that do not add up) briefly. Use list_receipts and get_receipt to review receipts.`
+- Grocery receipts: when the user shares a supermarket receipt (photo or text), read the store, date, total and every line, then call add_receipt (pass account to also record the expense, or transaction_id to link one that exists). Use the existing store name from list_grocery_catalog: a store is a chain, not a branch. Lines seen before are matched automatically; for the rest, propose a product, brand and pack to the user, reusing existing catalog names, and call assign_receipt_lines only after they confirm. Whole and semi-skimmed milk are different products. Mention any warning (total or lines that do not add up) briefly. Use list_receipts and get_receipt to review receipts. For grocery prices: add_price_check records a shelf price the user sees in a store (ask for the store, product, pack and price; it creates the product or pack when new); compare_stores shows where products are cheapest per kg, l or unit; price_shopping_list prices a list of products at each store; get_grocery_breakdown shows a month of grocery spending by group, store and product. Report unit prices with their unit (e.g. 1.150 EUR/l), never mix currencies, and mention prices flagged stale.`
 
 type Server struct {
 	finance *finance.Service
@@ -105,6 +105,7 @@ func New(fin *finance.Service, groc *groceries.Service, version string) *Server 
 	s.registerBudgetTools()
 	s.registerMonthlyTools()
 	s.registerGroceriesTools()
+	s.registerGroceryInsightsTools()
 	return s
 }
 
