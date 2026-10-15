@@ -18,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/text/unicode/norm"
 
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/store"
 )
 
@@ -33,10 +34,13 @@ const (
 type Service struct {
 	pool *pgxpool.Pool
 	q    *store.Queries
+	fin  *finance.Service
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, q: store.New(pool)}
+// NewService builds the service. The finance service is only used through
+// its exported API, to read and create the expenses receipts belong to.
+func NewService(pool *pgxpool.Pool, fin *finance.Service) *Service {
+	return &Service{pool: pool, q: store.New(pool), fin: fin}
 }
 
 // ErrorKind classifies a domain error for the transport layers.
