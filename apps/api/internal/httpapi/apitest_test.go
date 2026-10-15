@@ -85,7 +85,7 @@ func newTestAPI(t *testing.T) *testAPI {
 			DB:         pool,
 			Auth:       authSvc,
 			Finance:    svc,
-			Groceries:  groceries.NewService(pool),
+			Groceries:  groceries.NewService(pool, svc),
 			Workspaces: workspaces,
 			OAuth:      oauthSrv,
 			MCP:        mcpHandler,

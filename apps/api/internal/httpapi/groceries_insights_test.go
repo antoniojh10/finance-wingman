@@ -28,7 +28,7 @@ func (a *testAPI) withGroceriesClock() *testAPI {
 		DB:         a.pool,
 		Auth:       a.auth,
 		Finance:    a.svc,
-		Groceries:  groceries.NewService(a.pool).WithClock(func() time.Time { return insightsNow }),
+		Groceries:  groceries.NewService(a.pool, nil).WithClock(func() time.Time { return insightsNow }),
 		Workspaces: a.workspaces,
 	})
 	return &c

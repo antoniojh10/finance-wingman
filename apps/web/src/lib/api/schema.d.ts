@@ -731,6 +731,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/groceries/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List grocery receipts
+         * @description Newest first, with totals and the number of lines not mapped to a product yet. Amounts are minor units.
+         */
+        get: operations["list-grocery-receipts"];
+        put?: never;
+        /**
+         * Create a grocery receipt
+         * @description Lines without variant_id are matched through the store's aliases (match: alias | given | none). Link an existing expense with transaction_id, or create one with create_expense. A receipt that does not add up is accepted and reported in warnings.
+         */
+        post: operations["create-grocery-receipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groceries/receipts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a grocery receipt */
+        get: operations["get-grocery-receipt"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a grocery receipt
+         * @description The linked transaction is not deleted.
+         */
+        delete: operations["delete-grocery-receipt"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a grocery receipt
+         * @description Changes the store, purchase date, total or the linked expense (empty transaction_id unlinks).
+         */
+        patch: operations["update-grocery-receipt"];
+        trace?: never;
+    };
+    "/api/v1/groceries/receipts/{id}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Assign receipt lines to products
+         * @description Each assignment gives an existing variant_id, or a product name with brand and pack that is found or created. The mapping is remembered for the receipt's store, so the next receipt with the same text matches automatically. An assignment with neither variant_id nor product unassigns the line (the alias is kept). All assignments apply or none does.
+         */
+        post: operations["assign-grocery-receipt-lines"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/groceries/stores": {
         parameters: {
             query?: never;
@@ -1476,6 +1545,38 @@ export interface components {
             /** @description Pass as cursor to get the next page; null on the last page */
             next_cursor: string | null;
         };
+        AssignLineInput: {
+            /** @description Defaults to Generic */
+            brand?: string;
+            /**
+             * @description Required when the product is new
+             * @enum {string}
+             */
+            compare_unit?: "kg" | "l" | "unit";
+            /** @description Product group name, used when the product is new */
+            group?: string;
+            /** Format: uuid */
+            line_id: string;
+            pack_label?: string;
+            /**
+             * Format: double
+             * @description In the product's compare unit; omit when sold loose
+             */
+            pack_size?: number;
+            /** @description Product name (case-insensitive); created when new */
+            product?: string;
+            /** @description Existing variant. Omit it and product (or send null) to unassign the line */
+            variant_id?: string | null;
+        };
+        AssignLinesInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/AssignLinesInput.json
+             */
+            readonly $schema?: string;
+            assignments: components["schemas"]["AssignLineInput"][];
+        };
         Basket: {
             /**
              * Format: uri
@@ -1965,6 +2066,15 @@ export interface components {
             kind: "expense" | "income";
             name: string;
         };
+        CreateExpenseInput: {
+            /** Format: uuid */
+            account_id: string;
+            /**
+             * Format: uuid
+             * @description Defaults to the expense category named Groceries, when it exists
+             */
+            category_id?: string;
+        };
         CreatePriceCheckInput: {
             /**
              * Format: uri
@@ -2024,6 +2134,44 @@ export interface components {
             /** Format: uuid */
             group_id?: string;
             name: string;
+        };
+        CreateReceiptInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/CreateReceiptInput.json
+             */
+            readonly $schema?: string;
+            /** @description Create the expense (receipt total, purchase date, store name) and link it */
+            create_expense?: components["schemas"]["CreateExpenseInput"];
+            /** @description With store_name: create the store when it does not exist. Defaults to true */
+            create_store_if_missing?: boolean;
+            /** @example EUR */
+            currency: string;
+            lines?: components["schemas"]["ReceiptLineInput"][];
+            /** Format: date */
+            purchased_on: string;
+            /**
+             * @description Defaults to manual
+             * @enum {string}
+             */
+            source?: "photo" | "digital" | "manual";
+            /**
+             * Format: uuid
+             * @description Either store_id or store_name
+             */
+            store_id?: string;
+            store_name?: string;
+            /**
+             * Format: int64
+             * @description Receipt total in minor units
+             */
+            total: number;
+            /**
+             * Format: uuid
+             * @description Existing expense to link. Not combinable with create_expense
+             */
+            transaction_id?: string;
         };
         CreateRecurringItemInput: {
             /**
@@ -2453,6 +2601,15 @@ export interface components {
             readonly $schema?: string;
             items: components["schemas"]["ProductGroup"][];
         };
+        ListOutputReceiptSummaryBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputReceiptSummaryBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["ReceiptSummary"][];
+        };
         ListOutputRecurringItemBody: {
             /**
              * Format: uri
@@ -2760,6 +2917,137 @@ export interface components {
             name: string;
             product_id: string;
             variants: components["schemas"]["VariantPrices"][];
+        };
+        Receipt: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Receipt.json
+             */
+            readonly $schema?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @example EUR */
+            currency: string;
+            id: string;
+            /** Format: int64 */
+            line_count: number;
+            lines: components["schemas"]["ReceiptLine"][];
+            /**
+             * Format: int64
+             * @description Sum of the line amounts in minor units
+             */
+            lines_total: number;
+            /** Format: date */
+            purchased_on: string;
+            /** @enum {string} */
+            source: "photo" | "digital" | "manual";
+            store_id: string;
+            store_name: string;
+            /**
+             * Format: int64
+             * @description Receipt total in minor units
+             */
+            total: number;
+            /** Format: uuid */
+            transaction_id: string | null;
+            /**
+             * Format: int64
+             * @description Lines without a product variant yet
+             */
+            unassigned_count: number;
+            /** Format: date-time */
+            updated_at: string;
+            /** @description Mismatches between the receipt, its lines and its transaction */
+            warnings: components["schemas"]["Warning"][];
+        };
+        ReceiptLine: {
+            /**
+             * Format: int64
+             * @description Paid for the line after the discount, in minor units
+             */
+            amount: number;
+            brand: string | null;
+            /**
+             * Format: int64
+             * @description Discount already applied to amount, in minor units
+             */
+            discount: number;
+            id: string;
+            /**
+             * @description How the variant was found. Only present in the response to creating a receipt
+             * @enum {string}
+             */
+            match?: "alias" | "given" | "none";
+            pack_label: string | null;
+            /** Format: int32 */
+            position: number;
+            /** Format: uuid */
+            product_id: string | null;
+            product_name: string | null;
+            /** Format: double */
+            quantity: number;
+            /** @example LECHE ENT. HACENDADO 1L */
+            raw_text: string;
+            /** Format: uuid */
+            variant_id: string | null;
+        };
+        ReceiptLineInput: {
+            /**
+             * Format: int64
+             * @description Paid for the line after the discount, in minor units
+             */
+            amount: number;
+            /**
+             * Format: int64
+             * @description Discount already applied to amount, in minor units
+             */
+            discount?: number;
+            /**
+             * Format: double
+             * @description Up to 3 decimals; defaults to 1
+             */
+            quantity?: number;
+            raw_text: string;
+            /**
+             * Format: uuid
+             * @description Skips the alias lookup
+             */
+            variant_id?: string;
+        };
+        ReceiptSummary: {
+            /** Format: date-time */
+            created_at: string;
+            /** @example EUR */
+            currency: string;
+            id: string;
+            /** Format: int64 */
+            line_count: number;
+            /**
+             * Format: int64
+             * @description Sum of the line amounts in minor units
+             */
+            lines_total: number;
+            /** Format: date */
+            purchased_on: string;
+            /** @enum {string} */
+            source: "photo" | "digital" | "manual";
+            store_id: string;
+            store_name: string;
+            /**
+             * Format: int64
+             * @description Receipt total in minor units
+             */
+            total: number;
+            /** Format: uuid */
+            transaction_id: string | null;
+            /**
+             * Format: int64
+             * @description Lines without a product variant yet
+             */
+            unassigned_count: number;
+            /** Format: date-time */
+            updated_at: string;
         };
         RecurringCurrencySummary: {
             /** @example MXN */
@@ -3341,6 +3629,24 @@ export interface components {
             locale?: "en" | "es";
             name?: string;
         };
+        UpdateReceiptInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/UpdateReceiptInput.json
+             */
+            readonly $schema?: string;
+            /** Format: date */
+            purchased_on?: string;
+            store_id?: string;
+            /**
+             * Format: int64
+             * @description Receipt total in minor units
+             */
+            total?: number;
+            /** @description Expense to link; empty string unlinks */
+            transaction_id?: string;
+        };
         UpdateRecurringItemInput: {
             /**
              * Format: uri
@@ -3482,6 +3788,25 @@ export interface components {
             email?: string;
             /** @description Token from the magic link */
             token?: string;
+        };
+        Warning: {
+            /** @enum {string} */
+            code: "total_mismatch" | "lines_mismatch";
+            /**
+             * Format: int64
+             * @description Sum of the line amounts in minor units (lines_mismatch)
+             */
+            lines_total?: number;
+            /**
+             * Format: int64
+             * @description Receipt total in minor units
+             */
+            receipt_total?: number;
+            /**
+             * Format: int64
+             * @description Amount of the linked transaction in minor units (total_mismatch)
+             */
+            transaction_amount?: number;
         };
         WebSession: {
             /** Format: date-time */
@@ -5108,6 +5433,205 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Variant"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-grocery-receipts": {
+        parameters: {
+            query?: {
+                /** @description Only receipts purchased in this month (YYYY-MM) */
+                month?: string;
+                /** @description Only receipts of this store */
+                store_id?: string;
+                /** @description Only receipts with lines that are not mapped to a product yet */
+                unassigned_only?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputReceiptSummaryBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-grocery-receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReceiptInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-grocery-receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-grocery-receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-grocery-receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateReceiptInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "assign-grocery-receipt-lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignLinesInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Receipt"];
                 };
             };
             /** @description Error */

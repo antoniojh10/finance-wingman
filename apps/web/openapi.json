@@ -359,6 +359,86 @@
         ],
         "type": "object"
       },
+      "AssignLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "description": "Defaults to Generic",
+            "maxLength": 100,
+            "type": "string"
+          },
+          "compare_unit": {
+            "description": "Required when the product is new",
+            "enum": [
+              "kg",
+              "l",
+              "unit"
+            ],
+            "type": "string"
+          },
+          "group": {
+            "description": "Product group name, used when the product is new",
+            "type": "string"
+          },
+          "line_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "pack_label": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "pack_size": {
+            "description": "In the product's compare unit; omit when sold loose",
+            "exclusiveMinimum": 0,
+            "format": "double",
+            "maximum": 999999999,
+            "type": "number"
+          },
+          "product": {
+            "description": "Product name (case-insensitive); created when new",
+            "maxLength": 100,
+            "type": "string"
+          },
+          "variant_id": {
+            "description": "Existing variant. Omit it and product (or send null) to unassign the line",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "line_id"
+        ],
+        "type": "object"
+      },
+      "AssignLinesInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/AssignLinesInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/AssignLineInput"
+            },
+            "maxItems": 300,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": [
+          "assignments"
+        ],
+        "type": "object"
+      },
       "Basket": {
         "additionalProperties": false,
         "properties": {
@@ -1601,6 +1681,24 @@
         ],
         "type": "object"
       },
+      "CreateExpenseInput": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "category_id": {
+            "description": "Defaults to the expense category named Groceries, when it exists",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id"
+        ],
+        "type": "object"
+      },
       "CreatePriceCheckInput": {
         "additionalProperties": false,
         "properties": {
@@ -1731,6 +1829,82 @@
         "required": [
           "name",
           "compare_unit"
+        ],
+        "type": "object"
+      },
+      "CreateReceiptInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreateReceiptInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "create_expense": {
+            "$ref": "#/components/schemas/CreateExpenseInput",
+            "description": "Create the expense (receipt total, purchase date, store name) and link it"
+          },
+          "create_store_if_missing": {
+            "description": "With store_name: create the store when it does not exist. Defaults to true",
+            "type": "boolean"
+          },
+          "currency": {
+            "examples": [
+              "EUR"
+            ],
+            "maxLength": 3,
+            "minLength": 3,
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptLineInput"
+            },
+            "maxItems": 300,
+            "type": "array"
+          },
+          "purchased_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "source": {
+            "description": "Defaults to manual",
+            "enum": [
+              "photo",
+              "digital",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "store_id": {
+            "description": "Either store_id or store_name",
+            "format": "uuid",
+            "type": "string"
+          },
+          "store_name": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "total": {
+            "description": "Receipt total in minor units",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "transaction_id": {
+            "description": "Existing expense to link. Not combinable with create_expense",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purchased_on",
+          "currency",
+          "total"
         ],
         "type": "object"
       },
@@ -2676,6 +2850,30 @@
         ],
         "type": "object"
       },
+      "ListOutputReceiptSummaryBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputReceiptSummaryBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptSummary"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "ListOutputRecurringItemBody": {
         "additionalProperties": false,
         "properties": {
@@ -3536,6 +3734,320 @@
           "compare_unit",
           "display_multiplier",
           "variants"
+        ],
+        "type": "object"
+      },
+      "Receipt": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Receipt.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "examples": [
+              "EUR"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "line_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptLine"
+            },
+            "type": "array"
+          },
+          "lines_total": {
+            "description": "Sum of the line amounts in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "purchased_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "photo",
+              "digital",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "store_id": {
+            "type": "string"
+          },
+          "store_name": {
+            "type": "string"
+          },
+          "total": {
+            "description": "Receipt total in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "transaction_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unassigned_count": {
+            "description": "Lines without a product variant yet",
+            "format": "int64",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "warnings": {
+            "description": "Mismatches between the receipt, its lines and its transaction",
+            "items": {
+              "$ref": "#/components/schemas/Warning"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines",
+          "warnings",
+          "id",
+          "store_id",
+          "store_name",
+          "transaction_id",
+          "purchased_on",
+          "currency",
+          "total",
+          "source",
+          "line_count",
+          "unassigned_count",
+          "lines_total",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "ReceiptLine": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "description": "Paid for the line after the discount, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "discount": {
+            "description": "Discount already applied to amount, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "match": {
+            "description": "How the variant was found. Only present in the response to creating a receipt",
+            "enum": [
+              "alias",
+              "given",
+              "none"
+            ],
+            "type": "string"
+          },
+          "pack_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "position": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "product_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "product_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "quantity": {
+            "format": "double",
+            "type": "number"
+          },
+          "raw_text": {
+            "examples": [
+              "LECHE ENT. HACENDADO 1L"
+            ],
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "raw_text",
+          "quantity",
+          "amount",
+          "discount",
+          "variant_id",
+          "product_id",
+          "product_name",
+          "brand",
+          "pack_label"
+        ],
+        "type": "object"
+      },
+      "ReceiptLineInput": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "description": "Paid for the line after the discount, in minor units",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "discount": {
+            "description": "Discount already applied to amount, in minor units",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "quantity": {
+            "description": "Up to 3 decimals; defaults to 1",
+            "exclusiveMinimum": 0,
+            "format": "double",
+            "maximum": 9999999,
+            "type": "number"
+          },
+          "raw_text": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "variant_id": {
+            "description": "Skips the alias lookup",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "raw_text",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "ReceiptSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "examples": [
+              "EUR"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "line_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "lines_total": {
+            "description": "Sum of the line amounts in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "purchased_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "photo",
+              "digital",
+              "manual"
+            ],
+            "type": "string"
+          },
+          "store_id": {
+            "type": "string"
+          },
+          "store_name": {
+            "type": "string"
+          },
+          "total": {
+            "description": "Receipt total in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "transaction_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unassigned_count": {
+            "description": "Lines without a product variant yet",
+            "format": "int64",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "store_id",
+          "store_name",
+          "transaction_id",
+          "purchased_on",
+          "currency",
+          "total",
+          "source",
+          "line_count",
+          "unassigned_count",
+          "lines_total",
+          "created_at",
+          "updated_at"
         ],
         "type": "object"
       },
@@ -4861,6 +5373,38 @@
         },
         "type": "object"
       },
+      "UpdateReceiptInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateReceiptInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "purchased_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "store_id": {
+            "type": "string"
+          },
+          "total": {
+            "description": "Receipt total in minor units",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "transaction_id": {
+            "description": "Expense to link; empty string unlinks",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "UpdateRecurringItemInput": {
         "additionalProperties": false,
         "properties": {
@@ -5213,6 +5757,37 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "Warning": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "total_mismatch",
+              "lines_mismatch"
+            ],
+            "type": "string"
+          },
+          "lines_total": {
+            "description": "Sum of the line amounts in minor units (lines_mismatch)",
+            "format": "int64",
+            "type": "integer"
+          },
+          "receipt_total": {
+            "description": "Receipt total in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "transaction_amount": {
+            "description": "Amount of the linked transaction in minor units (total_mismatch)",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code"
+        ],
         "type": "object"
       },
       "WebSession": {
@@ -7578,6 +8153,292 @@
           }
         },
         "summary": "Create a variant of a product",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/receipts": {
+      "get": {
+        "description": "Newest first, with totals and the number of lines not mapped to a product yet. Amounts are minor units.",
+        "operationId": "list-grocery-receipts",
+        "parameters": [
+          {
+            "description": "Only receipts purchased in this month (YYYY-MM)",
+            "explode": false,
+            "in": "query",
+            "name": "month",
+            "schema": {
+              "description": "Only receipts purchased in this month (YYYY-MM)",
+              "pattern": "^\\d{4}-\\d{2}$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only receipts of this store",
+            "explode": false,
+            "in": "query",
+            "name": "store_id",
+            "schema": {
+              "description": "Only receipts of this store",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only receipts with lines that are not mapped to a product yet",
+            "explode": false,
+            "in": "query",
+            "name": "unassigned_only",
+            "schema": {
+              "description": "Only receipts with lines that are not mapped to a product yet",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputReceiptSummaryBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List grocery receipts",
+        "tags": [
+          "Groceries"
+        ]
+      },
+      "post": {
+        "description": "Lines without variant_id are matched through the store's aliases (match: alias | given | none). Link an existing expense with transaction_id, or create one with create_expense. A receipt that does not add up is accepted and reported in warnings.",
+        "operationId": "create-grocery-receipt",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReceiptInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a grocery receipt",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/receipts/{id}": {
+      "delete": {
+        "description": "The linked transaction is not deleted.",
+        "operationId": "delete-grocery-receipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete a grocery receipt",
+        "tags": [
+          "Groceries"
+        ]
+      },
+      "get": {
+        "operationId": "get-grocery-receipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Get a grocery receipt",
+        "tags": [
+          "Groceries"
+        ]
+      },
+      "patch": {
+        "description": "Changes the store, purchase date, total or the linked expense (empty transaction_id unlinks).",
+        "operationId": "update-grocery-receipt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReceiptInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update a grocery receipt",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/receipts/{id}/assign": {
+      "post": {
+        "description": "Each assignment gives an existing variant_id, or a product name with brand and pack that is found or created. The mapping is remembered for the receipt's store, so the next receipt with the same text matches automatically. An assignment with neither variant_id nor product unassigns the line (the alias is kept). All assignments apply or none does.",
+        "operationId": "assign-grocery-receipt-lines",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignLinesInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Assign receipt lines to products",
         "tags": [
           "Groceries"
         ]

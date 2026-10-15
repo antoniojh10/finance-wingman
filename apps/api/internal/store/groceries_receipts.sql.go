@@ -49,6 +49,94 @@ func (q *Queries) DeleteStoreItemAlias(ctx context.Context, id uuid.UUID) (int64
 	return result.RowsAffected(), nil
 }
 
+const findGroceryProductByName = `-- name: FindGroceryProductByName :one
+SELECT id, workspace_id, name, group_id, compare_unit, display_multiplier, archived_at, created_at, updated_at FROM products WHERE lower(name) = lower($1) AND archived_at IS NULL
+`
+
+func (q *Queries) FindGroceryProductByName(ctx context.Context, lower string) (Product, error) {
+	row := q.db.QueryRow(ctx, findGroceryProductByName, lower)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.GroupID,
+		&i.CompareUnit,
+		&i.DisplayMultiplier,
+		&i.ArchivedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findGroceryStoreByName = `-- name: FindGroceryStoreByName :one
+SELECT id, workspace_id, name, archived_at, created_at, updated_at FROM grocery_stores WHERE lower(name) = lower($1) AND archived_at IS NULL
+`
+
+func (q *Queries) FindGroceryStoreByName(ctx context.Context, lower string) (GroceryStore, error) {
+	row := q.db.QueryRow(ctx, findGroceryStoreByName, lower)
+	var i GroceryStore
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.ArchivedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findProductGroupByName = `-- name: FindProductGroupByName :one
+SELECT id, workspace_id, name, is_food, color, position, created_at, updated_at FROM product_groups WHERE lower(name) = lower($1)
+`
+
+func (q *Queries) FindProductGroupByName(ctx context.Context, lower string) (ProductGroup, error) {
+	row := q.db.QueryRow(ctx, findProductGroupByName, lower)
+	var i ProductGroup
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.Name,
+		&i.IsFood,
+		&i.Color,
+		&i.Position,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findProductVariant = `-- name: FindProductVariant :one
+SELECT id, workspace_id, product_id, brand, pack_size, pack_label, store_id, created_at, updated_at FROM product_variants
+WHERE product_id = $1 AND lower(brand) = lower($2)
+  AND pack_size IS NOT DISTINCT FROM $3::numeric
+`
+
+type FindProductVariantParams struct {
+	ProductID uuid.UUID
+	Brand     string
+	PackSize  pgtype.Numeric
+}
+
+func (q *Queries) FindProductVariant(ctx context.Context, arg FindProductVariantParams) (ProductVariant, error) {
+	row := q.db.QueryRow(ctx, findProductVariant, arg.ProductID, arg.Brand, arg.PackSize)
+	var i ProductVariant
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.ProductID,
+		&i.Brand,
+		&i.PackSize,
+		&i.PackLabel,
+		&i.StoreID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getGroceryReceipt = `-- name: GetGroceryReceipt :one
 SELECT id, workspace_id, store_id, transaction_id, purchased_on, currency, total_minor, source, created_by, created_at, updated_at FROM grocery_receipts WHERE id = $1
 `
@@ -66,6 +154,59 @@ func (q *Queries) GetGroceryReceipt(ctx context.Context, id uuid.UUID) (GroceryR
 		&i.TotalMinor,
 		&i.Source,
 		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getGroceryReceiptByTransaction = `-- name: GetGroceryReceiptByTransaction :one
+
+SELECT id, workspace_id, store_id, transaction_id, purchased_on, currency, total_minor, source, created_by, created_at, updated_at FROM grocery_receipts WHERE transaction_id = $1
+`
+
+// Receipt workflow queries (ticket 079).
+func (q *Queries) GetGroceryReceiptByTransaction(ctx context.Context, transactionID *uuid.UUID) (GroceryReceipt, error) {
+	row := q.db.QueryRow(ctx, getGroceryReceiptByTransaction, transactionID)
+	var i GroceryReceipt
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.StoreID,
+		&i.TransactionID,
+		&i.PurchasedOn,
+		&i.Currency,
+		&i.TotalMinor,
+		&i.Source,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getGroceryReceiptLine = `-- name: GetGroceryReceiptLine :one
+SELECT id, workspace_id, receipt_id, position, raw_text, quantity, amount_minor, discount_minor, variant_id, created_at, updated_at FROM grocery_receipt_lines WHERE id = $1 AND receipt_id = $2
+`
+
+type GetGroceryReceiptLineParams struct {
+	ID        uuid.UUID
+	ReceiptID uuid.UUID
+}
+
+func (q *Queries) GetGroceryReceiptLine(ctx context.Context, arg GetGroceryReceiptLineParams) (GroceryReceiptLine, error) {
+	row := q.db.QueryRow(ctx, getGroceryReceiptLine, arg.ID, arg.ReceiptID)
+	var i GroceryReceiptLine
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.ReceiptID,
+		&i.Position,
+		&i.RawText,
+		&i.Quantity,
+		&i.AmountMinor,
+		&i.DiscountMinor,
+		&i.VariantID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -261,6 +402,153 @@ func (q *Queries) ListGroceryReceiptLines(ctx context.Context, receiptID uuid.UU
 	return items, nil
 }
 
+const listGroceryReceiptLinesDetailed = `-- name: ListGroceryReceiptLinesDetailed :many
+SELECT l.id, l.workspace_id, l.receipt_id, l.position, l.raw_text, l.quantity, l.amount_minor, l.discount_minor, l.variant_id, l.created_at, l.updated_at, v.product_id AS product_id, p.name AS product_name, v.brand AS brand, v.pack_label AS pack_label
+FROM grocery_receipt_lines l
+LEFT JOIN product_variants v ON v.id = l.variant_id AND v.workspace_id = l.workspace_id
+LEFT JOIN products p ON p.id = v.product_id AND p.workspace_id = v.workspace_id
+WHERE l.receipt_id = $1
+ORDER BY l.position
+`
+
+type ListGroceryReceiptLinesDetailedRow struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	ReceiptID     uuid.UUID
+	Position      int32
+	RawText       string
+	Quantity      pgtype.Numeric
+	AmountMinor   int64
+	DiscountMinor int64
+	VariantID     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+	ProductID     *uuid.UUID
+	ProductName   *string
+	Brand         *string
+	PackLabel     *string
+}
+
+func (q *Queries) ListGroceryReceiptLinesDetailed(ctx context.Context, receiptID uuid.UUID) ([]ListGroceryReceiptLinesDetailedRow, error) {
+	rows, err := q.db.Query(ctx, listGroceryReceiptLinesDetailed, receiptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGroceryReceiptLinesDetailedRow{}
+	for rows.Next() {
+		var i ListGroceryReceiptLinesDetailedRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.ReceiptID,
+			&i.Position,
+			&i.RawText,
+			&i.Quantity,
+			&i.AmountMinor,
+			&i.DiscountMinor,
+			&i.VariantID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ProductID,
+			&i.ProductName,
+			&i.Brand,
+			&i.PackLabel,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listGroceryReceiptSummaries = `-- name: ListGroceryReceiptSummaries :many
+SELECT r.id, r.workspace_id, r.store_id, r.transaction_id, r.purchased_on, r.currency, r.total_minor, r.source, r.created_by, r.created_at, r.updated_at, s.name AS store_name,
+       (SELECT count(*) FROM grocery_receipt_lines l WHERE l.receipt_id = r.id)::bigint AS line_count,
+       (SELECT count(*) FROM grocery_receipt_lines l WHERE l.receipt_id = r.id AND l.variant_id IS NULL)::bigint AS unassigned_count,
+       (SELECT COALESCE(sum(l.amount_minor), 0) FROM grocery_receipt_lines l WHERE l.receipt_id = r.id)::bigint AS lines_total
+FROM grocery_receipts r
+JOIN grocery_stores s ON s.id = r.store_id AND s.workspace_id = r.workspace_id
+WHERE ($1::uuid IS NULL OR r.id = $1)
+  AND ($2::uuid IS NULL OR r.store_id = $2)
+  AND ($3::date IS NULL OR r.purchased_on >= $3)
+  AND ($4::date IS NULL OR r.purchased_on <= $4)
+  AND (NOT $5::boolean OR EXISTS (
+        SELECT 1 FROM grocery_receipt_lines l WHERE l.receipt_id = r.id AND l.variant_id IS NULL))
+ORDER BY r.purchased_on DESC, r.created_at DESC
+`
+
+type ListGroceryReceiptSummariesParams struct {
+	ID             *uuid.UUID
+	StoreID        *uuid.UUID
+	FromDate       *time.Time
+	ToDate         *time.Time
+	UnassignedOnly bool
+}
+
+type ListGroceryReceiptSummariesRow struct {
+	ID              uuid.UUID
+	WorkspaceID     uuid.UUID
+	StoreID         uuid.UUID
+	TransactionID   *uuid.UUID
+	PurchasedOn     time.Time
+	Currency        string
+	TotalMinor      int64
+	Source          string
+	CreatedBy       *uuid.UUID
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+	StoreName       string
+	LineCount       int64
+	UnassignedCount int64
+	LinesTotal      int64
+}
+
+func (q *Queries) ListGroceryReceiptSummaries(ctx context.Context, arg ListGroceryReceiptSummariesParams) ([]ListGroceryReceiptSummariesRow, error) {
+	rows, err := q.db.Query(ctx, listGroceryReceiptSummaries,
+		arg.ID,
+		arg.StoreID,
+		arg.FromDate,
+		arg.ToDate,
+		arg.UnassignedOnly,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListGroceryReceiptSummariesRow{}
+	for rows.Next() {
+		var i ListGroceryReceiptSummariesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.StoreID,
+			&i.TransactionID,
+			&i.PurchasedOn,
+			&i.Currency,
+			&i.TotalMinor,
+			&i.Source,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.StoreName,
+			&i.LineCount,
+			&i.UnassignedCount,
+			&i.LinesTotal,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGroceryReceipts = `-- name: ListGroceryReceipts :many
 SELECT id, workspace_id, store_id, transaction_id, purchased_on, currency, total_minor, source, created_by, created_at, updated_at FROM grocery_receipts
 WHERE ($1::uuid IS NULL OR store_id = $1)
@@ -406,6 +694,51 @@ func (q *Queries) SetGroceryReceiptLineVariant(ctx context.Context, arg SetGroce
 		&i.AmountMinor,
 		&i.DiscountMinor,
 		&i.VariantID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateGroceryReceipt = `-- name: UpdateGroceryReceipt :one
+UPDATE grocery_receipts SET
+    store_id = COALESCE($1, store_id),
+    purchased_on = COALESCE($2::date, purchased_on),
+    total_minor = COALESCE($3::bigint, total_minor),
+    transaction_id = CASE WHEN $4::boolean THEN $5 ELSE transaction_id END
+WHERE id = $6
+RETURNING id, workspace_id, store_id, transaction_id, purchased_on, currency, total_minor, source, created_by, created_at, updated_at
+`
+
+type UpdateGroceryReceiptParams struct {
+	StoreID        *uuid.UUID
+	PurchasedOn    *time.Time
+	TotalMinor     *int64
+	SetTransaction bool
+	TransactionID  *uuid.UUID
+	ID             uuid.UUID
+}
+
+func (q *Queries) UpdateGroceryReceipt(ctx context.Context, arg UpdateGroceryReceiptParams) (GroceryReceipt, error) {
+	row := q.db.QueryRow(ctx, updateGroceryReceipt,
+		arg.StoreID,
+		arg.PurchasedOn,
+		arg.TotalMinor,
+		arg.SetTransaction,
+		arg.TransactionID,
+		arg.ID,
+	)
+	var i GroceryReceipt
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.StoreID,
+		&i.TransactionID,
+		&i.PurchasedOn,
+		&i.Currency,
+		&i.TotalMinor,
+		&i.Source,
+		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
