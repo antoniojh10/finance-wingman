@@ -24,6 +24,7 @@ func registerGroceries(api huma.API, svc *groceries.Service, logger *slog.Logger
 	h.registerGroups(api)
 	h.registerProducts(api)
 	h.registerVariants(api)
+	h.registerReceipts(api)
 }
 
 // fail converts groceries domain errors into Huma errors; anything else is
