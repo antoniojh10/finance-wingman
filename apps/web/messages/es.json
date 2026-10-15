@@ -30,7 +30,8 @@
     "signOut": "Cerrar sesión",
     "subscriptions": "Suscripciones",
     "budgets": "Presupuestos",
-    "reports": "Informes"
+    "reports": "Informes",
+    "groceries": "Compras"
   },
   "auth": {
     "title": "Iniciar sesión",
@@ -241,7 +242,8 @@
     "exportCsv": "Descargar CSV (zip)",
     "subscriptionsDescription": "Pagos recurrentes y sugerencias detectadas.",
     "activityDescription": "Quién cambió qué, desde la web o un asistente de IA.",
-    "reportsDescription": "Compara tus gastos por categoría, mes a mes."
+    "reportsDescription": "Compara tus gastos por categoría, mes a mes.",
+    "groceriesDescription": "Tickets, productos y lo que gastas en comida."
   },
   "errors": {
     "generic": "Algo salió mal. Inténtalo de nuevo.",
@@ -256,7 +258,8 @@
     "retry": "Intentar de nuevo",
     "invalidWholeNumber": "Ingresa un número entero de 1 o más.",
     "forbidden": "No tienes permiso para hacer eso.",
-    "invalidBudgetAmount": "Introduce un importe con los decimales de la moneda como máximo, o déjalo vacío para no tener presupuesto."
+    "invalidBudgetAmount": "Introduce un importe con los decimales de la moneda como máximo, o déjalo vacío para no tener presupuesto.",
+    "invalidPositiveNumber": "Introduce un número positivo."
   },
   "subscriptions": {
     "title": "Suscripciones",
@@ -674,5 +677,90 @@
     "tableDelta": "Δ {month}",
     "tableDeltaNone": "Δ",
     "tablePartialNote": "Mes en curso; no cuenta en la media."
+  },
+  "groceries": {
+    "title": "Compras",
+    "tabs": {
+      "label": "Secciones de compras",
+      "summary": "Resumen",
+      "receipts": "Tickets"
+    },
+    "summaryPlaceholder": "El resumen mensual de compras llegará pronto.",
+    "receipts": {
+      "title": "Tickets",
+      "filterStore": "Tienda",
+      "allStores": "Todas las tiendas",
+      "allMonths": "Todos los meses",
+      "empty": "Aún no hay tickets. Envía a Claude la foto de un ticket y pídele que lo añada: se leen las líneas, se asignan a tus productos y se vinculan al gasto de compras.",
+      "emptyMonth": "Ningún ticket coincide con este filtro.",
+      "byMonth": "Por mes",
+      "showAll": "Ver todos los meses",
+      "lines": "{count, plural, one {# línea} other {# líneas}}",
+      "unassigned": "{count} por asignar",
+      "linesMismatch": "Las líneas no cuadran",
+      "linked": "Gasto vinculado",
+      "noExpense": "Sin gasto vinculado",
+      "openReceipt": "Abrir el ticket de {store}, {date}"
+    },
+    "receipt": {
+      "back": "Volver a tickets",
+      "title": "Ticket de {store}",
+      "total": "Total",
+      "linesTotal": "Suma de líneas",
+      "linkedExpense": "Ver gasto",
+      "noExpense": "Sin gasto vinculado",
+      "source": {
+        "photo": "Desde una foto",
+        "digital": "Ticket digital",
+        "manual": "Manual"
+      },
+      "warningTotalMismatch": "El total del ticket ({receipt}) no coincide con el gasto vinculado ({transaction}).",
+      "warningLinesMismatch": "Las líneas suman {lines}, pero el total del ticket es {receipt}.",
+      "warnings": "Avisos",
+      "linesHeading": "Líneas del ticket",
+      "quantity": "Cant.",
+      "discount": "descuento {amount}",
+      "assigned": "Asignada",
+      "unassignedChip": "Sin asignar",
+      "assign": "Asignar",
+      "change": "Cambiar",
+      "unassign": "Quitar asignación",
+      "unassignedToast": "Línea desasignada.",
+      "assignedToast": "Línea asignada.",
+      "delete": "Eliminar ticket",
+      "deleteTitle": "¿Eliminar este ticket?",
+      "deleteDescription": "Se elimina el ticket y sus líneas. El gasto vinculado se mantiene.",
+      "deleteConfirm": "Eliminar",
+      "deletedToast": "Ticket eliminado.",
+      "unassignedSummary": "{count, plural, one {# línea por asignar} other {# líneas por asignar}}",
+      "allAssigned": "Todas las líneas asignadas"
+    },
+    "assign": {
+      "title": "Asignar «{line}»",
+      "modeExisting": "Producto existente",
+      "modeNew": "Producto nuevo",
+      "product": "Producto",
+      "productPlaceholder": "Elige un producto",
+      "variant": "Marca y formato",
+      "variantPlaceholder": "Elige una variante",
+      "noProducts": "Aún no hay productos: crea el primero.",
+      "newProduct": "Nombre del producto",
+      "newProductHint": "Lo que comprarías en cualquier tienda, p. ej. Leche entera.",
+      "brand": "Marca",
+      "brandHint": "Déjala vacía si no tiene marca.",
+      "packSize": "Tamaño del envase",
+      "packSizeHint": "En la unidad de abajo. Vacío si se vende suelto.",
+      "packLabel": "Etiqueta del envase",
+      "packLabelPlaceholder": "p. ej. 4×125 g",
+      "compareUnit": "Comparar por",
+      "unitKg": "Kilogramo",
+      "unitL": "Litro",
+      "unitUnit": "Unidad",
+      "group": "Grupo",
+      "groupNone": "Sin grupo",
+      "save": "Guardar asignación",
+      "saving": "Guardando…",
+      "cancel": "Cancelar"
+    }
   }
 }
