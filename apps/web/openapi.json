@@ -439,6 +439,228 @@
         ],
         "type": "object"
       },
+      "Basket": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Basket.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyBasket"
+            },
+            "type": "array"
+          },
+          "from": {
+            "description": "First day of the first full month in the basket window",
+            "format": "date",
+            "type": "string"
+          },
+          "months": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "to": {
+            "description": "Last day of the last full month in the basket window",
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "months",
+          "from",
+          "to",
+          "currencies"
+        ],
+        "type": "object"
+      },
+      "BasketBestStore": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_minor": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "store_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "store_id",
+          "name",
+          "cost_minor"
+        ],
+        "type": "object"
+      },
+      "BasketMissing": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "product_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "BasketProduct": {
+        "additionalProperties": false,
+        "properties": {
+          "compare_unit": {
+            "enum": [
+              "kg",
+              "l",
+              "unit"
+            ],
+            "type": "string"
+          },
+          "display_multiplier": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "monthly_quantity": {
+            "description": "Average bought amount per month, in compare units",
+            "format": "double",
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "paid_minor": {
+            "description": "Average monthly spend on the product",
+            "format": "int64",
+            "type": "integer"
+          },
+          "product_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "name",
+          "compare_unit",
+          "display_multiplier",
+          "monthly_quantity",
+          "paid_minor"
+        ],
+        "type": "object"
+      },
+      "BasketSplit": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_minor": {
+            "description": "Monthly cost buying each priced product at its cheapest store",
+            "format": "int64",
+            "type": "integer"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/BasketSplitLine"
+            },
+            "type": "array"
+          },
+          "unpriced_products": {
+            "description": "Products without a price at any store, left out of the split",
+            "items": {
+              "$ref": "#/components/schemas/BasketMissing"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "cost_minor",
+          "lines",
+          "unpriced_products"
+        ],
+        "type": "object"
+      },
+      "BasketSplitLine": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_minor": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "store_id": {
+            "type": "string"
+          },
+          "store_name": {
+            "type": "string"
+          },
+          "unit_price_minor": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "product_id",
+          "name",
+          "store_id",
+          "store_name",
+          "unit_price_minor",
+          "cost_minor"
+        ],
+        "type": "object"
+      },
+      "BasketStore": {
+        "additionalProperties": false,
+        "properties": {
+          "complete": {
+            "description": "True when every basket product has a price at this store; otherwise cost_minor is not comparable",
+            "type": "boolean"
+          },
+          "cost_minor": {
+            "description": "Monthly cost of the priced products using the store's cheapest variant of each",
+            "format": "int64",
+            "type": "integer"
+          },
+          "missing_products": {
+            "items": {
+              "$ref": "#/components/schemas/BasketMissing"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priced_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "store_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "store_id",
+          "name",
+          "cost_minor",
+          "complete",
+          "priced_count",
+          "missing_products"
+        ],
+        "type": "object"
+      },
       "BatchInputCreateAccountInputBody": {
         "additionalProperties": false,
         "properties": {
@@ -517,6 +739,149 @@
         },
         "required": [
           "items"
+        ],
+        "type": "object"
+      },
+      "Breakdown": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Breakdown.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyBreakdown"
+            },
+            "type": "array"
+          },
+          "month": {
+            "examples": [
+              "2026-09"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "currencies"
+        ],
+        "type": "object"
+      },
+      "BreakdownGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "group_id": {
+            "description": "Null: lines without a product or products without a group",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "is_food": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "share_pct": {
+            "description": "Percentage of lines_total_minor",
+            "format": "double",
+            "type": "number"
+          },
+          "total_minor": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "group_id",
+          "name",
+          "color",
+          "is_food",
+          "total_minor",
+          "share_pct"
+        ],
+        "type": "object"
+      },
+      "BreakdownProduct": {
+        "additionalProperties": false,
+        "properties": {
+          "compare_unit": {
+            "enum": [
+              "kg",
+              "l",
+              "unit"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "quantity": {
+            "description": "Bought amount in compare units",
+            "format": "double",
+            "type": "number"
+          },
+          "spend_minor": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "product_id",
+          "name",
+          "compare_unit",
+          "quantity",
+          "spend_minor"
+        ],
+        "type": "object"
+      },
+      "BreakdownStore": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "receipt_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "store_id": {
+            "type": "string"
+          },
+          "total_minor": {
+            "description": "Sum of the receipt totals",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "store_id",
+          "name",
+          "total_minor",
+          "receipt_count"
         ],
         "type": "object"
       },
@@ -1059,6 +1424,102 @@
         ],
         "type": "object"
       },
+      "CompareRow": {
+        "additionalProperties": false,
+        "properties": {
+          "best_store_id": {
+            "description": "Cheapest store; null when only one store has a price",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "brand": {
+            "description": "Set at brand level",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cells": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PriceCell"
+            },
+            "description": "Best price per store id; stores without a price are absent",
+            "type": "object"
+          },
+          "compare_unit": {
+            "enum": [
+              "kg",
+              "l",
+              "unit"
+            ],
+            "type": "string"
+          },
+          "display_multiplier": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "max_diff_pct": {
+            "description": "(most expensive / cheapest - 1) * 100 over the stores with a price",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "product_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "product_id",
+          "product_name",
+          "brand",
+          "compare_unit",
+          "display_multiplier",
+          "cells",
+          "best_store_id",
+          "max_diff_pct"
+        ],
+        "type": "object"
+      },
+      "Comparison": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Comparison.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyComparison"
+            },
+            "type": "array"
+          },
+          "level": {
+            "enum": [
+              "product",
+              "brand"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "currencies"
+        ],
+        "type": "object"
+      },
       "Connection": {
         "additionalProperties": false,
         "properties": {
@@ -1235,6 +1696,58 @@
         },
         "required": [
           "account_id"
+        ],
+        "type": "object"
+      },
+      "CreatePriceCheckInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreatePriceCheckInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "currency": {
+            "examples": [
+              "EUR"
+            ],
+            "maxLength": 3,
+            "minLength": 3,
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "observed_on": {
+            "description": "Defaults to today; cannot be in the future",
+            "format": "date",
+            "type": "string"
+          },
+          "price_minor": {
+            "description": "Price of the whole pack in minor units",
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
+          "store_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "variant_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "store_id",
+          "variant_id",
+          "price_minor",
+          "currency"
         ],
         "type": "object"
       },
@@ -1574,6 +2087,172 @@
           "name",
           "symbol",
           "minor_units"
+        ],
+        "type": "object"
+      },
+      "CurrencyBasket": {
+        "additionalProperties": false,
+        "properties": {
+          "best_single_store": {
+            "$ref": "#/components/schemas/BasketBestStore",
+            "description": "Cheapest store among those pricing every product"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "paid_minor": {
+            "description": "Average monthly spend on the basket products",
+            "format": "int64",
+            "type": "integer"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/BasketProduct"
+            },
+            "type": "array"
+          },
+          "split": {
+            "$ref": "#/components/schemas/BasketSplit"
+          },
+          "stores": {
+            "items": {
+              "$ref": "#/components/schemas/BasketStore"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "currency",
+          "products",
+          "paid_minor",
+          "stores",
+          "split"
+        ],
+        "type": "object"
+      },
+      "CurrencyBreakdown": {
+        "additionalProperties": false,
+        "properties": {
+          "assigned_minor": {
+            "description": "Lines already mapped to a product",
+            "format": "int64",
+            "type": "integer"
+          },
+          "average_receipt_minor": {
+            "description": "Receipt total divided by the receipt count, rounded",
+            "format": "int64",
+            "type": "integer"
+          },
+          "by_group": {
+            "items": {
+              "$ref": "#/components/schemas/BreakdownGroup"
+            },
+            "type": "array"
+          },
+          "by_store": {
+            "items": {
+              "$ref": "#/components/schemas/BreakdownStore"
+            },
+            "type": "array"
+          },
+          "coverage_pct": {
+            "description": "assigned_minor as a percentage of lines_total_minor",
+            "format": "double",
+            "type": "number"
+          },
+          "currency": {
+            "examples": [
+              "EUR"
+            ],
+            "type": "string"
+          },
+          "food_minor": {
+            "description": "Lines of products in food groups",
+            "format": "int64",
+            "type": "integer"
+          },
+          "groceries_category_minor": {
+            "description": "Expenses of the Groceries category in the month, null when the category does not exist",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "lines_total_minor": {
+            "description": "Sum of the receipt lines (what the group and coverage figures are based on)",
+            "format": "int64",
+            "type": "integer"
+          },
+          "non_food_minor": {
+            "description": "Lines of products in non-food groups",
+            "format": "int64",
+            "type": "integer"
+          },
+          "receipt_count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "top_products": {
+            "description": "Top 10 products by spend",
+            "items": {
+              "$ref": "#/components/schemas/BreakdownProduct"
+            },
+            "type": "array"
+          },
+          "total_minor": {
+            "description": "Sum of the receipt totals of the month",
+            "format": "int64",
+            "type": "integer"
+          },
+          "unassigned_minor": {
+            "description": "Lines not mapped to a product yet",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "currency",
+          "total_minor",
+          "receipt_count",
+          "average_receipt_minor",
+          "lines_total_minor",
+          "assigned_minor",
+          "unassigned_minor",
+          "coverage_pct",
+          "food_minor",
+          "non_food_minor",
+          "groceries_category_minor",
+          "by_group",
+          "by_store",
+          "top_products"
+        ],
+        "type": "object"
+      },
+      "CurrencyComparison": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CompareRow"
+            },
+            "type": "array"
+          },
+          "stores": {
+            "description": "Columns: non-archived stores with prices in the last 180 days",
+            "items": {
+              "$ref": "#/components/schemas/StoreRef"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "currency",
+          "stores",
+          "rows"
         ],
         "type": "object"
       },
@@ -2090,6 +2769,30 @@
           "items": {
             "items": {
               "$ref": "#/components/schemas/Membership"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ListOutputPriceCheckBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputPriceCheckBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PriceCheck"
             },
             "type": "array"
           }
@@ -2622,6 +3325,230 @@
         ],
         "type": "object"
       },
+      "PriceCell": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "type": "string"
+          },
+          "display_unit_price": {
+            "description": "unit_price_minor times the product's display multiplier",
+            "format": "double",
+            "type": "number"
+          },
+          "observed_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "pack_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pack_size": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "source": {
+            "enum": [
+              "receipt",
+              "price_check"
+            ],
+            "type": "string"
+          },
+          "stale": {
+            "description": "Observed more than 60 days ago",
+            "type": "boolean"
+          },
+          "store_id": {
+            "type": "string"
+          },
+          "unit_price_minor": {
+            "description": "Minor units per compare unit",
+            "format": "double",
+            "type": "number"
+          },
+          "variant_id": {
+            "description": "Variant with the lowest unit price at this store",
+            "type": "string"
+          }
+        },
+        "required": [
+          "store_id",
+          "variant_id",
+          "brand",
+          "pack_label",
+          "pack_size",
+          "unit_price_minor",
+          "display_unit_price",
+          "observed_on",
+          "source",
+          "stale"
+        ],
+        "type": "object"
+      },
+      "PriceCheck": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/PriceCheck.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "compare_unit": {
+            "enum": [
+              "kg",
+              "l",
+              "unit"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "display_unit_price": {
+            "description": "unit_price_minor times the product's display multiplier",
+            "format": "double",
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observed_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "pack_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "price_minor": {
+            "description": "Price of the whole pack (of one compare unit when the variant is loose)",
+            "format": "int64",
+            "type": "integer"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "product_name": {
+            "type": "string"
+          },
+          "store_id": {
+            "type": "string"
+          },
+          "store_name": {
+            "type": "string"
+          },
+          "unit_price_minor": {
+            "description": "price_minor divided by the pack size, per compare unit",
+            "format": "double",
+            "type": "number"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "store_id",
+          "store_name",
+          "variant_id",
+          "product_id",
+          "product_name",
+          "brand",
+          "pack_label",
+          "compare_unit",
+          "observed_on",
+          "price_minor",
+          "currency",
+          "unit_price_minor",
+          "display_unit_price",
+          "note",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "PricePoint": {
+        "additionalProperties": false,
+        "properties": {
+          "display_unit_price": {
+            "format": "double",
+            "type": "number"
+          },
+          "month": {
+            "examples": [
+              "2026-09"
+            ],
+            "type": "string"
+          },
+          "observations": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "unit_price_minor": {
+            "description": "Average of the month's observations",
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "month",
+          "unit_price_minor",
+          "display_unit_price",
+          "observations"
+        ],
+        "type": "object"
+      },
+      "PriceSeries": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            },
+            "type": "array"
+          },
+          "store_id": {
+            "type": "string"
+          },
+          "store_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "store_id",
+          "store_name",
+          "currency",
+          "points"
+        ],
+        "type": "object"
+      },
       "Product": {
         "additionalProperties": false,
         "properties": {
@@ -2761,6 +3688,52 @@
           "position",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "ProductPrices": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ProductPrices.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "compare_unit": {
+            "enum": [
+              "kg",
+              "l",
+              "unit"
+            ],
+            "type": "string"
+          },
+          "display_multiplier": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/VariantPrices"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "product_id",
+          "name",
+          "compare_unit",
+          "display_multiplier",
+          "variants"
         ],
         "type": "object"
       },
@@ -3735,6 +4708,69 @@
         ],
         "type": "object"
       },
+      "StorePrice": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "display_unit_price": {
+            "format": "double",
+            "type": "number"
+          },
+          "observed_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "receipt",
+              "price_check"
+            ],
+            "type": "string"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "store_id": {
+            "type": "string"
+          },
+          "store_name": {
+            "type": "string"
+          },
+          "unit_price_minor": {
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "store_id",
+          "store_name",
+          "currency",
+          "unit_price_minor",
+          "display_unit_price",
+          "observed_on",
+          "source",
+          "stale"
+        ],
+        "type": "object"
+      },
+      "StoreRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "SuggestionKeyInput": {
         "additionalProperties": false,
         "properties": {
@@ -4636,6 +5672,62 @@
           "store_id",
           "created_at",
           "updated_at"
+        ],
+        "type": "object"
+      },
+      "VariantPrices": {
+        "additionalProperties": false,
+        "properties": {
+          "brand": {
+            "type": "string"
+          },
+          "history": {
+            "description": "Average unit price per month over the last 12 months",
+            "items": {
+              "$ref": "#/components/schemas/PriceSeries"
+            },
+            "type": "array"
+          },
+          "latest": {
+            "description": "Latest price per store and currency",
+            "items": {
+              "$ref": "#/components/schemas/StorePrice"
+            },
+            "type": "array"
+          },
+          "pack_label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pack_size": {
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "store_id": {
+            "description": "Store whose own brand this is",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "variant_id",
+          "brand",
+          "pack_label",
+          "pack_size",
+          "store_id",
+          "latest",
+          "history"
         ],
         "type": "object"
       },
@@ -6334,6 +7426,187 @@
         ]
       }
     },
+    "/api/v1/groceries/basket": {
+      "get": {
+        "description": "The basket is the average monthly quantity of each product over the last full months. Each store is valued with its cheapest variant of every product; stores missing prices are flagged. Includes the best single store and the split basket (each product at its cheapest store).",
+        "operationId": "get-groceries-basket",
+        "parameters": [
+          {
+            "description": "Full calendar months, the current one excluded, averaged into the basket",
+            "explode": false,
+            "in": "query",
+            "name": "months",
+            "schema": {
+              "default": 3,
+              "description": "Full calendar months, the current one excluded, averaged into the basket",
+              "format": "int64",
+              "maximum": 12,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Only this ISO 4217 currency",
+            "explode": false,
+            "in": "query",
+            "name": "currency",
+            "schema": {
+              "description": "Only this ISO 4217 currency",
+              "maxLength": 3,
+              "minLength": 3,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Basket"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Monthly basket cost per store",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/breakdown": {
+      "get": {
+        "description": "Receipts of the month per currency: total, average receipt, spend by product group and store, top 10 products, how much of the lines is mapped to products, and the Groceries category expenses to compare with.",
+        "operationId": "get-groceries-breakdown",
+        "parameters": [
+          {
+            "description": "Calendar month YYYY-MM; defaults to the current month",
+            "explode": false,
+            "in": "query",
+            "name": "month",
+            "schema": {
+              "description": "Calendar month YYYY-MM; defaults to the current month",
+              "examples": [
+                "2026-09"
+              ],
+              "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this ISO 4217 currency",
+            "explode": false,
+            "in": "query",
+            "name": "currency",
+            "schema": {
+              "description": "Only this ISO 4217 currency",
+              "maxLength": 3,
+              "minLength": 3,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Breakdown"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Grocery spending of a month",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/compare": {
+      "get": {
+        "description": "Matrix of products (or brands) by store with the cheapest latest unit price of the last 180 days, per currency. Observations older than 60 days are flagged stale.",
+        "operationId": "compare-grocery-stores",
+        "parameters": [
+          {
+            "description": "product: cheapest variant per store; brand: manufacturer brands sold in at least two stores",
+            "explode": false,
+            "in": "query",
+            "name": "level",
+            "schema": {
+              "default": "product",
+              "description": "product: cheapest variant per store; brand: manufacturer brands sold in at least two stores",
+              "enum": [
+                "product",
+                "brand"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only this ISO 4217 currency",
+            "explode": false,
+            "in": "query",
+            "name": "currency",
+            "schema": {
+              "description": "Only this ISO 4217 currency",
+              "maxLength": 3,
+              "minLength": 3,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comparison"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Compare supermarket prices",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
     "/api/v1/groceries/groups": {
       "get": {
         "description": "Default groups (Produce, Meat \u0026 fish, ...) are created the first time a workspace lists them.",
@@ -6452,6 +7725,148 @@
           }
         },
         "summary": "Update a product group",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/price-checks": {
+      "get": {
+        "description": "Prices seen in a store without buying, newest first (at most 200).",
+        "operationId": "list-price-checks",
+        "parameters": [
+          {
+            "description": "Only checks of this variant",
+            "explode": false,
+            "in": "query",
+            "name": "variant_id",
+            "schema": {
+              "description": "Only checks of this variant",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only checks of this product",
+            "explode": false,
+            "in": "query",
+            "name": "product_id",
+            "schema": {
+              "description": "Only checks of this product",
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only checks at this store",
+            "explode": false,
+            "in": "query",
+            "name": "store_id",
+            "schema": {
+              "description": "Only checks at this store",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputPriceCheckBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List price checks",
+        "tags": [
+          "Groceries"
+        ]
+      },
+      "post": {
+        "description": "Notes the pack price of a variant at a store. The unit price is the pack price divided by the pack size (loose variants: the price per compare unit).",
+        "operationId": "create-price-check",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePriceCheckInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceCheck"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Record a price check",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/price-checks/{id}": {
+      "delete": {
+        "operationId": "delete-price-check",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete a price check",
         "tags": [
           "Groceries"
         ]
@@ -6600,6 +8015,49 @@
           }
         },
         "summary": "Update a grocery product",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/products/{id}/prices": {
+      "get": {
+        "description": "Latest unit price of each variant at each store and the monthly average unit price of the last 12 months.",
+        "operationId": "get-product-prices",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductPrices"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Prices of a product",
         "tags": [
           "Groceries"
         ]

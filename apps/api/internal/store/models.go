@@ -108,6 +108,18 @@ type GroceryStore struct {
 	UpdatedAt   time.Time
 }
 
+type GroceryUnitPrice struct {
+	Source         string
+	ObservationID  uuid.UUID
+	StoreID        uuid.UUID
+	VariantID      *uuid.UUID
+	ProductID      uuid.UUID
+	Currency       string
+	ObservedOn     time.Time
+	UnitPriceMinor int32
+	CreatedAt      time.Time
+}
+
 type LoginChallenge struct {
 	ID         uuid.UUID
 	UserID     uuid.UUID
