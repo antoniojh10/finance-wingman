@@ -19,6 +19,7 @@ import (
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/groceries"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/workspace"
 )
@@ -39,6 +40,8 @@ type Deps struct {
 	DB      Pinger
 	Auth    *auth.Service
 	Finance *finance.Service
+	// Groceries is optional; when set, the groceries endpoints are registered.
+	Groceries *groceries.Service
 	// Workspaces is optional; when set, workspace, member and invitation
 	// endpoints are registered.
 	Workspaces *workspace.Service
@@ -124,6 +127,12 @@ func build(deps Deps) (chi.Router, huma.API) {
 		if deps.Workspaces != nil {
 			registerExport(scoped, deps.Finance, deps.Workspaces, deps.Logger)
 		}
+	}
+
+	if deps.Groceries != nil {
+		scoped := huma.NewGroup(api)
+		scoped.UseMiddleware(requireWorkspace(api))
+		registerGroceries(scoped, deps.Groceries, deps.Logger)
 	}
 
 	return router, api

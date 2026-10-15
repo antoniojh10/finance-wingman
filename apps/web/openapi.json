@@ -1140,6 +1140,87 @@
         ],
         "type": "object"
       },
+      "CreateProductGroupInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreateProductGroupInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "color": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "type": "string"
+          },
+          "is_food": {
+            "description": "True for food, false for household and personal care",
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "position": {
+            "description": "Defaults to the end of the list",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "is_food"
+        ],
+        "type": "object"
+      },
+      "CreateProductInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreateProductInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "compare_unit": {
+            "enum": [
+              "kg",
+              "l",
+              "unit"
+            ],
+            "type": "string"
+          },
+          "display_multiplier": {
+            "description": "Defaults to 1",
+            "format": "int32",
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "group_id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "compare_unit"
+        ],
+        "type": "object"
+      },
       "CreateRecurringItemInput": {
         "additionalProperties": false,
         "properties": {
@@ -1220,6 +1301,67 @@
           "account_id",
           "amount",
           "interval_unit"
+        ],
+        "type": "object"
+      },
+      "CreateStoreInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreateStoreInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "CreateVariantInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/CreateVariantInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "brand": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "pack_label": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "pack_size": {
+            "description": "Up to 3 decimals; omit when sold loose",
+            "exclusiveMinimum": 0,
+            "format": "double",
+            "maximum": 999999999,
+            "type": "number"
+          },
+          "store_id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "brand"
         ],
         "type": "object"
       },
@@ -1783,6 +1925,54 @@
         ],
         "type": "object"
       },
+      "ListOutputProductBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputProductBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ListOutputProductGroupBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputProductGroupBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductGroup"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "ListOutputRecurringItemBody": {
         "additionalProperties": false,
         "properties": {
@@ -1831,6 +2021,30 @@
         ],
         "type": "object"
       },
+      "ListOutputStoreBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputStoreBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Store"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "ListOutputTransactionBody": {
         "additionalProperties": false,
         "properties": {
@@ -1870,6 +2084,30 @@
           "items": {
             "items": {
               "$ref": "#/components/schemas/UpcomingRecurring"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "ListOutputVariantBody": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ListOutputVariantBody.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Variant"
             },
             "type": "array"
           }
@@ -2183,6 +2421,148 @@
         "required": [
           "months",
           "currencies"
+        ],
+        "type": "object"
+      },
+      "Product": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Product.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "compare_unit": {
+            "description": "Unit the prices of its variants are compared in",
+            "enum": [
+              "kg",
+              "l",
+              "unit"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "display_multiplier": {
+            "description": "Unit prices are shown for this many compare units (12: priced per dozen)",
+            "format": "int32",
+            "type": "integer"
+          },
+          "group_color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "group_id": {
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "group_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Whole milk"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "variant_count": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "group_id",
+          "group_name",
+          "group_color",
+          "compare_unit",
+          "display_multiplier",
+          "variant_count",
+          "archived",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "ProductGroup": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/ProductGroup.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "color": {
+            "examples": [
+              "#22c55e"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_food": {
+            "type": "boolean"
+          },
+          "name": {
+            "examples": [
+              "Dairy \u0026 eggs"
+            ],
+            "type": "string"
+          },
+          "position": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "is_food",
+          "color",
+          "position",
+          "created_at",
+          "updated_at"
         ],
         "type": "object"
       },
@@ -2801,6 +3181,48 @@
         ],
         "type": "object"
       },
+      "Store": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Store.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "examples": [
+              "Mercadona"
+            ],
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "archived",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
       "SuggestionKeyInput": {
         "additionalProperties": false,
         "properties": {
@@ -3304,6 +3726,79 @@
         },
         "type": "object"
       },
+      "UpdateProductGroupInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateProductGroupInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "color": {
+            "description": "Hex color (#rrggbb); empty string clears it",
+            "type": "string"
+          },
+          "is_food": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "position": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateProductInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateProductInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "compare_unit": {
+            "enum": [
+              "kg",
+              "l",
+              "unit"
+            ],
+            "type": "string"
+          },
+          "display_multiplier": {
+            "format": "int32",
+            "maximum": 1000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "group_id": {
+            "description": "Group id; empty string removes the group",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "UpdateProfileInput": {
         "additionalProperties": false,
         "properties": {
@@ -3404,6 +3899,68 @@
         },
         "type": "object"
       },
+      "UpdateStoreInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateStoreInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateVariantInput": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/UpdateVariantInput.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "brand": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "clear_pack_size": {
+            "description": "Make the variant loose (no pack size); use instead of pack_size",
+            "type": "boolean"
+          },
+          "pack_label": {
+            "description": "Empty string clears it",
+            "maxLength": 50,
+            "type": "string"
+          },
+          "pack_size": {
+            "exclusiveMinimum": 0,
+            "format": "double",
+            "maximum": 999999999,
+            "type": "number"
+          },
+          "store_id": {
+            "description": "Store id; empty string clears it",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "User": {
         "additionalProperties": false,
         "properties": {
@@ -3464,6 +4021,77 @@
           "id",
           "name",
           "email"
+        ],
+        "type": "object"
+      },
+      "Variant": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/Variant.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "brand": {
+            "description": "\"Generic\" for unbranded products",
+            "examples": [
+              "Hacendado"
+            ],
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "pack_label": {
+            "examples": [
+              "4x125 g"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pack_size": {
+            "description": "Contents of the pack in the product's compare unit. Null when sold loose: the quantity of a receipt line is the amount",
+            "format": "double",
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "product_id": {
+            "type": "string"
+          },
+          "store_id": {
+            "description": "Store whose own brand this is",
+            "format": "uuid",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "product_id",
+          "brand",
+          "pack_size",
+          "pack_label",
+          "store_id",
+          "created_at",
+          "updated_at"
         ],
         "type": "object"
       },
@@ -5128,6 +5756,594 @@
         "summary": "Export all the data of the workspace",
         "tags": [
           "Export"
+        ]
+      }
+    },
+    "/api/v1/groceries/groups": {
+      "get": {
+        "description": "Default groups (Produce, Meat \u0026 fish, ...) are created the first time a workspace lists them.",
+        "operationId": "list-product-groups",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputProductGroupBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List product groups",
+        "tags": [
+          "Groceries"
+        ]
+      },
+      "post": {
+        "operationId": "create-product-group",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductGroupInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductGroup"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a product group",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/groups/{id}": {
+      "patch": {
+        "operationId": "update-product-group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductGroupInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductGroup"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update a product group",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/products": {
+      "get": {
+        "description": "Products with their group and number of variants.",
+        "operationId": "list-grocery-products",
+        "parameters": [
+          {
+            "description": "Include archived products",
+            "explode": false,
+            "in": "query",
+            "name": "include_archived",
+            "schema": {
+              "description": "Include archived products",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Only products of this group",
+            "explode": false,
+            "in": "query",
+            "name": "group_id",
+            "schema": {
+              "description": "Only products of this group",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputProductBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List grocery products",
+        "tags": [
+          "Groceries"
+        ]
+      },
+      "post": {
+        "description": "A product is what is bought regardless of brand and pack. Whole and semi-skimmed milk are different products.",
+        "operationId": "create-grocery-product",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a grocery product",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/products/{id}": {
+      "patch": {
+        "description": "Renames it, changes its group, compare unit or display multiplier, or archives/unarchives it.",
+        "operationId": "update-grocery-product",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update a grocery product",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/products/{id}/variants": {
+      "get": {
+        "operationId": "list-product-variants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputVariantBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List the variants of a product",
+        "tags": [
+          "Groceries"
+        ]
+      },
+      "post": {
+        "description": "A variant is a brand and pack size (use brand \"Generic\" for unbranded). Omit pack_size for products sold loose.",
+        "operationId": "create-product-variant",
+        "parameters": [
+          {
+            "description": "Product id",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Product id",
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateVariantInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Variant"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a variant of a product",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/stores": {
+      "get": {
+        "description": "Stores are supermarket chains, without branches.",
+        "operationId": "list-grocery-stores",
+        "parameters": [
+          {
+            "description": "Include archived stores",
+            "explode": false,
+            "in": "query",
+            "name": "include_archived",
+            "schema": {
+              "description": "Include archived stores",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListOutputStoreBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "List grocery stores",
+        "tags": [
+          "Groceries"
+        ]
+      },
+      "post": {
+        "operationId": "create-grocery-store",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStoreInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Store"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Create a grocery store",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/stores/{id}": {
+      "patch": {
+        "description": "Renames a store or archives/unarchives it.",
+        "operationId": "update-grocery-store",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStoreInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Store"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update a grocery store",
+        "tags": [
+          "Groceries"
+        ]
+      }
+    },
+    "/api/v1/groceries/variants/{id}": {
+      "delete": {
+        "description": "Receipt lines that used it keep their raw text and lose the variant.",
+        "operationId": "delete-product-variant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Delete a product variant",
+        "tags": [
+          "Groceries"
+        ]
+      },
+      "patch": {
+        "operationId": "update-product-variant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVariantInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Variant"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Update a product variant",
+        "tags": [
+          "Groceries"
         ]
       }
     },

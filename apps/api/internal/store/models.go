@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Account struct {
@@ -68,6 +69,43 @@ type Currency struct {
 	Name       string
 	Symbol     string
 	MinorUnits int16
+}
+
+type GroceryReceipt struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	StoreID       uuid.UUID
+	TransactionID *uuid.UUID
+	PurchasedOn   time.Time
+	Currency      string
+	TotalMinor    int64
+	Source        string
+	CreatedBy     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type GroceryReceiptLine struct {
+	ID            uuid.UUID
+	WorkspaceID   uuid.UUID
+	ReceiptID     uuid.UUID
+	Position      int32
+	RawText       string
+	Quantity      pgtype.Numeric
+	AmountMinor   int64
+	DiscountMinor int64
+	VariantID     *uuid.UUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type GroceryStore struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Name        string
+	ArchivedAt  *time.Time
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type LoginChallenge struct {
@@ -140,6 +178,54 @@ type OauthRefreshToken struct {
 	CreatedAt   time.Time
 }
 
+type PriceCheck struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	StoreID     uuid.UUID
+	VariantID   uuid.UUID
+	ObservedOn  time.Time
+	PriceMinor  int64
+	Currency    string
+	Note        *string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type Product struct {
+	ID                uuid.UUID
+	WorkspaceID       uuid.UUID
+	Name              string
+	GroupID           *uuid.UUID
+	CompareUnit       string
+	DisplayMultiplier int32
+	ArchivedAt        *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type ProductGroup struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	Name        string
+	IsFood      bool
+	Color       *string
+	Position    int32
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type ProductVariant struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	ProductID   uuid.UUID
+	Brand       string
+	PackSize    pgtype.Numeric
+	PackLabel   *string
+	StoreID     *uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
 type RecurringDismissedSuggestion struct {
 	WorkspaceID uuid.UUID
 	AccountID   uuid.UUID
@@ -181,6 +267,16 @@ type Session struct {
 	WorkspaceID   *uuid.UUID
 	UserAgent     string
 	Scope         string
+}
+
+type StoreItemAlias struct {
+	ID          uuid.UUID
+	WorkspaceID uuid.UUID
+	StoreID     uuid.UUID
+	RawTextKey  string
+	VariantID   uuid.UUID
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type Transaction struct {

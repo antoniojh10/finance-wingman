@@ -33,6 +33,7 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/config"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/groceries"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/httpapi"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mail"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
@@ -151,6 +152,7 @@ func run(args []string, logger *slog.Logger) error {
 			DB:         pool,
 			Auth:       authSvc,
 			Finance:    financeSvc,
+			Groceries:  groceries.NewService(pool),
 			Workspaces: workspaceSvc,
 			OAuth:      oauthSrv,
 			MCP:        mcpHandler,
@@ -186,6 +188,7 @@ func writeOpenAPI(w io.Writer) error {
 		Logger:     slog.New(slog.DiscardHandler),
 		Auth:       &auth.Service{},
 		Finance:    &finance.Service{},
+		Groceries:  &groceries.Service{},
 		Workspaces: &workspace.Service{},
 		OAuth:      &oauth.Server{},
 	})

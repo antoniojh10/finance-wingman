@@ -507,6 +507,171 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/groceries/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List product groups
+         * @description Default groups (Produce, Meat & fish, ...) are created the first time a workspace lists them.
+         */
+        get: operations["list-product-groups"];
+        put?: never;
+        /** Create a product group */
+        post: operations["create-product-group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groceries/groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update a product group */
+        patch: operations["update-product-group"];
+        trace?: never;
+    };
+    "/api/v1/groceries/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List grocery products
+         * @description Products with their group and number of variants.
+         */
+        get: operations["list-grocery-products"];
+        put?: never;
+        /**
+         * Create a grocery product
+         * @description A product is what is bought regardless of brand and pack. Whole and semi-skimmed milk are different products.
+         */
+        post: operations["create-grocery-product"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groceries/products/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a grocery product
+         * @description Renames it, changes its group, compare unit or display multiplier, or archives/unarchives it.
+         */
+        patch: operations["update-grocery-product"];
+        trace?: never;
+    };
+    "/api/v1/groceries/products/{id}/variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the variants of a product */
+        get: operations["list-product-variants"];
+        put?: never;
+        /**
+         * Create a variant of a product
+         * @description A variant is a brand and pack size (use brand "Generic" for unbranded). Omit pack_size for products sold loose.
+         */
+        post: operations["create-product-variant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groceries/stores": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List grocery stores
+         * @description Stores are supermarket chains, without branches.
+         */
+        get: operations["list-grocery-stores"];
+        put?: never;
+        /** Create a grocery store */
+        post: operations["create-grocery-store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/groceries/stores/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a grocery store
+         * @description Renames a store or archives/unarchives it.
+         */
+        patch: operations["update-grocery-store"];
+        trace?: never;
+    };
+    "/api/v1/groceries/variants/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a product variant
+         * @description Receipt lines that used it keep their raw text and lose the variant.
+         */
+        delete: operations["delete-product-variant"];
+        options?: never;
+        head?: never;
+        /** Update a product variant */
+        patch: operations["update-product-variant"];
+        trace?: never;
+    };
     "/api/v1/invitations/accept": {
         parameters: {
             query?: never;
@@ -1509,6 +1674,41 @@ export interface components {
             kind: "expense" | "income";
             name: string;
         };
+        CreateProductGroupInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/CreateProductGroupInput.json
+             */
+            readonly $schema?: string;
+            color?: string;
+            /** @description True for food, false for household and personal care */
+            is_food: boolean;
+            name: string;
+            /**
+             * Format: int32
+             * @description Defaults to the end of the list
+             */
+            position?: number;
+        };
+        CreateProductInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/CreateProductInput.json
+             */
+            readonly $schema?: string;
+            /** @enum {string} */
+            compare_unit: "kg" | "l" | "unit";
+            /**
+             * Format: int32
+             * @description Defaults to 1
+             */
+            display_multiplier?: number;
+            /** Format: uuid */
+            group_id?: string;
+            name: string;
+        };
         CreateRecurringItemInput: {
             /**
              * Format: uri
@@ -1553,6 +1753,32 @@ export interface components {
             total_payments?: number;
             /** @enum {string} */
             type: "expense" | "income";
+        };
+        CreateStoreInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/CreateStoreInput.json
+             */
+            readonly $schema?: string;
+            name: string;
+        };
+        CreateVariantInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/CreateVariantInput.json
+             */
+            readonly $schema?: string;
+            brand: string;
+            pack_label?: string;
+            /**
+             * Format: double
+             * @description Up to 3 decimals; omit when sold loose
+             */
+            pack_size?: number;
+            /** Format: uuid */
+            store_id?: string;
         };
         Currency: {
             /** @example MXN */
@@ -1810,6 +2036,24 @@ export interface components {
             readonly $schema?: string;
             items: components["schemas"]["Membership"][];
         };
+        ListOutputProductBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputProductBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Product"][];
+        };
+        ListOutputProductGroupBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputProductGroupBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["ProductGroup"][];
+        };
         ListOutputRecurringItemBody: {
             /**
              * Format: uri
@@ -1828,6 +2072,15 @@ export interface components {
             readonly $schema?: string;
             items: components["schemas"]["RecurringSuggestion"][];
         };
+        ListOutputStoreBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputStoreBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Store"][];
+        };
         ListOutputTransactionBody: {
             /**
              * Format: uri
@@ -1845,6 +2098,15 @@ export interface components {
              */
             readonly $schema?: string;
             items: components["schemas"]["UpcomingRecurring"][];
+        };
+        ListOutputVariantBody: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ListOutputVariantBody.json
+             */
+            readonly $schema?: string;
+            items: components["schemas"]["Variant"][];
         };
         ListOutputWebSessionBody: {
             /**
@@ -1949,6 +2211,58 @@ export interface components {
             currencies: components["schemas"]["MonthlyCurrency"][];
             /** @description Calendar months (YYYY-MM), oldest first, ending with the current one */
             months: string[];
+        };
+        Product: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Product.json
+             */
+            readonly $schema?: string;
+            archived: boolean;
+            /**
+             * @description Unit the prices of its variants are compared in
+             * @enum {string}
+             */
+            compare_unit: "kg" | "l" | "unit";
+            /** Format: date-time */
+            created_at: string;
+            /**
+             * Format: int32
+             * @description Unit prices are shown for this many compare units (12: priced per dozen)
+             */
+            display_multiplier: number;
+            group_color: string | null;
+            /** Format: uuid */
+            group_id: string | null;
+            group_name: string | null;
+            id: string;
+            /** @example Whole milk */
+            name: string;
+            /** Format: date-time */
+            updated_at: string;
+            /** Format: int64 */
+            variant_count: number;
+        };
+        ProductGroup: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/ProductGroup.json
+             */
+            readonly $schema?: string;
+            /** @example #22c55e */
+            color: string | null;
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            is_food: boolean;
+            /** @example Dairy & eggs */
+            name: string;
+            /** Format: int32 */
+            position: number;
+            /** Format: date-time */
+            updated_at: string;
         };
         RecurringCurrencySummary: {
             /** @example MXN */
@@ -2234,6 +2548,22 @@ export interface components {
             readonly $schema?: string;
             items: components["schemas"]["BudgetItemInput"][];
         };
+        Store: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Store.json
+             */
+            readonly $schema?: string;
+            archived: boolean;
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            /** @example Mercadona */
+            name: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
         SuggestionKeyInput: {
             /**
              * Format: uri
@@ -2455,6 +2785,36 @@ export interface components {
             icon?: string;
             name?: string;
         };
+        UpdateProductGroupInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/UpdateProductGroupInput.json
+             */
+            readonly $schema?: string;
+            /** @description Hex color (#rrggbb); empty string clears it */
+            color?: string;
+            is_food?: boolean;
+            name?: string;
+            /** Format: int32 */
+            position?: number;
+        };
+        UpdateProductInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/UpdateProductInput.json
+             */
+            readonly $schema?: string;
+            archived?: boolean;
+            /** @enum {string} */
+            compare_unit?: "kg" | "l" | "unit";
+            /** Format: int32 */
+            display_multiplier?: number;
+            /** @description Group id; empty string removes the group */
+            group_id?: string;
+            name?: string;
+        };
         UpdateProfileInput: {
             /**
              * Format: uri
@@ -2496,6 +2856,33 @@ export interface components {
             /** Format: int64 */
             total_payments?: number;
         };
+        UpdateStoreInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/UpdateStoreInput.json
+             */
+            readonly $schema?: string;
+            archived?: boolean;
+            name?: string;
+        };
+        UpdateVariantInput: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/UpdateVariantInput.json
+             */
+            readonly $schema?: string;
+            brand?: string;
+            /** @description Make the variant loose (no pack size); use instead of pack_size */
+            clear_pack_size?: boolean;
+            /** @description Empty string clears it */
+            pack_label?: string;
+            /** Format: double */
+            pack_size?: number;
+            /** @description Store id; empty string clears it */
+            store_id?: string;
+        };
         User: {
             /**
              * Format: uri
@@ -2519,6 +2906,37 @@ export interface components {
             email: string;
             id: string;
             name: string;
+        };
+        Variant: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/Variant.json
+             */
+            readonly $schema?: string;
+            /**
+             * @description "Generic" for unbranded products
+             * @example Hacendado
+             */
+            brand: string;
+            /** Format: date-time */
+            created_at: string;
+            id: string;
+            /** @example 4x125 g */
+            pack_label: string | null;
+            /**
+             * Format: double
+             * @description Contents of the pack in the product's compare unit. Null when sold loose: the quantity of a receipt line is the amount
+             */
+            pack_size: number | null;
+            product_id: string;
+            /**
+             * Format: uuid
+             * @description Store whose own brand this is
+             */
+            store_id: string | null;
+            /** Format: date-time */
+            updated_at: string;
         };
         VerifyInputBody: {
             /**
@@ -3662,6 +4080,436 @@ export interface operations {
                 content: {
                     "application/json": string;
                     "application/zip": string;
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-product-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputProductGroupBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-product-group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProductGroupInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductGroup"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-product-group": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProductGroupInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProductGroup"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-grocery-products": {
+        parameters: {
+            query?: {
+                /** @description Include archived products */
+                include_archived?: boolean;
+                /** @description Only products of this group */
+                group_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputProductBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-grocery-product": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProductInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-grocery-product": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProductInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Product"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-product-variants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputVariantBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-product-variant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Product id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVariantInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Variant"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "list-grocery-stores": {
+        parameters: {
+            query?: {
+                /** @description Include archived stores */
+                include_archived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListOutputStoreBody"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "create-grocery-store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStoreInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Store"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-grocery-store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStoreInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Store"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "delete-product-variant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "update-product-variant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateVariantInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Variant"];
                 };
             };
             /** @description Error */
