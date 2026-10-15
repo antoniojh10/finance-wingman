@@ -139,7 +139,7 @@ func run(args []string, logger *slog.Logger) error {
 		}
 		financeSvc := finance.NewService(pool, cfg.Location)
 		oauthSrv := oauth.NewServer(pool, authSvc, sender, oauth.Config{Issuer: cfg.PublicURL, WebBaseURL: cfg.WebBaseURL, Location: cfg.Location}, logger)
-		mcpSrv := mcpserver.New(financeSvc, httpapi.Version)
+		mcpSrv := mcpserver.New(financeSvc, groceries.NewService(pool, financeSvc), httpapi.Version)
 		mcpSrv.SetLimiter(newLimiter(cfg.RateLimitMCPPerMinute))
 		mcpHandler := mcpSrv.Handler(authSvc, cfg.PublicURL, oauthSrv.ResourceMetadataURL(), logger)
 		go purgeExpiredPeriodically(ctx, logger, authSvc.PurgeExpired, oauthSrv.PurgeExpired, workspaceSvc.PurgeExpired, workspaceSvc.ExecuteScheduledDeletions)
@@ -152,7 +152,7 @@ func run(args []string, logger *slog.Logger) error {
 			DB:         pool,
 			Auth:       authSvc,
 			Finance:    financeSvc,
-			Groceries:  groceries.NewService(pool, financeSvc),
+			Groceries:  groceries.NewService(pool, financeSvc).WithLocation(cfg.Location),
 			Workspaces: workspaceSvc,
 			OAuth:      oauthSrv,
 			MCP:        mcpHandler,

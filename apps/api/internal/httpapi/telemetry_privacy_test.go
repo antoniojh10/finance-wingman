@@ -23,6 +23,7 @@ import (
 
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/groceries"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mail"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/oauth"
@@ -93,7 +94,7 @@ func TestTelemetryCarriesNoPersonalData(t *testing.T) {
 	svc := finance.NewService(api.pool, time.UTC)
 	oauthSrv := oauth.NewServer(api.pool, authSvc, &testutil.MailRecorder{}, oauth.Config{Issuer: testIssuer}, logger)
 	workspaces := workspace.NewService(api.pool, sender, workspace.Config{WebBaseURL: "http://web.test"})
-	mcpHandler := mcpserver.New(svc, Version).Handler(authSvc, testIssuer, oauthSrv.ResourceMetadataURL(), logger)
+	mcpHandler := mcpserver.New(svc, groceries.NewService(api.pool, svc), Version).Handler(authSvc, testIssuer, oauthSrv.ResourceMetadataURL(), logger)
 	api.handler = NewHandler(Deps{Logger: logger, DB: api.pool, Auth: authSvc, Finance: svc, Workspaces: workspaces, OAuth: oauthSrv, MCP: mcpHandler})
 	api.mail = sender.MailRecorder
 

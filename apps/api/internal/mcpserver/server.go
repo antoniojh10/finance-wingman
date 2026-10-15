@@ -20,6 +20,7 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/groceries"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/ratelimit"
 )
 
@@ -45,10 +46,12 @@ Guidelines:
 - There is no tool to export or download all the data. If the user wants a copy of their data, tell them to use "Export your data" (JSON or CSV) in the Settings page of the Finance Wingman web app.
 - Dates use YYYY-MM-DD and default to today.
 - get_monthly_spending shows expenses per category and month (3, 6 or 12 months, per currency) with the budget per month, to compare periods such as "which categories went up compared to the summer?".
-- Summaries are per currency; never add amounts from different currencies together.`
+- Summaries are per currency; never add amounts from different currencies together.
+- Grocery receipts: when the user shares a supermarket receipt (photo or text), read the store, date, total and every line, then call add_receipt (pass account to also record the expense, or transaction_id to link one that exists). Use the existing store name from list_grocery_catalog: a store is a chain, not a branch. Lines seen before are matched automatically; for the rest, propose a product, brand and pack to the user, reusing existing catalog names, and call assign_receipt_lines only after they confirm. Whole and semi-skimmed milk are different products. Mention any warning (total or lines that do not add up) briefly. Use list_receipts and get_receipt to review receipts.`
 
 type Server struct {
 	finance *finance.Service
+	groc    *groceries.Service
 	mcp     *mcp.Server
 	// workspaceOf returns the workspace a tool call acts on; tests replace it
 	// because in-memory transports carry no bearer token.
@@ -79,9 +82,10 @@ const (
 const noWorkspaceMessage = "This connection is not linked to a workspace (the user may have left it). " +
 	"Ask the user to disconnect and reconnect the Finance Wingman connector, and to pick a workspace when signing in."
 
-func New(fin *finance.Service, version string) *Server {
+func New(fin *finance.Service, groc *groceries.Service, version string) *Server {
 	s := &Server{
 		finance:     fin,
+		groc:        groc,
 		workspaceOf: tokenWorkspace,
 		actorOf:     tokenUser,
 		canWrite:    tokenCanWrite,
@@ -100,6 +104,7 @@ func New(fin *finance.Service, version string) *Server {
 	s.registerRecurringSuggestionTools()
 	s.registerBudgetTools()
 	s.registerMonthlyTools()
+	s.registerGroceriesTools()
 	return s
 }
 

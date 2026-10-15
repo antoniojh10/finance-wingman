@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/groceries"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/mcpserver"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/ratelimit"
 )
@@ -24,7 +25,7 @@ func (a *testAPI) withLimits(limits *Limits) *testAPI {
 		Finance:    a.svc,
 		Workspaces: a.workspaces,
 		OAuth:      a.oauth,
-		MCP:        mcpserver.New(a.svc, Version).Handler(a.auth, testIssuer, a.oauth.ResourceMetadataURL(), logger),
+		MCP:        mcpserver.New(a.svc, groceries.NewService(a.pool, a.svc), Version).Handler(a.auth, testIssuer, a.oauth.ResourceMetadataURL(), logger),
 		Limits:     limits,
 	})
 	return &c
