@@ -20,7 +20,7 @@ type toolMutation struct {
 
 // readOnlyPrefixes name the tools that only read. Any other tool must be
 // listed in toolMutations, so a new write tool cannot ship without logging.
-var readOnlyPrefixes = []string{"list_", "get_", "suggest_"}
+var readOnlyPrefixes = []string{"list_", "get_", "suggest_", "compare_", "price_shopping_"}
 
 func toolMutations() []toolMutation {
 	created := []string{finance.ActionTransactionCreated}
@@ -127,6 +127,9 @@ func toolMutations() []toolMutation {
 				"lines": []any{map[string]any{"text": "LECHE", "amount": 5}},
 			})
 			return map[string]any{"receipt_id": r.ID, "assignments": []any{map[string]any{"line": 1, "product": "Milk", "compare_unit": "l"}}}, nil
+		}},
+		{"add_price_check", func(h *harness) (map[string]any, []string) {
+			return map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "pack_size": 1, "price": 1.1, "currency": "EUR"}, nil
 		}},
 		{"dismiss_recurring_suggestion", func(h *harness) (map[string]any, []string) {
 			card := h.account("Card", "MXN")
