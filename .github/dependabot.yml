@@ -11,6 +11,10 @@ updates:
     directory: /apps/web
     schedule:
       interval: weekly
+    ignore:
+      # Types follow the Node.js major the app runs on (Dockerfile, CI).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
