@@ -94,7 +94,7 @@ export function AssignLineForm({
           </Field>
         </>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid items-start gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <Field id={`${id}-name`} label={t("newProduct")} hint={t("newProductHint")} error={errors.product}>
               <Input id={`${id}-name`} name="product" list={`${id}-products`} autoComplete="off" aria-invalid={Boolean(errors.product)} />
