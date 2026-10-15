@@ -30,7 +30,8 @@
     "signOut": "Sign out",
     "subscriptions": "Subscriptions",
     "budgets": "Budgets",
-    "reports": "Reports"
+    "reports": "Reports",
+    "groceries": "Groceries"
   },
   "auth": {
     "title": "Sign in",
@@ -241,7 +242,8 @@
     "exportCsv": "Download CSV (zip)",
     "subscriptionsDescription": "Recurring payments and detected suggestions.",
     "activityDescription": "Who changed what, from the web or an AI assistant.",
-    "reportsDescription": "Compare your spending by category, month by month."
+    "reportsDescription": "Compare your spending by category, month by month.",
+    "groceriesDescription": "Receipts, products and what you spend on food."
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -256,7 +258,8 @@
     "retry": "Try again",
     "invalidWholeNumber": "Enter a whole number of 1 or more.",
     "forbidden": "You don't have permission to do that.",
-    "invalidBudgetAmount": "Enter an amount with at most the currency decimals, or leave it empty for no budget."
+    "invalidBudgetAmount": "Enter an amount with at most the currency decimals, or leave it empty for no budget.",
+    "invalidPositiveNumber": "Enter a positive number."
   },
   "subscriptions": {
     "title": "Subscriptions",
@@ -674,5 +677,90 @@
     "tableDelta": "Δ {month}",
     "tableDeltaNone": "Δ",
     "tablePartialNote": "Month in progress; it does not count in the average."
+  },
+  "groceries": {
+    "title": "Groceries",
+    "tabs": {
+      "label": "Groceries sections",
+      "summary": "Summary",
+      "receipts": "Receipts"
+    },
+    "summaryPlaceholder": "The monthly grocery summary is coming soon.",
+    "receipts": {
+      "title": "Receipts",
+      "filterStore": "Store",
+      "allStores": "All stores",
+      "allMonths": "All months",
+      "empty": "No receipts yet. Send a photo of a receipt to Claude and ask it to add it: the lines are read, matched to your products and linked to the grocery expense.",
+      "emptyMonth": "No receipts match this filter.",
+      "byMonth": "By month",
+      "showAll": "Show all months",
+      "lines": "{count, plural, one {# line} other {# lines}}",
+      "unassigned": "{count} to assign",
+      "linesMismatch": "Lines don't add up",
+      "linked": "Linked expense",
+      "noExpense": "No expense linked",
+      "openReceipt": "Open receipt from {store}, {date}"
+    },
+    "receipt": {
+      "back": "Back to receipts",
+      "title": "Receipt from {store}",
+      "total": "Total",
+      "linesTotal": "Sum of lines",
+      "linkedExpense": "View expense",
+      "noExpense": "Not linked to an expense",
+      "source": {
+        "photo": "From a photo",
+        "digital": "Digital receipt",
+        "manual": "Manual"
+      },
+      "warningTotalMismatch": "The receipt total ({receipt}) differs from the linked expense ({transaction}).",
+      "warningLinesMismatch": "The lines add up to {lines}, but the receipt total is {receipt}.",
+      "warnings": "Warnings",
+      "linesHeading": "Receipt lines",
+      "quantity": "Qty",
+      "discount": "discount {amount}",
+      "assigned": "Assigned",
+      "unassignedChip": "Unassigned",
+      "assign": "Assign",
+      "change": "Change",
+      "unassign": "Unassign",
+      "unassignedToast": "Line unassigned.",
+      "assignedToast": "Line assigned.",
+      "delete": "Delete receipt",
+      "deleteTitle": "Delete this receipt?",
+      "deleteDescription": "The receipt and its lines are removed. The linked expense stays.",
+      "deleteConfirm": "Delete",
+      "deletedToast": "Receipt deleted.",
+      "unassignedSummary": "{count, plural, one {# line to assign} other {# lines to assign}}",
+      "allAssigned": "All lines assigned"
+    },
+    "assign": {
+      "title": "Assign “{line}”",
+      "modeExisting": "Existing product",
+      "modeNew": "New product",
+      "product": "Product",
+      "productPlaceholder": "Choose a product",
+      "variant": "Brand and size",
+      "variantPlaceholder": "Choose a variant",
+      "noProducts": "There are no products yet: create the first one.",
+      "newProduct": "Product name",
+      "newProductHint": "What you would buy at any store, e.g. Whole milk.",
+      "brand": "Brand",
+      "brandHint": "Leave empty for unbranded.",
+      "packSize": "Pack size",
+      "packSizeHint": "In the unit below. Empty if sold loose.",
+      "packLabel": "Pack label",
+      "packLabelPlaceholder": "e.g. 4×125 g",
+      "compareUnit": "Compare by",
+      "unitKg": "Kilogram",
+      "unitL": "Litre",
+      "unitUnit": "Unit",
+      "group": "Group",
+      "groupNone": "No group",
+      "save": "Save assignment",
+      "saving": "Saving…",
+      "cancel": "Cancel"
+    }
   }
 }

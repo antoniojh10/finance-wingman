@@ -16,6 +16,7 @@ describe("isActive", () => {
     expect(isActive("/accounts", "/")).toBe(false);
     expect(isActive("/accounts/123", "/accounts")).toBe(true);
     expect(isActive("/accountsx", "/accounts")).toBe(false);
+    expect(isActive("/groceries/receipts/1", "/groceries")).toBe(true);
   });
 
   it("does not highlight transactions while adding one", () => {
@@ -44,6 +45,11 @@ describe("TabLinks", () => {
     expect(screen.queryByRole("link", { name: "Reports" })).not.toBeInTheDocument();
   });
 
+  it("leaves groceries to settings so the bar keeps four sections", () => {
+    renderWithIntl(<TabLinks />);
+    expect(screen.queryByRole("link", { name: "Groceries" })).not.toBeInTheDocument();
+  });
+
   it("keeps four sections around the add button", () => {
     renderWithIntl(<TabLinks />);
     expect(screen.getAllByRole("link")).toHaveLength(5);
@@ -69,6 +75,11 @@ describe("SidebarLinks", () => {
   it("lists reports", () => {
     renderWithIntl(<SidebarLinks />);
     expect(screen.getByRole("link", { name: "Reports" })).toHaveAttribute("href", "/reports");
+  });
+
+  it("lists groceries", () => {
+    renderWithIntl(<SidebarLinks />);
+    expect(screen.getByRole("link", { name: "Groceries" })).toHaveAttribute("href", "/groceries");
   });
 
   it("includes settings", () => {

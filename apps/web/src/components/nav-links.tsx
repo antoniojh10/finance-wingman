@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftRightIcon, ChartColumnStackedIcon, HouseIcon, PiggyBankIcon, PlusIcon, RepeatIcon, SettingsIcon, TagIcon, WalletIcon } from "lucide-react";
+import { ArrowLeftRightIcon, ChartColumnStackedIcon, HouseIcon, PiggyBankIcon, PlusIcon, RepeatIcon, SettingsIcon, ShoppingBasketIcon, TagIcon, WalletIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -14,13 +14,14 @@ export const navItems = [
   { href: "/accounts", key: "accounts", icon: WalletIcon },
   { href: "/budgets", key: "budgets", icon: PiggyBankIcon },
   { href: "/reports", key: "reports", icon: ChartColumnStackedIcon },
+  { href: "/groceries", key: "groceries", icon: ShoppingBasketIcon },
   { href: "/subscriptions", key: "subscriptions", icon: RepeatIcon },
   { href: "/categories", key: "categories", icon: TagIcon },
   { href: "/settings", key: "settings", icon: SettingsIcon },
 ] as const;
 
 /** Sections that are not in the mobile tab bar: settings links to them. */
-const SETTINGS_SECTIONS: ReadonlySet<string> = new Set(["settings", "categories", "subscriptions", "reports"]);
+const SETTINGS_SECTIONS: ReadonlySet<string> = new Set(["settings", "categories", "subscriptions", "reports", "groceries"]);
 
 export function isActive(pathname: string, href: string): boolean {
   if (href === "/") {
@@ -83,7 +84,7 @@ export function AddTransactionLink({ className, children }: { className?: string
 
 /**
  * Mobile bottom tab bar: four sections around a floating add button.
- * Reports, subscriptions and categories are reached from settings.
+ * Reports, groceries, subscriptions and categories are reached from settings.
  */
 export function TabLinks() {
   const pathname = usePathname();
