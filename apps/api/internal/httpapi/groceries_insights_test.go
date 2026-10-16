@@ -251,6 +251,9 @@ func TestGroceryBreakdown(t *testing.T) {
 			t.Fatalf("group %d: got %+v, want %+v", i, g, w)
 		}
 		near(t, "share", g.SharePct, w.share)
+		if (w.name != "") != (g.DefaultKey != nil) {
+			t.Fatalf("group %d: default key must be set for default groups only, got %+v", i, g)
+		}
 	}
 
 	if len(eur.ByStore) != 2 || eur.ByStore[0].Name != "Mercadona" || eur.ByStore[0].TotalMinor != 2315 || eur.ByStore[0].ReceiptCount != 1 ||

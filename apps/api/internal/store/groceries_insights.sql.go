@@ -225,6 +225,7 @@ const groceryLineTotalsByGroup = `-- name: GroceryLineTotalsByGroup :many
 SELECT r.currency,
        g.id AS group_id,
        g.name AS group_name,
+       g.default_key AS group_default_key,
        g.color AS group_color,
        g.is_food AS group_is_food,
        (l.variant_id IS NOT NULL)::boolean AS assigned,
@@ -236,7 +237,7 @@ LEFT JOIN products p ON p.id = v.product_id AND p.workspace_id = v.workspace_id
 LEFT JOIN product_groups g ON g.id = p.group_id AND g.workspace_id = p.workspace_id
 WHERE r.purchased_on >= $1 AND r.purchased_on < $2
   AND ($3::text IS NULL OR r.currency = $3)
-GROUP BY r.currency, g.id, g.name, g.color, g.is_food, g.position, (l.variant_id IS NOT NULL)
+GROUP BY r.currency, g.id, g.name, g.default_key, g.color, g.is_food, g.position, (l.variant_id IS NOT NULL)
 ORDER BY r.currency, g.position NULLS LAST, g.name
 `
 
@@ -247,13 +248,14 @@ type GroceryLineTotalsByGroupParams struct {
 }
 
 type GroceryLineTotalsByGroupRow struct {
-	Currency    string
-	GroupID     *uuid.UUID
-	GroupName   *string
-	GroupColor  *string
-	GroupIsFood *bool
-	Assigned    bool
-	TotalMinor  int64
+	Currency        string
+	GroupID         *uuid.UUID
+	GroupName       *string
+	GroupDefaultKey *string
+	GroupColor      *string
+	GroupIsFood     *bool
+	Assigned        bool
+	TotalMinor      int64
 }
 
 // Line spend per currency and product group. Lines without a variant are
@@ -271,6 +273,7 @@ func (q *Queries) GroceryLineTotalsByGroup(ctx context.Context, arg GroceryLineT
 			&i.Currency,
 			&i.GroupID,
 			&i.GroupName,
+			&i.GroupDefaultKey,
 			&i.GroupColor,
 			&i.GroupIsFood,
 			&i.Assigned,

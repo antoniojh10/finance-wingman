@@ -89,7 +89,7 @@ func (q *Queries) FindGroceryStoreByName(ctx context.Context, lower string) (Gro
 }
 
 const findProductGroupByName = `-- name: FindProductGroupByName :one
-SELECT id, workspace_id, name, is_food, color, position, created_at, updated_at FROM product_groups WHERE lower(name) = lower($1)
+SELECT id, workspace_id, name, is_food, color, position, created_at, updated_at, default_key FROM product_groups WHERE lower(name) = lower($1)
 `
 
 func (q *Queries) FindProductGroupByName(ctx context.Context, lower string) (ProductGroup, error) {
@@ -104,6 +104,7 @@ func (q *Queries) FindProductGroupByName(ctx context.Context, lower string) (Pro
 		&i.Position,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultKey,
 	)
 	return i, err
 }

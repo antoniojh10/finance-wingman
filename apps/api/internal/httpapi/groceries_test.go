@@ -106,6 +106,14 @@ func TestProductGroupsSeedDefaultsOnce(t *testing.T) {
 	if groups[0].Name != "Produce" || groups[11].Name != "Other" || food != 9 {
 		t.Fatalf("unexpected defaults (food=%d): %+v", food, groups)
 	}
+	for _, g := range groups {
+		if g.DefaultKey == nil || *g.DefaultKey == "" {
+			t.Fatalf("default group %q has no key", g.Name)
+		}
+	}
+	if *groups[1].DefaultKey != "meat_fish" || *groups[11].DefaultKey != "other" {
+		t.Fatalf("unexpected keys: %+v", groups)
+	}
 	if again := api.groceryGroups(); len(again) != 12 {
 		t.Fatalf("listing again must not duplicate, got %d", len(again))
 	}
@@ -130,6 +138,9 @@ func TestProductGroups(t *testing.T) {
 
 	var created groceries.ProductGroup
 	api.do(http.MethodPost, gp+"/groups", map[string]any{"name": "Pets", "is_food": false, "color": "#112233"}).expect(http.StatusCreated).decode(&created)
+	if created.DefaultKey != nil {
+		t.Fatalf("custom groups have no key, got %q", *created.DefaultKey)
+	}
 	if created.Name != "Pets" || created.IsFood || created.Color == nil || created.Position != 12 {
 		t.Fatalf("unexpected group %+v", created)
 	}
@@ -149,6 +160,40 @@ func TestProductGroups(t *testing.T) {
 	api.do(http.MethodPatch, gp+"/groups/"+created.ID.String(), map[string]any{"name": "produce"}).expect(http.StatusConflict)
 	api.do(http.MethodPatch, gp+"/groups/"+created.ID.String(), map[string]any{"color": "nope"}).expect(http.StatusUnprocessableEntity)
 	api.do(http.MethodPatch, gp+"/groups/"+uuid.NewString(), map[string]any{"name": "X"}).expect(http.StatusNotFound)
+}
+
+func TestProductGroupRenameClearsDefaultKey(t *testing.T) {
+	t.Parallel()
+	api := newTestAPI(t)
+	dairy := api.groceryGroups()[2]
+	path := gp + "/groups/" + dairy.ID.String()
+
+	// Editing anything but the name keeps the key, even sending the same name.
+	var got groceries.ProductGroup
+	api.do(http.MethodPatch, path, map[string]any{"color": "#112233", "is_food": false, "position": 5}).expect(http.StatusOK).decode(&got)
+	if got.DefaultKey == nil || *got.DefaultKey != "dairy_eggs" {
+		t.Fatalf("color/is_food/position edits must keep the key, got %+v", got)
+	}
+	api.do(http.MethodPatch, path, map[string]any{"name": dairy.Name}).expect(http.StatusOK).decode(&got)
+	if got.DefaultKey == nil || *got.DefaultKey != "dairy_eggs" {
+		t.Fatalf("an unchanged name must keep the key, got %+v", got)
+	}
+
+	// Products carry the key while it lasts.
+	milk := api.createGroceryProduct(map[string]any{"name": "Whole milk", "group_id": dairy.ID, "compare_unit": "l"})
+	if milk.GroupDefaultKey == nil || *milk.GroupDefaultKey != "dairy_eggs" {
+		t.Fatalf("product should carry the group key, got %+v", milk)
+	}
+
+	api.do(http.MethodPatch, path, map[string]any{"name": "Dairy"}).expect(http.StatusOK).decode(&got)
+	if got.Name != "Dairy" || got.DefaultKey != nil {
+		t.Fatalf("renaming must clear the key, got %+v", got)
+	}
+	var products struct{ Items []groceries.Product }
+	api.do(http.MethodGet, gp+"/products", nil).expect(http.StatusOK).decode(&products)
+	if len(products.Items) != 1 || products.Items[0].GroupDefaultKey != nil || *products.Items[0].GroupName != "Dairy" {
+		t.Fatalf("renamed group must show its name without key, got %+v", products.Items)
+	}
 }
 
 func TestGroceryProducts(t *testing.T) {
