@@ -19,6 +19,7 @@ ORDER BY r.currency, s.name;
 SELECT r.currency,
        g.id AS group_id,
        g.name AS group_name,
+       g.default_key AS group_default_key,
        g.color AS group_color,
        g.is_food AS group_is_food,
        (l.variant_id IS NOT NULL)::boolean AS assigned,
@@ -30,7 +31,7 @@ LEFT JOIN products p ON p.id = v.product_id AND p.workspace_id = v.workspace_id
 LEFT JOIN product_groups g ON g.id = p.group_id AND g.workspace_id = p.workspace_id
 WHERE r.purchased_on >= sqlc.arg('from_date') AND r.purchased_on < sqlc.arg('to_date')
   AND (sqlc.narg('currency')::text IS NULL OR r.currency = sqlc.narg('currency'))
-GROUP BY r.currency, g.id, g.name, g.color, g.is_food, g.position, (l.variant_id IS NOT NULL)
+GROUP BY r.currency, g.id, g.name, g.default_key, g.color, g.is_food, g.position, (l.variant_id IS NOT NULL)
 ORDER BY r.currency, g.position NULLS LAST, g.name;
 
 -- name: GroceryProductSpend :many

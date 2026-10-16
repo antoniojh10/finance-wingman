@@ -2,13 +2,14 @@
 
 import { ArchiveIcon, ArchiveRestoreIcon, PencilIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { createGroup, createStore, renameGroup, renameStore, setStoreArchived } from "@/app/actions/groceries-catalog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useGroupLabel } from "@/components/groceries/use-group-label";
 import { useFormAction } from "@/hooks/use-form-action";
 import type { FormState } from "@/lib/forms";
 import type { GroceryStore, ProductGroup } from "@/lib/groceries-products";
@@ -17,7 +18,13 @@ type Action = (state: FormState, formData: FormData) => Promise<FormState>;
 
 function RenameForm({ id, name, action, label, onDone }: { id: string; name: string; action: Action; label: string; onDone: () => void }) {
   const t = useTranslations("groceries.products.admin");
-  const { state, onSubmit, pending } = useFormAction(action, () => {
+  // Saving the prefilled name untouched is not a rename: skip the request so a
+  // translated default group does not become a custom one.
+  const guarded = useCallback<Action>(
+    async (previous, formData) => (String(formData.get("name") ?? "").trim() === name ? { ok: true, nonce: Date.now() } : action(previous, formData)),
+    [action, name],
+  );
+  const { state, onSubmit, pending } = useFormAction(guarded, () => {
     toast.success(t("renamed"));
     onDone();
   });
@@ -115,17 +122,18 @@ function StoreRow({ store }: { store: GroceryStore }) {
 function GroupRow({ group }: { group: ProductGroup }) {
   const t = useTranslations("groceries.products.admin");
   const [editing, setEditing] = useState(false);
+  const label = useGroupLabel()(group);
 
   return (
     <li className="flex min-h-11 items-center gap-2 py-1" data-testid="group-row">
       {editing ? (
-        <RenameForm id={group.id} name={group.name} action={renameGroup} label={t("groupName")} onDone={() => setEditing(false)} />
+        <RenameForm id={group.id} name={label} action={renameGroup} label={t("groupName")} onDone={() => setEditing(false)} />
       ) : (
         <>
           <i aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: group.color ?? "var(--muted-foreground)" }} />
-          <span className="min-w-0 flex-1 truncate font-medium">{group.name}</span>
+          <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
           {!group.is_food && <Badge variant="outline">{t("nonFood")}</Badge>}
-          <Button variant="ghost" size="icon" aria-label={t("rename", { name: group.name })} onClick={() => setEditing(true)}>
+          <Button variant="ghost" size="icon" aria-label={t("rename", { name: label })} onClick={() => setEditing(true)}>
             <PencilIcon />
           </Button>
         </>

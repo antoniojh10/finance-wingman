@@ -1703,6 +1703,8 @@ export interface components {
         };
         BreakdownGroup: {
             color: string | null;
+            /** @description Default key of the group while it keeps its default name */
+            default_key: string | null;
             /**
              * Format: uuid
              * @description Null: lines without a product or products without a group
@@ -2872,6 +2874,8 @@ export interface components {
              */
             display_multiplier: number;
             group_color: string | null;
+            /** @description Default key of the group while it keeps its default name */
+            group_default_key: string | null;
             /** Format: uuid */
             group_id: string | null;
             group_name: string | null;
@@ -2894,6 +2898,11 @@ export interface components {
             color: string | null;
             /** Format: date-time */
             created_at: string;
+            /**
+             * @description Stable key of a default group (clients may translate it); null once renamed and for custom groups
+             * @example dairy_eggs
+             */
+            default_key: string | null;
             id: string;
             is_food: boolean;
             /** @example Dairy & eggs */

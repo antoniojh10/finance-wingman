@@ -7,6 +7,7 @@ import { intlLocale, isLocale } from "@/i18n/locales";
 import { minorUnitsOf, formatQuantity } from "@/lib/groceries";
 import { breakdownBars, overviewHref, type Breakdown, type OverviewQuery } from "@/lib/groceries-insights";
 
+import { useGroupLabel } from "../use-group-label";
 import { Segmented } from "./segmented";
 
 const FALLBACK_COLOR = "var(--muted-foreground)";
@@ -16,6 +17,7 @@ export function BreakdownCard({ data, query }: { data: Breakdown; query: Overvie
   const t = useTranslations("groceries.overview");
   const minorUnits = minorUnitsOf(data.currency);
   const rows = breakdownBars(data, query.by);
+  const groupName = useGroupLabel();
   const appLocale = useLocale();
   const percent = new Intl.NumberFormat(intlLocale(isLocale(appLocale) ? appLocale : "en"), { maximumFractionDigits: 0 });
 
@@ -38,7 +40,7 @@ export function BreakdownCard({ data, query }: { data: Breakdown; query: Overvie
           <li key={row.key} className="grid gap-1.5" data-testid="breakdown-row">
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="flex min-w-0 items-center gap-2">
-                <span className="truncate font-bold">{row.label ?? t("unassigned")}</span>
+                <span className="truncate font-bold">{row.label === null ? t("unassigned") : row.defaultKey ? groupName({ name: row.label, default_key: row.defaultKey }) : row.label}</span>
                 {row.isFood === false && (
                   <Badge variant="secondary" className="h-5 px-2 text-[11px]">
                     {t("nonFood")}

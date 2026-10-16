@@ -6,6 +6,7 @@ import {
   buildProduct,
   buildVariant,
   defaultSeriesKey,
+  groupLabel,
   groupProducts,
   historySeries,
   parseProductsQuery,
@@ -27,6 +28,7 @@ const product = (id: string, name: string, groupId: string | null): CatalogProdu
   name,
   group_id: groupId,
   group_name: null,
+  group_default_key: null,
   group_color: null,
   compare_unit: "kg",
   display_multiplier: 1,
@@ -35,7 +37,7 @@ const product = (id: string, name: string, groupId: string | null): CatalogProdu
   created_at: "",
   updated_at: "",
 });
-const group = (id: string, name: string, position: number): ProductGroup => ({ id, name, position, color: null, is_food: true, created_at: "", updated_at: "" });
+const group = (id: string, name: string, position: number): ProductGroup => ({ id, name, position, color: null, default_key: null, is_food: true, created_at: "", updated_at: "" });
 
 describe("groupProducts", () => {
   const groups = [group("g2", "Dairy", 2), group("g1", "Produce", 1), group("g3", "Empty", 3)];
@@ -235,5 +237,27 @@ describe("buildName", () => {
 
   it("requires a name", () => {
     expect(buildName(form({ name: "" }))).toEqual({ errors: { name: "required" } });
+  });
+});
+
+describe("groupLabel", () => {
+  const names: Record<string, string> = { dairy_eggs: "Lácteos y huevos" };
+  const t = Object.assign((key: string) => names[key], { has: (key: string) => key in names });
+
+  it("translates default groups", () => {
+    expect(groupLabel({ name: "Dairy & eggs", default_key: "dairy_eggs" }, t)).toBe("Lácteos y huevos");
+  });
+
+  it("shows renamed and custom groups as stored", () => {
+    expect(groupLabel({ name: "Dairy", default_key: null }, t)).toBe("Dairy");
+    expect(groupLabel({ name: "Pets" }, t)).toBe("Pets");
+  });
+
+  it("falls back to the stored name for an unknown key", () => {
+    expect(groupLabel({ name: "Future", default_key: "future_key" }, t)).toBe("Future");
+  });
+
+  it("keeps a missing name", () => {
+    expect(groupLabel({ name: null, default_key: null }, t)).toBeNull();
   });
 });

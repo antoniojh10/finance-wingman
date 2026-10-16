@@ -23,7 +23,21 @@ export function productHref(id: string): string {
   return `/groceries/products/${id}`;
 }
 
-export type ProductSection = { key: string; name: string | null; color: string | null; products: CatalogProduct[] };
+/** Translator of `groceries.groupNames` (a next-intl translator or any function with `has`). */
+export type GroupNameTranslator = ((key: string) => string) & { has: (key: string) => boolean };
+
+/**
+ * Name to show for a product group: the translation while it is a default
+ * group (it has a default key), else the name as stored. Groups the user
+ * created or renamed have no key and are shown as typed.
+ */
+export function groupLabel(group: { name: string; default_key?: string | null }, t: GroupNameTranslator): string;
+export function groupLabel(group: { name: string | null; default_key?: string | null }, t: GroupNameTranslator): string | null;
+export function groupLabel(group: { name: string | null; default_key?: string | null }, t: GroupNameTranslator): string | null {
+  return group.default_key && t.has(group.default_key) ? t(group.default_key) : group.name;
+}
+
+export type ProductSection = { key: string; name: string | null; defaultKey: string | null; color: string | null; products: CatalogProduct[] };
 
 /**
  * Groups products by product group, in the order of the groups (products
@@ -37,9 +51,9 @@ export function groupProducts(products: CatalogProduct[], groups: ProductGroup[]
 
   const sections: ProductSection[] = [...groups]
     .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name))
-    .map((group) => ({ key: group.id, name: group.name, color: group.color, products: matching.filter((p) => p.group_id === group.id) }));
+    .map((group) => ({ key: group.id, name: group.name, defaultKey: group.default_key, color: group.color, products: matching.filter((p) => p.group_id === group.id) }));
   const known = new Set(groups.map((group) => group.id));
-  sections.push({ key: "none", name: null, color: null, products: matching.filter((p) => !p.group_id || !known.has(p.group_id)) });
+  sections.push({ key: "none", name: null, defaultKey: null, color: null, products: matching.filter((p) => !p.group_id || !known.has(p.group_id)) });
   return sections.filter((section) => section.products.length > 0);
 }
 

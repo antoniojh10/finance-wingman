@@ -70,6 +70,21 @@ describe("AssignLineForm", () => {
     });
   });
 
+  it("labels default groups in the UI language but submits the stored name", async () => {
+    assignReceiptLine.mockResolvedValue({ ok: true, nonce: 3 });
+    renderWithIntl(
+      <AssignLineForm receiptId="r1" lineId="l1" catalog={[]} groups={[{ id: "g1", name: "Dairy & eggs", default_key: "dairy_eggs" }]} onDone={vi.fn()} onCancel={vi.fn()} />,
+      { locale: "es" },
+    );
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Nombre del producto"), "Leche");
+    await user.type(screen.getByLabelText("Tamaño del envase"), "1");
+    await user.selectOptions(screen.getByLabelText("Grupo"), "Lácteos y huevos");
+    await user.click(screen.getByRole("button", { name: "Guardar asignación" }));
+    await waitFor(() => expect(assignReceiptLine).toHaveBeenCalled());
+    expect(submitted().group).toBe("Dairy & eggs");
+  });
+
   it("starts in new product mode when the catalog is empty", () => {
     renderForm({ catalog: [] });
     expect(screen.getByRole("button", { name: "Existing product" })).toBeDisabled();

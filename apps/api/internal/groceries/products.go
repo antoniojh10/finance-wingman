@@ -23,6 +23,7 @@ type Product struct {
 	Name              string     `json:"name" example:"Whole milk"`
 	GroupID           *uuid.UUID `json:"group_id" nullable:"true" format:"uuid"`
 	GroupName         *string    `json:"group_name" nullable:"true"`
+	GroupDefaultKey   *string    `json:"group_default_key" nullable:"true" doc:"Default key of the group while it keeps its default name"`
 	GroupColor        *string    `json:"group_color" nullable:"true"`
 	CompareUnit       string     `json:"compare_unit" enum:"kg,l,unit" doc:"Unit the prices of its variants are compared in"`
 	DisplayMultiplier int32      `json:"display_multiplier" doc:"Unit prices are shown for this many compare units (12: priced per dozen)"`
@@ -59,7 +60,7 @@ func (p Product) withArchived(at *time.Time) Product {
 
 func productFromRow(r store.GetGroceryProductRow) Product {
 	return Product{
-		ID: r.ID, Name: r.Name, GroupID: r.GroupID, GroupName: r.GroupName, GroupColor: r.GroupColor,
+		ID: r.ID, Name: r.Name, GroupID: r.GroupID, GroupName: r.GroupName, GroupDefaultKey: r.GroupDefaultKey, GroupColor: r.GroupColor,
 		CompareUnit: r.CompareUnit, DisplayMultiplier: r.DisplayMultiplier, VariantCount: r.VariantCount,
 		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
 	}.withArchived(r.ArchivedAt)

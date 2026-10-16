@@ -9,11 +9,13 @@ import { NativeSelect } from "@/components/native-select";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useGroupLabel } from "@/components/groceries/use-group-label";
 import { useFormAction } from "@/hooks/use-form-action";
 import { COMPARE_UNITS, type CatalogProduct, type ProductGroup } from "@/lib/groceries-products";
 
 function ProductForm({ product, groups, onDone }: { product?: CatalogProduct; groups: ProductGroup[]; onDone: () => void }) {
   const t = useTranslations("groceries.products.form");
+  const label = useGroupLabel();
   const common = useTranslations("common");
   const { state, onSubmit, pending } = useFormAction(product ? updateProduct : createProduct, () => {
     toast.success(product ? t("updated") : t("created"));
@@ -32,7 +34,7 @@ function ProductForm({ product, groups, onDone }: { product?: CatalogProduct; gr
           <option value="">{t("groupNone")}</option>
           {groups.map((group) => (
             <option key={group.id} value={group.id}>
-              {group.name}
+              {label(group)}
             </option>
           ))}
         </NativeSelect>

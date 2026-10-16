@@ -22,6 +22,7 @@ const product: CatalogProduct = {
   name: "Whole milk",
   group_id: "g1",
   group_name: "Dairy & eggs",
+  group_default_key: null,
   group_color: "#12a150",
   compare_unit: "l",
   display_multiplier: 1,
@@ -30,7 +31,7 @@ const product: CatalogProduct = {
   created_at: "",
   updated_at: "",
 };
-const groups: ProductGroup[] = [{ id: "g1", name: "Dairy & eggs", position: 1, color: null, is_food: true, created_at: "", updated_at: "" }];
+const groups: ProductGroup[] = [{ id: "g1", name: "Dairy & eggs", position: 1, color: null, default_key: null, is_food: true, created_at: "", updated_at: "" }];
 const stores: GroceryStore[] = [
   { id: "s1", name: "Mercadona", archived: false, created_at: "", updated_at: "" },
   { id: "s2", name: "Lidl", archived: false, created_at: "", updated_at: "" },
@@ -90,9 +91,10 @@ const prices: ProductPrices = {
   ],
 };
 
-function renderDetail(overrides: Partial<{ prices: ProductPrices; product: CatalogProduct }> = {}) {
+function renderDetail(overrides: Partial<{ prices: ProductPrices; product: CatalogProduct }> = {}, locale: "en" | "es" = "en") {
   return renderWithIntl(
     <ProductDetail product={overrides.product ?? product} prices={overrides.prices ?? prices} stores={stores} groups={groups} currencies={["EUR", "USD"]} today="2026-10-15" />,
+    { locale },
   );
 }
 
@@ -175,6 +177,14 @@ describe("ProductDetail header", () => {
     expect(screen.getByTestId("product-name")).toHaveTextContent("Whole milk");
     expect(screen.getByText("Dairy & eggs")).toBeInTheDocument();
     expect(screen.getAllByText("per dozen").length).toBeGreaterThan(0);
+  });
+
+  it("translates a default group and shows a renamed one as stored", () => {
+    const { unmount } = renderDetail({ product: { ...product, group_default_key: "dairy_eggs" } }, "es");
+    expect(screen.getByText("Lácteos y huevos")).toBeInTheDocument();
+    unmount();
+    renderDetail({ product: { ...product, group_name: "Dairy" } }, "es");
+    expect(screen.getByText("Dairy")).toBeInTheDocument();
   });
 
   it("archives after confirming", async () => {

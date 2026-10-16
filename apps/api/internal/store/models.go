@@ -224,6 +224,7 @@ type ProductGroup struct {
 	Position    int32
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	DefaultKey  *string
 }
 
 type ProductVariant struct {

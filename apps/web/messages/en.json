@@ -680,6 +680,20 @@
   },
   "groceries": {
     "title": "Groceries",
+    "groupNames": {
+      "produce": "Produce",
+      "meat_fish": "Meat & fish",
+      "dairy_eggs": "Dairy & eggs",
+      "bakery": "Bakery",
+      "pantry": "Pantry",
+      "frozen": "Frozen",
+      "snacks_sweets": "Snacks & sweets",
+      "drinks": "Drinks",
+      "alcohol": "Alcohol",
+      "cleaning_household": "Cleaning & household",
+      "personal_care": "Personal care",
+      "other": "Other"
+    },
     "tabs": {
       "label": "Groceries sections",
       "summary": "Summary",

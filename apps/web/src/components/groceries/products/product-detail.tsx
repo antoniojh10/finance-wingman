@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { setProductArchived } from "@/app/actions/groceries-catalog";
 import { ConfirmAction } from "@/components/confirm-action";
+import { useGroupLabel } from "@/components/groceries/use-group-label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { defaultSeriesKey, historySeries, variantRows, type CatalogProduct, type GroceryStore, type ProductGroup, type ProductPrices } from "@/lib/groceries-products";
@@ -51,6 +52,7 @@ export function ProductDetail({
   today: string;
 }) {
   const t = useTranslations("groceries.products");
+  const label = useGroupLabel();
   const priceUnit = usePriceUnit();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -78,7 +80,7 @@ export function ProductDetail({
               {product.group_name && (
                 <Badge variant="secondary">
                   {product.group_color && <i aria-hidden className="size-2 rounded-full" style={{ background: product.group_color }} />}
-                  {product.group_name}
+                  {label({ name: product.group_name, default_key: product.group_default_key })}
                 </Badge>
               )}
               <Badge variant="outline">{unitLabel}</Badge>

@@ -18,12 +18,13 @@ const actions = vi.hoisted(() => ({
 }));
 vi.mock("@/app/actions/groceries-catalog", () => actions);
 
-const group = (id: string, name: string, position: number, isFood = true): ProductGroup => ({ id, name, position, color: "#12a150", is_food: isFood, created_at: "", updated_at: "" });
+const group = (id: string, name: string, position: number, isFood = true): ProductGroup => ({ id, name, position, color: "#12a150", default_key: null, is_food: isFood, created_at: "", updated_at: "" });
 const product = (id: string, name: string, groupId: string | null, extra: Partial<CatalogProduct> = {}): CatalogProduct => ({
   id,
   name,
   group_id: groupId,
   group_name: null,
+  group_default_key: null,
   group_color: null,
   compare_unit: "l",
   display_multiplier: 1,
@@ -115,6 +116,45 @@ describe("CatalogAdmin", () => {
     await waitFor(() => expect(actions.renameStore).toHaveBeenCalled());
     const data = actions.renameStore.mock.calls[0][1] as FormData;
     expect(Object.fromEntries(data.entries())).toEqual({ id: "s1", name: "Mercadona SA" });
+  });
+
+  describe("translated default groups", () => {
+    const translated = [{ ...group("g1", "Dairy & eggs", 1), default_key: "dairy_eggs" }, group("g2", "Pets", 2)];
+    const list = [product("p1", "Leche entera", "g1"), product("p2", "Pienso", "g2")];
+
+    it("shows default groups in the UI language and custom ones as typed", () => {
+      renderWithIntl(<ProductsList products={list} groups={translated} stores={stores} />, { locale: "es" });
+      const sections = screen.getAllByTestId("product-section");
+      expect(sections[0]).toHaveAccessibleName("Lácteos y huevos");
+      expect(sections[1]).toHaveAccessibleName("Pets");
+      const rows = within(screen.getByTestId("groups-admin")).getAllByTestId("group-row");
+      expect(rows[0]).toHaveTextContent("Lácteos y huevos");
+      expect(rows[1]).toHaveTextContent("Pets");
+    });
+
+    it("saving a translated group untouched does not rename it", async () => {
+      const user = userEvent.setup();
+      renderWithIntl(<ProductsList products={list} groups={translated} stores={stores} />, { locale: "es" });
+      await user.click(screen.getByRole("button", { name: "Renombrar Lácteos y huevos" }));
+      const input = screen.getByLabelText("Nombre del grupo");
+      expect(input).toHaveValue("Lácteos y huevos");
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+      await waitFor(() => expect(screen.queryByLabelText("Nombre del grupo")).not.toBeInTheDocument());
+      expect(actions.renameGroup).not.toHaveBeenCalled();
+    });
+
+    it("sends the new name when the user changes it", async () => {
+      actions.renameGroup.mockResolvedValue({ ok: true, nonce: 1 });
+      const user = userEvent.setup();
+      renderWithIntl(<ProductsList products={list} groups={translated} stores={stores} />, { locale: "es" });
+      await user.click(screen.getByRole("button", { name: "Renombrar Lácteos y huevos" }));
+      const input = screen.getByLabelText("Nombre del grupo");
+      await user.clear(input);
+      await user.type(input, "Lácteos");
+      await user.click(screen.getByRole("button", { name: "Guardar" }));
+      await waitFor(() => expect(actions.renameGroup).toHaveBeenCalled());
+      expect(Object.fromEntries((actions.renameGroup.mock.calls[0][1] as FormData).entries())).toEqual({ id: "g1", name: "Lácteos" });
+    });
   });
 
   it("archives and restores stores", async () => {

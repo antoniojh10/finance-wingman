@@ -782,6 +782,13 @@
               "null"
             ]
           },
+          "default_key": {
+            "description": "Default key of the group while it keeps its default name",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "group_id": {
             "description": "Null: lines without a product or products without a group",
             "format": "uuid",
@@ -815,6 +822,7 @@
         "required": [
           "group_id",
           "name",
+          "default_key",
           "color",
           "is_food",
           "total_minor",
@@ -3588,6 +3596,13 @@
               "null"
             ]
           },
+          "group_default_key": {
+            "description": "Default key of the group while it keeps its default name",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "group_id": {
             "format": "uuid",
             "type": [
@@ -3624,6 +3639,7 @@
           "name",
           "group_id",
           "group_name",
+          "group_default_key",
           "group_color",
           "compare_unit",
           "display_multiplier",
@@ -3659,6 +3675,16 @@
             "format": "date-time",
             "type": "string"
           },
+          "default_key": {
+            "description": "Stable key of a default group (clients may translate it); null once renamed and for custom groups",
+            "examples": [
+              "dairy_eggs"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -3683,6 +3709,7 @@
         "required": [
           "id",
           "name",
+          "default_key",
           "is_food",
           "color",
           "position",

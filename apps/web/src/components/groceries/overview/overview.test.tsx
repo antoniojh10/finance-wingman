@@ -12,9 +12,9 @@ const breakdown: Breakdown = {
   assigned_minor: 9000,
   average_receipt_minor: 5000,
   by_group: [
-    { color: "#12a150", group_id: "g1", is_food: true, name: "Produce", share_pct: 60, total_minor: 6000 },
-    { color: "#2f8cff", group_id: "g2", is_food: false, name: "Cleaning", share_pct: 30, total_minor: 3000 },
-    { color: null, group_id: null, is_food: null, name: null, share_pct: 10, total_minor: 1000 },
+    { color: "#12a150", default_key: null, group_id: "g1", is_food: true, name: "Produce", share_pct: 60, total_minor: 6000 },
+    { color: "#2f8cff", default_key: null, group_id: "g2", is_food: false, name: "Cleaning", share_pct: 30, total_minor: 3000 },
+    { color: null, default_key: null, group_id: null, is_food: null, name: null, share_pct: 10, total_minor: 1000 },
   ],
   by_store: [{ name: "Mercadona", receipt_count: 2, store_id: "s1", total_minor: 10000 }],
   coverage_pct: 90,
@@ -80,7 +80,7 @@ const basket: Basket = {
   ],
 };
 
-function renderOverview(props: Partial<React.ComponentProps<typeof GroceriesOverview>> = {}) {
+function renderOverview(props: Partial<React.ComponentProps<typeof GroceriesOverview>> = {}, locale: "en" | "es" = "en") {
   return renderWithIntl(
     <GroceriesOverview
       query={query}
@@ -93,6 +93,7 @@ function renderOverview(props: Partial<React.ComponentProps<typeof GroceriesOver
       basketMonths={3}
       {...props}
     />,
+    { locale },
   );
 }
 
@@ -128,6 +129,16 @@ describe("GroceriesOverview", () => {
     ]);
     expect(within(rows[1]).getByText("Non-food")).toBeInTheDocument();
     expect(within(rows[0]).queryByText("Non-food")).not.toBeInTheDocument();
+  });
+
+  it("translates default groups and keeps custom ones as stored", () => {
+    renderOverview(
+      { breakdown: { ...breakdown, by_group: [{ ...breakdown.by_group[0], default_key: "produce" }, breakdown.by_group[1], breakdown.by_group[2]] } },
+      "es",
+    );
+    const rows = screen.getAllByTestId("breakdown-row");
+    expect(rows[0]).toHaveTextContent("Fruta y verdura");
+    expect(rows[1]).toHaveTextContent("Cleaning");
   });
 
   it("toggles the breakdown to stores through a link", () => {

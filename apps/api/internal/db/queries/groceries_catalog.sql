@@ -30,8 +30,8 @@ SELECT * FROM product_groups WHERE id = $1;
 SELECT count(*) FROM product_groups;
 
 -- name: SeedProductGroup :exec
-INSERT INTO product_groups (name, is_food, color, position)
-VALUES ($1, $2, $3, $4)
+INSERT INTO product_groups (name, is_food, color, position, default_key)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT DO NOTHING;
 
 -- name: CreateProductGroup :one
@@ -45,6 +45,8 @@ RETURNING *;
 -- name: UpdateProductGroup :one
 UPDATE product_groups SET
     name = COALESCE(sqlc.narg('name'), name),
+    -- A different name makes the group custom: it loses its default key.
+    default_key = CASE WHEN sqlc.narg('name')::text IS NOT NULL AND sqlc.narg('name')::text <> name THEN NULL ELSE default_key END,
     is_food = COALESCE(sqlc.narg('is_food'), is_food),
     color = CASE WHEN sqlc.arg('set_color')::boolean THEN sqlc.narg('color') ELSE color END,
     position = COALESCE(sqlc.narg('position')::int, position)
@@ -52,7 +54,7 @@ WHERE id = sqlc.arg('id')
 RETURNING *;
 
 -- name: ListGroceryProducts :many
-SELECT p.*, g.name AS group_name, g.color AS group_color,
+SELECT p.*, g.name AS group_name, g.default_key AS group_default_key, g.color AS group_color,
        (SELECT count(*) FROM product_variants v WHERE v.product_id = p.id)::bigint AS variant_count
 FROM products p
 LEFT JOIN product_groups g ON g.id = p.group_id AND g.workspace_id = p.workspace_id
@@ -61,7 +63,7 @@ WHERE (sqlc.arg('include_archived')::boolean OR p.archived_at IS NULL)
 ORDER BY p.archived_at IS NOT NULL, lower(p.name);
 
 -- name: GetGroceryProduct :one
-SELECT p.*, g.name AS group_name, g.color AS group_color,
+SELECT p.*, g.name AS group_name, g.default_key AS group_default_key, g.color AS group_color,
        (SELECT count(*) FROM product_variants v WHERE v.product_id = p.id)::bigint AS variant_count
 FROM products p
 LEFT JOIN product_groups g ON g.id = p.group_id AND g.workspace_id = p.workspace_id

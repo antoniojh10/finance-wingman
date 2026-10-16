@@ -73,7 +73,7 @@ VALUES (
     $1, $2, $3,
     COALESCE($4::int, (SELECT COALESCE(max(position) + 1, 0) FROM product_groups))
 )
-RETURNING id, workspace_id, name, is_food, color, position, created_at, updated_at
+RETURNING id, workspace_id, name, is_food, color, position, created_at, updated_at, default_key
 `
 
 type CreateProductGroupParams struct {
@@ -100,6 +100,7 @@ func (q *Queries) CreateProductGroup(ctx context.Context, arg CreateProductGroup
 		&i.Position,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultKey,
 	)
 	return i, err
 }
@@ -154,7 +155,7 @@ func (q *Queries) DeleteProductVariant(ctx context.Context, id uuid.UUID) (int64
 }
 
 const getGroceryProduct = `-- name: GetGroceryProduct :one
-SELECT p.id, p.workspace_id, p.name, p.group_id, p.compare_unit, p.display_multiplier, p.archived_at, p.created_at, p.updated_at, g.name AS group_name, g.color AS group_color,
+SELECT p.id, p.workspace_id, p.name, p.group_id, p.compare_unit, p.display_multiplier, p.archived_at, p.created_at, p.updated_at, g.name AS group_name, g.default_key AS group_default_key, g.color AS group_color,
        (SELECT count(*) FROM product_variants v WHERE v.product_id = p.id)::bigint AS variant_count
 FROM products p
 LEFT JOIN product_groups g ON g.id = p.group_id AND g.workspace_id = p.workspace_id
@@ -172,6 +173,7 @@ type GetGroceryProductRow struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	GroupName         *string
+	GroupDefaultKey   *string
 	GroupColor        *string
 	VariantCount      int64
 }
@@ -190,6 +192,7 @@ func (q *Queries) GetGroceryProduct(ctx context.Context, id uuid.UUID) (GetGroce
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.GroupName,
+		&i.GroupDefaultKey,
 		&i.GroupColor,
 		&i.VariantCount,
 	)
@@ -215,7 +218,7 @@ func (q *Queries) GetGroceryStore(ctx context.Context, id uuid.UUID) (GrocerySto
 }
 
 const getProductGroup = `-- name: GetProductGroup :one
-SELECT id, workspace_id, name, is_food, color, position, created_at, updated_at FROM product_groups WHERE id = $1
+SELECT id, workspace_id, name, is_food, color, position, created_at, updated_at, default_key FROM product_groups WHERE id = $1
 `
 
 func (q *Queries) GetProductGroup(ctx context.Context, id uuid.UUID) (ProductGroup, error) {
@@ -230,6 +233,7 @@ func (q *Queries) GetProductGroup(ctx context.Context, id uuid.UUID) (ProductGro
 		&i.Position,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultKey,
 	)
 	return i, err
 }
@@ -256,7 +260,7 @@ func (q *Queries) GetProductVariant(ctx context.Context, id uuid.UUID) (ProductV
 }
 
 const listGroceryProducts = `-- name: ListGroceryProducts :many
-SELECT p.id, p.workspace_id, p.name, p.group_id, p.compare_unit, p.display_multiplier, p.archived_at, p.created_at, p.updated_at, g.name AS group_name, g.color AS group_color,
+SELECT p.id, p.workspace_id, p.name, p.group_id, p.compare_unit, p.display_multiplier, p.archived_at, p.created_at, p.updated_at, g.name AS group_name, g.default_key AS group_default_key, g.color AS group_color,
        (SELECT count(*) FROM product_variants v WHERE v.product_id = p.id)::bigint AS variant_count
 FROM products p
 LEFT JOIN product_groups g ON g.id = p.group_id AND g.workspace_id = p.workspace_id
@@ -281,6 +285,7 @@ type ListGroceryProductsRow struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	GroupName         *string
+	GroupDefaultKey   *string
 	GroupColor        *string
 	VariantCount      int64
 }
@@ -305,6 +310,7 @@ func (q *Queries) ListGroceryProducts(ctx context.Context, arg ListGroceryProduc
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.GroupName,
+			&i.GroupDefaultKey,
 			&i.GroupColor,
 			&i.VariantCount,
 		); err != nil {
@@ -352,7 +358,7 @@ func (q *Queries) ListGroceryStores(ctx context.Context, includeArchived bool) (
 }
 
 const listProductGroups = `-- name: ListProductGroups :many
-SELECT id, workspace_id, name, is_food, color, position, created_at, updated_at FROM product_groups ORDER BY position, lower(name)
+SELECT id, workspace_id, name, is_food, color, position, created_at, updated_at, default_key FROM product_groups ORDER BY position, lower(name)
 `
 
 func (q *Queries) ListProductGroups(ctx context.Context) ([]ProductGroup, error) {
@@ -373,6 +379,7 @@ func (q *Queries) ListProductGroups(ctx context.Context) ([]ProductGroup, error)
 			&i.Position,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DefaultKey,
 		); err != nil {
 			return nil, err
 		}
@@ -420,16 +427,17 @@ func (q *Queries) ListProductVariants(ctx context.Context, productID uuid.UUID) 
 }
 
 const seedProductGroup = `-- name: SeedProductGroup :exec
-INSERT INTO product_groups (name, is_food, color, position)
-VALUES ($1, $2, $3, $4)
+INSERT INTO product_groups (name, is_food, color, position, default_key)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT DO NOTHING
 `
 
 type SeedProductGroupParams struct {
-	Name     string
-	IsFood   bool
-	Color    *string
-	Position int32
+	Name       string
+	IsFood     bool
+	Color      *string
+	Position   int32
+	DefaultKey *string
 }
 
 func (q *Queries) SeedProductGroup(ctx context.Context, arg SeedProductGroupParams) error {
@@ -438,6 +446,7 @@ func (q *Queries) SeedProductGroup(ctx context.Context, arg SeedProductGroupPara
 		arg.IsFood,
 		arg.Color,
 		arg.Position,
+		arg.DefaultKey,
 	)
 	return err
 }
@@ -517,11 +526,13 @@ func (q *Queries) UpdateGroceryStore(ctx context.Context, arg UpdateGroceryStore
 const updateProductGroup = `-- name: UpdateProductGroup :one
 UPDATE product_groups SET
     name = COALESCE($1, name),
+    -- A different name makes the group custom: it loses its default key.
+    default_key = CASE WHEN $1::text IS NOT NULL AND $1::text <> name THEN NULL ELSE default_key END,
     is_food = COALESCE($2, is_food),
     color = CASE WHEN $3::boolean THEN $4 ELSE color END,
     position = COALESCE($5::int, position)
 WHERE id = $6
-RETURNING id, workspace_id, name, is_food, color, position, created_at, updated_at
+RETURNING id, workspace_id, name, is_food, color, position, created_at, updated_at, default_key
 `
 
 type UpdateProductGroupParams struct {
@@ -552,6 +563,7 @@ func (q *Queries) UpdateProductGroup(ctx context.Context, arg UpdateProductGroup
 		&i.Position,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DefaultKey,
 	)
 	return i, err
 }

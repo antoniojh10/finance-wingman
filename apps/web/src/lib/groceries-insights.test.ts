@@ -49,9 +49,9 @@ const breakdown: Breakdown = {
   assigned_minor: 9000,
   average_receipt_minor: 5000,
   by_group: [
-    { color: null, group_id: null, is_food: null, name: null, share_pct: 10, total_minor: 1000 },
-    { color: "#12a150", group_id: "g1", is_food: true, name: "Produce", share_pct: 60, total_minor: 6000 },
-    { color: "#2f8cff", group_id: "g2", is_food: false, name: "Cleaning", share_pct: 30, total_minor: 3000 },
+    { color: null, default_key: null, group_id: null, is_food: null, name: null, share_pct: 10, total_minor: 1000 },
+    { color: "#12a150", default_key: null, group_id: "g1", is_food: true, name: "Produce", share_pct: 60, total_minor: 6000 },
+    { color: "#2f8cff", default_key: null, group_id: "g2", is_food: false, name: "Cleaning", share_pct: 30, total_minor: 3000 },
   ],
   by_store: [
     { name: "Lidl", receipt_count: 1, store_id: "s2", total_minor: 3000 },
@@ -113,6 +113,11 @@ describe("breakdownBars", () => {
     expect(bars[1].width).toBeCloseTo(0.5);
     expect(bars[2].unassigned).toBe(true);
     expect(bars[1].isFood).toBe(false);
+  });
+
+  it("carries the default key of default groups", () => {
+    const bars = breakdownBars({ ...breakdown, by_group: [{ ...breakdown.by_group[1], default_key: "produce" }] }, "group");
+    expect(bars[0].defaultKey).toBe("produce");
   });
 
   it("builds store bars with their share of the receipts total", () => {

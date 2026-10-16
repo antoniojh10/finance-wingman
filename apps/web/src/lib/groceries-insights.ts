@@ -78,6 +78,8 @@ export type BarRow = {
   key: string;
   /** Null for the unassigned bucket (the component supplies the label). */
   label: string | null;
+  /** Default key of the group while it keeps its default name (to translate the label). */
+  defaultKey: string | null;
   total: number;
   /** Width of the bar, 0..1, relative to the biggest row. */
   width: number;
@@ -96,6 +98,7 @@ export function breakdownBars(data: Breakdown, by: BreakdownBy): BarRow[] {
       ? data.by_group.map((group) => ({
           key: group.group_id ?? "unassigned",
           label: group.name,
+          defaultKey: group.default_key,
           total: group.total_minor,
           width: 0,
           share: group.share_pct,
@@ -106,6 +109,7 @@ export function breakdownBars(data: Breakdown, by: BreakdownBy): BarRow[] {
       : data.by_store.map((store) => ({
           key: store.store_id,
           label: store.name,
+          defaultKey: null,
           total: store.total_minor,
           width: 0,
           share: data.total_minor > 0 ? (store.total_minor / data.total_minor) * 100 : 0,

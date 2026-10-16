@@ -95,6 +95,7 @@ type CurrencyBreakdown struct {
 type BreakdownGroup struct {
 	GroupID    *uuid.UUID `json:"group_id" nullable:"true" format:"uuid" doc:"Null: lines without a product or products without a group"`
 	Name       *string    `json:"name" nullable:"true"`
+	DefaultKey *string    `json:"default_key" nullable:"true" doc:"Default key of the group while it keeps its default name"`
 	Color      *string    `json:"color" nullable:"true"`
 	IsFood     *bool      `json:"is_food" nullable:"true"`
 	TotalMinor int64      `json:"total_minor"`
@@ -195,7 +196,7 @@ func (s *Service) Breakdown(ctx context.Context, month, currency string) (Breakd
 			c.ByGroup[i].TotalMinor += r.TotalMinor
 		} else {
 			c.ByGroup = append(c.ByGroup, BreakdownGroup{
-				GroupID: r.GroupID, Name: r.GroupName, Color: r.GroupColor, IsFood: r.GroupIsFood, TotalMinor: r.TotalMinor,
+				GroupID: r.GroupID, Name: r.GroupName, DefaultKey: r.GroupDefaultKey, Color: r.GroupColor, IsFood: r.GroupIsFood, TotalMinor: r.TotalMinor,
 			})
 		}
 	}
