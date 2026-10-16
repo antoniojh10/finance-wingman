@@ -96,3 +96,54 @@ func TestSummaryValidation(t *testing.T) {
 		t.Fatalf("expected no currencies without accounts, got %+v", empty.Currencies)
 	}
 }
+
+func TestSummarySeparatesSavingsAndInvestments(t *testing.T) {
+	t.Parallel()
+	api := newTestAPI(t)
+	create := func(name, typ, currency string, balance int64, owner string) {
+		body := map[string]any{"name": name, "type": typ, "currency": currency, "initial_balance": balance, "balance_as_of": "2000-01-01"}
+		if owner != "" {
+			body["owner"] = owner
+		}
+		api.do(http.MethodPost, "/api/v1/accounts", body).expect(http.StatusCreated)
+	}
+	create("Checking", "checking", "MXN", 1000, "")
+	create("Cash", "cash", "MXN", 200, "")
+	create("Rainy day", "savings", "MXN", 5000, "")
+	create("Joint savings", "savings", "MXN", 700, "shared")
+	create("Brokerage", "investment", "MXN", 9000, "")
+	// A currency with only savings and investment accounts still shows up.
+	create("EUR savings", "savings", "EUR", 300, "")
+	create("EUR fund", "investment", "EUR", 400, "")
+
+	summaryFor := func(query string) map[string]finance.CurrencySummary {
+		var summary finance.Summary
+		api.do(http.MethodGet, "/api/v1/summary?from=2026-09-01&to=2026-09-30"+query, nil).expect(http.StatusOK).decode(&summary)
+		out := map[string]finance.CurrencySummary{}
+		for _, c := range summary.Currencies {
+			out[c.Currency] = c
+		}
+		return out
+	}
+	check := func(c finance.CurrencySummary, balance, savings, investment int64) {
+		t.Helper()
+		if c.Balance != balance || c.SavingsBalance != savings || c.InvestmentBalance != investment {
+			t.Fatalf("%s: got balance %d savings %d investment %d, want %d %d %d", c.Currency, c.Balance, c.SavingsBalance, c.InvestmentBalance, balance, savings, investment)
+		}
+	}
+
+	all := summaryFor("")
+	if len(all) != 2 {
+		t.Fatalf("expected MXN and EUR, got %+v", all)
+	}
+	check(all["MXN"], 1200, 5700, 9000)
+	check(all["EUR"], 0, 300, 400)
+
+	mine := summaryFor("&owner=me")
+	check(mine["MXN"], 1200, 5000, 9000)
+	shared := summaryFor("&owner=shared")
+	if len(shared) != 1 {
+		t.Fatalf("expected only MXN for shared accounts, got %+v", shared)
+	}
+	check(shared["MXN"], 0, 700, 0)
+}

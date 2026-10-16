@@ -2335,7 +2335,7 @@ export interface components {
         CurrencySummary: {
             /**
              * Format: int64
-             * @description Current combined balance of active accounts in this currency
+             * @description Current balance of active accounts in this currency, excluding savings and investment accounts
              */
             balance: number;
             /** @example MXN */
@@ -2356,6 +2356,11 @@ export interface components {
             incomes: components["schemas"]["CategoryTotal"][];
             /**
              * Format: int64
+             * @description Current balance of active investment accounts in this currency, in minor units
+             */
+            investment_balance: number;
+            /**
+             * Format: int64
              * @example 2
              */
             minor_units: number;
@@ -2364,6 +2369,11 @@ export interface components {
              * @description Income minus expenses
              */
             net: number;
+            /**
+             * Format: int64
+             * @description Current balance of active savings accounts in this currency, in minor units
+             */
+            savings_balance: number;
         };
         ErrorDetail: {
             /** @description Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
