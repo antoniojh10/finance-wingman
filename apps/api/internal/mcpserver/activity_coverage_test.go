@@ -131,6 +131,10 @@ func toolMutations() []toolMutation {
 		{"add_price_check", func(h *harness) (map[string]any, []string) {
 			return map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "group": "Dairy & eggs", "pack_size": 1, "price": 1.1, "currency": "EUR"}, nil
 		}},
+		{"update_grocery_product", func(h *harness) (map[string]any, []string) {
+			h.priceCheck(map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "group": "Dairy & eggs", "pack_size": 1, "price": 1.1, "currency": "EUR"})
+			return map[string]any{"product": "Milk", "group": "Drinks"}, nil
+		}},
 		{"dismiss_recurring_suggestion", func(h *harness) (map[string]any, []string) {
 			card := h.account("Card", "MXN")
 			h.seedMonthly(card, "Netflix", nil, 1000, 1000, 1000)

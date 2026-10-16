@@ -109,7 +109,7 @@ func TestAddPriceCheckErrors(t *testing.T) {
 	h.mustFail("add_price_check", base(map[string]any{"currency": "XXX"}), "unsupported currency")
 	h.mustFail("add_price_check", base(map[string]any{"date": "yesterday"}), "YYYY-MM-DD")
 	h.mustFail("add_price_check", base(map[string]any{"date": time.Now().UTC().AddDate(0, 0, 3).Format(time.DateOnly)}), "future")
-	h.mustFail("add_price_check", base(map[string]any{"product": "Cheese"}), "compare_unit")
+	h.mustFail("add_price_check", base(map[string]any{"product": "Cheese", "group": "Dairy & eggs"}), "compare_unit")
 	h.mustFail("add_price_check", base(map[string]any{"product": "Cheese", "compare_unit": "kg", "group": "Spaceships"}), "valid groups")
 	h.mustFail("add_price_check", base(map[string]any{"pack_size": -1}), "pack_size")
 
