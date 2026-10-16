@@ -201,3 +201,13 @@ func (s *Service) UpdateProduct(ctx context.Context, id uuid.UUID, in UpdateProd
 	}
 	return s.GetProduct(ctx, id)
 }
+
+// SuggestProducts returns up to five active product names similar to name,
+// for error messages that help the caller pick an existing product.
+func (s *Service) SuggestProducts(ctx context.Context, name string) ([]string, error) {
+	products, err := s.ListProducts(ctx, ListProductsParams{})
+	if err != nil {
+		return nil, err
+	}
+	return suggestProducts(products, name), nil
+}

@@ -28,7 +28,7 @@ type addPriceCheckArgs struct {
 	Currency    string   `json:"currency,omitempty" jsonschema:"ISO 4217 code. Defaults to the currency of the latest receipt; required when there are no receipts"`
 	Date        string   `json:"date,omitempty" jsonschema:"Date the price was seen, YYYY-MM-DD. Defaults to today"`
 	CompareUnit string   `json:"compare_unit,omitempty" jsonschema:"kg, l or unit. Required only when the product is new"`
-	Group       string   `json:"group,omitempty" jsonschema:"Product group name (see list_grocery_catalog), used when the product is new"`
+	Group       string   `json:"group,omitempty" jsonschema:"Product group name from list_grocery_catalog (e.g. Produce, Other). Required when the product is new; for an existing product without a group it sets it, and a different group is reported but not applied (use update_grocery_product)"`
 }
 
 type priceCheckOut struct {
@@ -307,6 +307,13 @@ func (s *Server) addPriceCheck(ctx context.Context, args addPriceCheckArgs) (*mc
 		}
 	}
 
+	planner, err := s.newGroupPlanner(ctx)
+	if err != nil {
+		return nil, priceCheckOut{}, err
+	}
+	if err := planner.plan("product", args.Product, args.Group); err != nil {
+		return nil, priceCheckOut{}, err
+	}
 	variantID, err := s.groc.EnsureVariant(ctx, groceries.VariantRef{
 		Product: args.Product, Brand: args.Brand, PackSize: args.PackSize, PackLabel: args.PackLabel,
 		CompareUnit: args.CompareUnit, Group: args.Group,
@@ -347,7 +354,13 @@ func (s *Server) addPriceCheck(ctx context.Context, args addPriceCheckArgs) (*mc
 		out.PackLabel = *pc.PackLabel
 	}
 	out.Unit = unitLabel(pc.Currency, pc.CompareUnit, displayMultiplier(pc))
+	if err := s.applyGroups(ctx, planner); err != nil {
+		return nil, priceCheckOut{}, fmt.Errorf("the price was recorded but the group could not be set: %w; use update_grocery_product", err)
+	}
 	msg := fmt.Sprintf("Recorded %s %s for %s %s at %s on %s: %s %s.", out.Price, out.Currency, out.Product, out.Brand, out.Store, out.Date, out.UnitPrice, out.Unit)
+	for _, n := range planner.notes {
+		msg += "\n" + n
+	}
 	return text(msg), out, nil
 }
 
