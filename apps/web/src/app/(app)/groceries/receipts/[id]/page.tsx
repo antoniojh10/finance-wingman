@@ -41,7 +41,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ id: st
     <ReceiptDetail
       receipt={receipt}
       catalog={buildCatalog(products, variants).filter((entry) => entry.variants.length > 0)}
-      groups={expectData(groupsRes).items.map((group) => ({ id: group.id, name: group.name }))}
+      groups={expectData(groupsRes).items.map((group) => ({ id: group.id, name: group.name, default_key: group.default_key }))}
     />
   );
 }

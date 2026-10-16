@@ -9,6 +9,7 @@ import { groupProducts, productHref, type CatalogProduct, type GroceryStore, typ
 
 import { CatalogAdmin } from "./catalog-admin";
 import { NewProductButton } from "./new-product-button";
+import { useGroupLabel } from "../use-group-label";
 import { usePriceUnit } from "./price-unit";
 
 /** The products tab: search, products grouped by product group, and stores/groups management. */
@@ -25,6 +26,7 @@ export function ProductsList({
 }) {
   const t = useTranslations("groceries.products");
   const priceUnit = usePriceUnit();
+  const label = useGroupLabel();
   const sections = groupProducts(products, groups, search);
 
   return (
@@ -48,11 +50,13 @@ export function ProductsList({
         </p>
       ) : (
         <div className="grid gap-6">
-          {sections.map((section) => (
-            <section key={section.key} aria-label={section.name ?? t("noGroup")} className="grid gap-2" data-testid="product-section">
+          {sections.map((section) => {
+            const name = section.name === null ? t("noGroup") : label({ name: section.name, default_key: section.defaultKey });
+            return (
+            <section key={section.key} aria-label={name} className="grid gap-2" data-testid="product-section">
               <h2 className="flex items-center gap-2 text-sm font-bold tracking-wide text-muted-foreground uppercase">
                 <i aria-hidden className="size-2.5 rounded-full" style={{ background: section.color ?? "var(--muted-foreground)" }} />
-                {section.name ?? t("noGroup")}
+                {name}
                 <span className="font-mono font-normal">{section.products.length}</span>
               </h2>
               <ul className="grid gap-2 md:grid-cols-2">
@@ -75,7 +79,8 @@ export function ProductsList({
                 ))}
               </ul>
             </section>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -680,6 +680,20 @@
   },
   "groceries": {
     "title": "Compras",
+    "groupNames": {
+      "produce": "Fruta y verdura",
+      "meat_fish": "Carne y pescado",
+      "dairy_eggs": "Lácteos y huevos",
+      "bakery": "Panadería",
+      "pantry": "Despensa",
+      "frozen": "Congelados",
+      "snacks_sweets": "Snacks y dulces",
+      "drinks": "Bebidas",
+      "alcohol": "Alcohol",
+      "cleaning_household": "Limpieza y hogar",
+      "personal_care": "Cuidado personal",
+      "other": "Otros"
+    },
     "tabs": {
       "label": "Secciones de compras",
       "summary": "Resumen",

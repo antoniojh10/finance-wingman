@@ -6,13 +6,14 @@ import { useState } from "react";
 import { assignReceiptLine } from "@/app/actions/groceries";
 import { Field } from "@/components/field";
 import { NativeSelect } from "@/components/native-select";
+import { useGroupLabel } from "@/components/groceries/use-group-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useFormAction } from "@/hooks/use-form-action";
 import type { CatalogEntry } from "@/lib/groceries";
 import { cn } from "@/lib/utils";
 
-export type GroupOption = { id: string; name: string };
+export type GroupOption = { id: string; name: string; default_key?: string | null };
 
 /**
  * Maps one receipt line to a product variant: pick an existing product and
@@ -35,6 +36,7 @@ export function AssignLineForm({
   onCancel: () => void;
 }) {
   const t = useTranslations("groceries.assign");
+  const label = useGroupLabel();
   const [mode, setMode] = useState<"existing" | "new">(catalog.length > 0 ? "existing" : "new");
   const [productId, setProductId] = useState("");
   const { state, onSubmit, pending } = useFormAction(assignReceiptLine, onDone);
@@ -127,7 +129,7 @@ export function AssignLineForm({
                 <option value="">{t("groupNone")}</option>
                 {groups.map((group) => (
                   <option key={group.id} value={group.name}>
-                    {group.name}
+                    {label(group)}
                   </option>
                 ))}
               </NativeSelect>
