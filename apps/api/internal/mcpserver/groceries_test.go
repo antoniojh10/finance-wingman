@@ -26,7 +26,7 @@ func TestGroceryToolsAreListed(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
 	names := h.toolNames()
-	for _, name := range []string{"add_receipt", "assign_receipt_lines", "list_grocery_catalog", "list_receipts", "get_receipt"} {
+	for _, name := range []string{"add_receipt", "assign_receipt_lines", "list_grocery_catalog", "list_receipts", "get_receipt", "update_grocery_product"} {
 		if !slices.Contains(names, name) {
 			t.Errorf("missing tool %s", name)
 		}
@@ -191,7 +191,7 @@ func TestAssignReceiptLinesErrors(t *testing.T) {
 	h.mustFail("assign_receipt_lines", map[string]any{"receipt_id": r.ID, "assignments": []any{}}, "at least one")
 	h.mustFail("assign_receipt_lines", assign(map[string]any{"line": 5, "product": "Milk"}), "lines 1 to 2")
 	h.mustFail("assign_receipt_lines", assign(map[string]any{"line": 1, "product": " "}), "product is required")
-	h.mustFail("assign_receipt_lines", assign(map[string]any{"line": 1, "product": "Milk"}), "compare_unit")
+	h.mustFail("assign_receipt_lines", assign(map[string]any{"line": 1, "product": "Milk", "group": "Dairy & eggs"}), "compare_unit")
 	h.mustFail("assign_receipt_lines", assign(map[string]any{"line": 1, "product": "Milk", "compare_unit": "l", "group": "Spaceships"}), "valid groups")
 
 	// Failures change nothing.
@@ -214,7 +214,7 @@ func TestListGroceryCatalog(t *testing.T) {
 	r, _ := h.receipt(map[string]any{"store": "Mercadona", "date": "2026-10-01", "total": 1.75, "currency": "EUR", "lines": sampleLines()})
 	h.mustCall("assign_receipt_lines", map[string]any{"receipt_id": r.ID, "assignments": []any{
 		map[string]any{"line": 1, "product": "Whole milk", "brand": "Hacendado", "pack_size": 1, "compare_unit": "l", "group": "Dairy & eggs"},
-		map[string]any{"line": 2, "product": "Bread", "compare_unit": "unit"},
+		map[string]any{"line": 2, "product": "Bread", "compare_unit": "unit", "group": "Bakery"},
 	}}, nil)
 
 	var all catalogOut

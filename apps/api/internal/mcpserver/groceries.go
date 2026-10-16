@@ -76,7 +76,7 @@ type assignmentArgs struct {
 	PackSize    *float64 `json:"pack_size,omitempty" jsonschema:"Contents of one pack in the product's compare_unit (kg, l or unit), e.g. 1 for a 1 l bottle or 0.5 for 500 g. Omit when sold loose"`
 	PackLabel   string   `json:"pack_label,omitempty" jsonschema:"Pack description, e.g. 6x1 l or 4x125 g"`
 	CompareUnit string   `json:"compare_unit,omitempty" jsonschema:"kg, l or unit. Required only when the product is new"`
-	Group       string   `json:"group,omitempty" jsonschema:"Product group name (see list_grocery_catalog), used when the product is new"`
+	Group       string   `json:"group,omitempty" jsonschema:"Product group name from list_grocery_catalog (e.g. Produce, Dairy & eggs, Other). Required when the product is new; for an existing product without a group it sets it, and a different group is reported but not applied (use update_grocery_product)"`
 }
 
 type assignReceiptLinesArgs struct {
@@ -156,7 +156,7 @@ func (s *Server) registerGroceriesTools() {
 	addTool(s, &mcp.Tool{
 		Name:  "assign_receipt_lines",
 		Title: "Assign receipt lines to products",
-		Description: "Tell which product (and brand, pack) receipt lines are. Use it after add_receipt reports unmatched lines, once the user confirmed the proposed names. " +
+		Description: "Tell which product (and brand, pack, group) receipt lines are. Use it after add_receipt reports unmatched lines, once the user confirmed the proposed names. " +
 			"The mapping is remembered for the store, so the same text matches automatically on the next receipt. Products and brands that do not exist yet are created.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), IdempotentHint: true, OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args assignReceiptLinesArgs) (*mcp.CallToolResult, receiptOut, error) {
@@ -294,7 +294,7 @@ func (s *Server) addReceipt(ctx context.Context, args addReceiptArgs) (*mcp.Call
 	if err != nil {
 		return nil, receiptOut{}, groceriesErr(err)
 	}
-	out := receiptToOut(receipt, cur.MinorUnits)
+	out := receiptToOut(receipt, cur.MinorUnits, s.groupNames(ctx))
 	msg := fmt.Sprintf("Recorded receipt from %s on %s for %s %s (id %s)", out.Store, out.Date, out.Total, out.Currency, out.ID)
 	if out.TransactionID != "" {
 		msg += ", linked to expense " + out.TransactionID
@@ -352,6 +352,10 @@ func (s *Server) assignReceiptLines(ctx context.Context, args assignReceiptLines
 	for _, l := range receipt.Lines {
 		byPosition[int(l.Position)] = l.ID
 	}
+	planner, err := s.newGroupPlanner(ctx)
+	if err != nil {
+		return nil, receiptOut{}, err
+	}
 	in := groceries.AssignLinesInput{}
 	for i := range args.Assignments {
 		a := args.Assignments[i]
@@ -361,6 +365,9 @@ func (s *Server) assignReceiptLines(ctx context.Context, args assignReceiptLines
 		}
 		if strings.TrimSpace(a.Product) == "" {
 			return nil, receiptOut{}, fmt.Errorf("assignments[%d].product is required: name the product (see list_grocery_catalog for existing ones)", i)
+		}
+		if err := planner.plan(fmt.Sprintf("assignments[%d]", i), a.Product, a.Group); err != nil {
+			return nil, receiptOut{}, err
 		}
 		item := groceries.AssignLineInput{LineID: lineID.String(), Product: &a.Product, PackSize: a.PackSize}
 		if a.Brand != "" {
@@ -381,8 +388,14 @@ func (s *Server) assignReceiptLines(ctx context.Context, args assignReceiptLines
 	if err != nil {
 		return nil, receiptOut{}, fmt.Errorf("nothing was assigned: %w", s.assignError(ctx, err))
 	}
-	out := receiptToOut(updated, s.minorUnits(ctx, updated.Currency))
+	if err := s.applyGroups(ctx, planner); err != nil {
+		return nil, receiptOut{}, fmt.Errorf("the lines were assigned but a group could not be set: %w; use update_grocery_product", err)
+	}
+	out := receiptToOut(updated, s.minorUnits(ctx, updated.Currency), s.groupNames(ctx))
 	msg := fmt.Sprintf("Assigned %d lines. %d of %d lines of this receipt still need a product.", len(in.Assignments), out.UnassignedCount, len(out.Lines))
+	for _, n := range planner.notes {
+		msg += "\n" + n
+	}
 	if out.Hint != "" {
 		msg += "\n" + out.Hint
 	}
@@ -454,11 +467,31 @@ func (s *Server) listGroceryCatalog(ctx context.Context, args listCatalogArgs) (
 		}
 		out.Products = append(out.Products, po)
 	}
-	msg := fmt.Sprintf("%d stores, %d groups, %d products.", len(out.Stores), len(out.Groups), len(out.Products))
-	if len(out.Products) == 0 {
-		msg += " No products yet."
+	var msg strings.Builder
+	fmt.Fprintf(&msg, "%d stores, %d groups, %d products.", len(out.Stores), len(out.Groups), len(out.Products))
+	if len(out.Stores) > 0 {
+		fmt.Fprintf(&msg, "\nStores: %s.", strings.Join(out.Stores, ", "))
 	}
-	return text(msg), out, nil
+	var food, nonFood []string
+	for _, g := range out.Groups {
+		if g.IsFood {
+			food = append(food, g.Name)
+		} else {
+			nonFood = append(nonFood, g.Name)
+		}
+	}
+	fmt.Fprintf(&msg, "\nFood groups: %s.\nNon-food groups: %s.", strings.Join(food, ", "), strings.Join(nonFood, ", "))
+	if len(out.Products) == 0 {
+		msg.WriteString(" No products yet.")
+	}
+	for _, p := range out.Products {
+		group := p.Group
+		if group == "" {
+			group = "no group"
+		}
+		fmt.Fprintf(&msg, "\n- %s (%s, per %s)", p.Name, group, p.CompareUnit)
+	}
+	return text(msg.String()), out, nil
 }
 
 func (s *Server) listReceipts(ctx context.Context, args listReceiptsArgs) (*mcp.CallToolResult, receiptsOut, error) {
@@ -518,7 +551,7 @@ func (s *Server) getReceipt(ctx context.Context, args getReceiptArgs) (*mcp.Call
 	if err != nil {
 		return nil, receiptOut{}, groceriesErr(err)
 	}
-	out := receiptToOut(receipt, s.minorUnits(ctx, receipt.Currency))
+	out := receiptToOut(receipt, s.minorUnits(ctx, receipt.Currency), s.groupNames(ctx))
 	msg := fmt.Sprintf("Receipt from %s on %s for %s %s: %d lines, %d without a product.", out.Store, out.Date, out.Total, out.Currency, len(out.Lines), out.UnassignedCount)
 	for _, w := range out.Warnings {
 		msg += "\nWarning: " + w.Message
@@ -537,7 +570,7 @@ func (s *Server) minorUnits(ctx context.Context, code string) int {
 	return 2
 }
 
-func receiptToOut(r groceries.Receipt, minorUnits int) receiptOut {
+func receiptToOut(r groceries.Receipt, minorUnits int, groupNames string) receiptOut {
 	out := receiptOut{
 		ID: r.ID.String(), Store: r.StoreName, Date: r.PurchasedOn, Currency: r.Currency,
 		Total: money.Format(r.Total, minorUnits), Source: r.Source, LinesTotal: money.Format(r.LinesTotal, minorUnits),
@@ -585,7 +618,10 @@ func receiptToOut(r groceries.Receipt, minorUnits int) receiptOut {
 		out.Warnings = append(out.Warnings, wo)
 	}
 	if len(unmatched) > 0 {
-		out.Hint = fmt.Sprintf("Lines without a product: %s. Check list_grocery_catalog, propose a product (and brand and pack) for each to the user, and after they confirm call assign_receipt_lines. Do not assign guesses without confirmation.", strings.Join(unmatched, "; "))
+		out.Hint = fmt.Sprintf("Lines without a product: %s. Check list_grocery_catalog, propose a product, brand, pack and group for each to the user, and wait for their confirmation before calling assign_receipt_lines. Do not assign guesses without confirmation.", strings.Join(unmatched, "; "))
+		if groupNames != "" {
+			out.Hint += " A new product needs a group; valid groups: " + groupNames + " (Other is the fallback)."
+		}
 	}
 	return out
 }

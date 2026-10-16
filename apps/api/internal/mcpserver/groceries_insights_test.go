@@ -15,7 +15,7 @@ func daysAgo(n int) string {
 // value removes the default.
 func (h *harness) priceCheck(args map[string]any) priceCheckOut {
 	h.t.Helper()
-	base := map[string]any{"currency": "EUR", "compare_unit": "l", "pack_size": 1}
+	base := map[string]any{"currency": "EUR", "compare_unit": "l", "pack_size": 1, "group": "Other"}
 	for k, v := range args {
 		if v == nil {
 			delete(base, k)
@@ -80,11 +80,11 @@ func TestAddPriceCheckCreatesCatalogAndComputesUnitPrice(t *testing.T) {
 func TestAddPriceCheckCurrencyFromReceipt(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)
-	h.mustFail("add_price_check", map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "price": 1}, "currency is required")
+	h.mustFail("add_price_check", map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "group": "Dairy & eggs", "price": 1}, "currency is required")
 
 	h.receipt(map[string]any{"store": "Mercadona", "date": daysAgo(5), "total": 5, "currency": "MXN"})
 	var out priceCheckOut
-	h.mustCall("add_price_check", map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "pack_size": 1, "price": 24}, &out)
+	h.mustCall("add_price_check", map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "group": "Dairy & eggs", "pack_size": 1, "price": 24}, &out)
 	if out.Currency != "MXN" || out.Unit != "MXN/l" || out.UnitPrice != "24.000" {
 		t.Fatalf("currency should default to the latest receipt: %+v", out)
 	}
@@ -109,7 +109,7 @@ func TestAddPriceCheckErrors(t *testing.T) {
 	h.mustFail("add_price_check", base(map[string]any{"currency": "XXX"}), "unsupported currency")
 	h.mustFail("add_price_check", base(map[string]any{"date": "yesterday"}), "YYYY-MM-DD")
 	h.mustFail("add_price_check", base(map[string]any{"date": time.Now().UTC().AddDate(0, 0, 3).Format(time.DateOnly)}), "future")
-	h.mustFail("add_price_check", base(map[string]any{"product": "Cheese"}), "compare_unit")
+	h.mustFail("add_price_check", base(map[string]any{"product": "Cheese", "group": "Dairy & eggs"}), "compare_unit")
 	h.mustFail("add_price_check", base(map[string]any{"product": "Cheese", "compare_unit": "kg", "group": "Spaceships"}), "valid groups")
 	h.mustFail("add_price_check", base(map[string]any{"pack_size": -1}), "pack_size")
 

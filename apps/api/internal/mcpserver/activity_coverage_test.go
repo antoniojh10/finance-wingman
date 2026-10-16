@@ -126,10 +126,14 @@ func toolMutations() []toolMutation {
 				"store": "Mercadona", "date": "2026-10-10", "total": 5, "currency": "EUR",
 				"lines": []any{map[string]any{"text": "LECHE", "amount": 5}},
 			})
-			return map[string]any{"receipt_id": r.ID, "assignments": []any{map[string]any{"line": 1, "product": "Milk", "compare_unit": "l"}}}, nil
+			return map[string]any{"receipt_id": r.ID, "assignments": []any{map[string]any{"line": 1, "product": "Milk", "compare_unit": "l", "group": "Dairy & eggs"}}}, nil
 		}},
 		{"add_price_check", func(h *harness) (map[string]any, []string) {
-			return map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "pack_size": 1, "price": 1.1, "currency": "EUR"}, nil
+			return map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "group": "Dairy & eggs", "pack_size": 1, "price": 1.1, "currency": "EUR"}, nil
+		}},
+		{"update_grocery_product", func(h *harness) (map[string]any, []string) {
+			h.priceCheck(map[string]any{"store": "Mercadona", "product": "Milk", "compare_unit": "l", "group": "Dairy & eggs", "pack_size": 1, "price": 1.1, "currency": "EUR"})
+			return map[string]any{"product": "Milk", "group": "Drinks"}, nil
 		}},
 		{"dismiss_recurring_suggestion", func(h *harness) (map[string]any, []string) {
 			card := h.account("Card", "MXN")
