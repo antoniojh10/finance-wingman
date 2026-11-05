@@ -8,9 +8,11 @@
 #
 # Environment:
 #   BACKUP_DIR                    output directory (default ~/backups/finance-wingman)
-#   RAILWAY_PROJECT_ID            Railway project id
-#   RAILWAY_ENVIRONMENT_ID        Railway environment id
-#   RAILWAY_POSTGRES_SERVICE_ID   Railway Postgres service id
+#   RAILWAY_PROJECT_ID            Railway project id (default: the project linked
+#                                 with `npx -y @railway/cli link`)
+#   RAILWAY_ENVIRONMENT           environment name or id (default production)
+#   RAILWAY_POSTGRES_SERVICE      Postgres service name or id (default Postgres)
+# Put them in .env (gitignored) if you don't want to link the project.
 set -euo pipefail
 umask 077
 
@@ -33,9 +35,12 @@ for arg in "$@"; do
   esac
 done
 
-PROJECT_ID="${RAILWAY_PROJECT_ID:-9152e165-a451-4fdc-9458-af7858809d46}"
-ENVIRONMENT_ID="${RAILWAY_ENVIRONMENT_ID:-1129015b-a4f2-408c-90df-1f85828b23d7}"
-POSTGRES_SERVICE_ID="${RAILWAY_POSTGRES_SERVICE_ID:-d2418d71-37a5-46fa-9ae7-8228e6c153fd}"
+ENVIRONMENT="${RAILWAY_ENVIRONMENT:-production}"
+POSTGRES_SERVICE="${RAILWAY_POSTGRES_SERVICE:-Postgres}"
+SSH_ARGS=(--environment "$ENVIRONMENT" --service "$POSTGRES_SERVICE")
+if [ -n "${RAILWAY_PROJECT_ID:-}" ]; then
+  SSH_ARGS=(--project "$RAILWAY_PROJECT_ID" "${SSH_ARGS[@]}")
+fi
 BACKUP_DIR="${BACKUP_DIR:-$HOME/backups/finance-wingman}"
 TS="$(date -u +%Y%m%dT%H%MZ)"
 B64="$BACKUP_DIR/prod-$TS.b64"
@@ -48,7 +53,7 @@ REMOTE_CMD='pg_dump -Fc -h localhost -U "$PGUSER" -d "$PGDATABASE" | base64 -w0'
 if [ "$DRY_RUN" = 1 ]; then
   cat <<DRY
 [dry-run] mkdir -p $BACKUP_DIR
-[dry-run] npx -y @railway/cli ssh --project $PROJECT_ID --environment $ENVIRONMENT_ID --service $POSTGRES_SERVICE_ID -- sh -c '$REMOTE_CMD' > $B64
+[dry-run] npx -y @railway/cli ssh ${SSH_ARGS[*]} -- sh -c '$REMOTE_CMD' > $B64
 [dry-run] tr -d '\r\n ' < $B64 | base64 -d > $DUMP
 [dry-run] check first 5 bytes of $DUMP are PGDMP; rm $B64
 DRY
@@ -83,10 +88,9 @@ verify() {
 # BACKUP_SKIP_DUMP lets tests feed an existing dump to the steps after the download.
 if [ -z "${BACKUP_SKIP_DUMP:-}" ]; then
   trap 'rm -f "$B64"' EXIT
-  echo "Dumping production database (project $PROJECT_ID)..."
-  if ! npx -y @railway/cli ssh --project "$PROJECT_ID" --environment "$ENVIRONMENT_ID" \
-    --service "$POSTGRES_SERVICE_ID" -- sh -c "$REMOTE_CMD" >"$B64"; then
-    echo "error: railway ssh failed. If you are not logged in, run: npx -y @railway/cli login" >&2
+  echo "Dumping the $POSTGRES_SERVICE service ($ENVIRONMENT)..."
+  if ! npx -y @railway/cli ssh "${SSH_ARGS[@]}" -- sh -c "$REMOTE_CMD" >"$B64"; then
+    echo "error: railway ssh failed. Log in with 'npx -y @railway/cli login' and link the project with 'npx -y @railway/cli link' (or set RAILWAY_PROJECT_ID)." >&2
     exit 1
   fi
   tr -d '\r\n ' <"$B64" | base64 -d >"$DUMP"

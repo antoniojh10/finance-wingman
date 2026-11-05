@@ -19,7 +19,8 @@ The pull request template has a checklist item for it.
 
 Requirements: Node (for `npx`), `docker` with the local compose Postgres
 running (`make up`) for the verification step, and `gpg` if encrypting.
-Log in to Railway once with `npx -y @railway/cli login`.
+Log in to Railway once with `npx -y @railway/cli login` and link the
+project with `npx -y @railway/cli link`.
 
 ```sh
 make prod-backup                  # dump + verify
@@ -41,9 +42,11 @@ The script:
    skipped and the dump is kept);
 4. with `encrypt=1`, runs `gpg --symmetric --cipher-algo AES256`.
 
-Environment variables (defaults are the production ids, which are not
-secrets): `BACKUP_DIR`, `RAILWAY_PROJECT_ID`, `RAILWAY_ENVIRONMENT_ID`,
-`RAILWAY_POSTGRES_SERVICE_ID`. Dumps contain user data: never commit them
+The script uses the Railway project linked in this directory (run
+`npx -y @railway/cli link` once) and the `Postgres` service in the
+`production` environment. Override them with `RAILWAY_PROJECT_ID`,
+`RAILWAY_ENVIRONMENT` and `RAILWAY_POSTGRES_SERVICE` (names or ids), for
+example in your `.env`, and the output directory with `BACKUP_DIR`. Dumps contain user data: never commit them
 or store them in the repository.
 
 ## Restoring
