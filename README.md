@@ -175,6 +175,9 @@ See [docs/deploy-railway.md](docs/deploy-railway.md) for deploying the API,
 web app and PostgreSQL on Railway (the Dockerfiles also run on any
 container host).
 
+See [docs/backups.md](docs/backups.md) for manual production backups
+(`make prod-backup`) and restores.
+
 See [docs/observability.md](docs/observability.md) to send traces,
 metrics and logs to an OpenTelemetry backend.
 
