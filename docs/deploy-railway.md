@@ -172,6 +172,12 @@ The workflow only runs on `main`, installs the Railway CLI and runs
 `railway up --service <service> --environment production` from the
 repository root; each service builds from the root directory set in Railway.
 
+## Backups
+
+Railway Hobby has no volume backups; take a manual dump with
+`make prod-backup` before releases that change the database or calculation
+logic. See [backups.md](backups.md) for how to run it and restore.
+
 ## Other hosts
 
 The same Dockerfiles work on any container host: build both images
