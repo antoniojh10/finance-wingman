@@ -16,7 +16,7 @@ infra      Local infrastructure (Postgres init scripts)
 ## Requirements
 
 - Go 1.27+
-- Node.js 22+ and pnpm 10+
+- Node.js 24 and pnpm 10+
 - Docker (with Compose)
 
 ## Getting started
