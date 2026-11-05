@@ -376,6 +376,40 @@ func TestGetSummary(t *testing.T) {
 	h.mustFail("get_summary", map[string]any{"period": "forever"}, "unknown period")
 }
 
+func TestGetSummarySeparatesSavingsAndInvestments(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("Checking", "MXN")
+	for _, in := range []finance.CreateAccountInput{
+		{Name: "Rainy day", Type: "savings", Currency: "MXN", InitialBalance: 500000, BalanceAsOf: "2000-01-01"},
+		{Name: "Brokerage", Type: "investment", Currency: "MXN", InitialBalance: 900000, BalanceAsOf: "2000-01-01"},
+		{Name: "EUR savings", Type: "savings", Currency: "EUR", InitialBalance: 30000, BalanceAsOf: "2000-01-01"},
+	} {
+		if _, err := h.svc.CreateAccount(h.ctx, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var out summaryOut
+	text := h.mustCall("get_summary", map[string]any{"from": "2026-09-01", "to": "2026-09-30"}, &out)
+	if len(out.Currencies) != 2 {
+		t.Fatalf("unexpected summary: %+v", out)
+	}
+	eur, mxn := out.Currencies[0], out.Currencies[1]
+	if mxn.Balance != "0.00" || mxn.SavingsBalance != "5000.00" || mxn.InvestmentBalance != "9000.00" {
+		t.Fatalf("unexpected MXN balances: %+v", mxn)
+	}
+	if eur.Balance != "0.00" || eur.SavingsBalance != "300.00" || eur.InvestmentBalance != "0.00" {
+		t.Fatalf("unexpected EUR balances: %+v", eur)
+	}
+	if !strings.Contains(text, "current balance 0.00, savings 5000.00, investments 9000.00") {
+		t.Fatalf("unexpected text: %s", text)
+	}
+	if !strings.Contains(text, "current balance 0.00, savings 300.00\n") || strings.Contains(text, "investments 0.00") {
+		t.Fatalf("zero figures should be omitted from the text: %s", text)
+	}
+}
+
 func TestPeriodRange(t *testing.T) {
 	today := time.Date(2026, 3, 15, 0, 0, 0, 0, time.UTC)
 	tests := map[string][2]string{

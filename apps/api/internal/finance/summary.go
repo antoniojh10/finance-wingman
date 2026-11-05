@@ -21,14 +21,16 @@ type CategoryTotal struct {
 // CurrencySummary aggregates figures for a single currency. Amounts in
 // different currencies are never mixed.
 type CurrencySummary struct {
-	Currency   string          `json:"currency" example:"MXN"`
-	MinorUnits int             `json:"minor_units" example:"2"`
-	Income     int64           `json:"income" doc:"Total income in the period, in minor units"`
-	Expense    int64           `json:"expense" doc:"Total expenses in the period, in minor units"`
-	Net        int64           `json:"net" doc:"Income minus expenses"`
-	Balance    int64           `json:"balance" doc:"Current combined balance of active accounts in this currency"`
-	Expenses   []CategoryTotal `json:"expenses" doc:"Expenses by category, largest first"`
-	Incomes    []CategoryTotal `json:"incomes" doc:"Income by category, largest first"`
+	Currency          string          `json:"currency" example:"MXN"`
+	MinorUnits        int             `json:"minor_units" example:"2"`
+	Income            int64           `json:"income" doc:"Total income in the period, in minor units"`
+	Expense           int64           `json:"expense" doc:"Total expenses in the period, in minor units"`
+	Net               int64           `json:"net" doc:"Income minus expenses"`
+	Balance           int64           `json:"balance" doc:"Current balance of active accounts in this currency, excluding savings and investment accounts"`
+	SavingsBalance    int64           `json:"savings_balance" doc:"Current balance of active savings accounts in this currency, in minor units"`
+	InvestmentBalance int64           `json:"investment_balance" doc:"Current balance of active investment accounts in this currency, in minor units"`
+	Expenses          []CategoryTotal `json:"expenses" doc:"Expenses by category, largest first"`
+	Incomes           []CategoryTotal `json:"incomes" doc:"Income by category, largest first"`
 }
 
 type Summary struct {
@@ -88,7 +90,15 @@ func (s *Service) Summary(ctx context.Context, from, to string, owner OwnerFilte
 	}
 
 	for _, a := range accounts {
-		get(a.Currency).Balance += a.Balance
+		cs := get(a.Currency)
+		switch a.Type {
+		case "savings":
+			cs.SavingsBalance += a.Balance
+		case "investment":
+			cs.InvestmentBalance += a.Balance
+		default:
+			cs.Balance += a.Balance
+		}
 	}
 	for _, r := range rows {
 		cs := get(r.Currency)

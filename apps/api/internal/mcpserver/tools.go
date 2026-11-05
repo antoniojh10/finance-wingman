@@ -187,13 +187,15 @@ type categoryTotalOut struct {
 }
 
 type currencySummaryOut struct {
-	Currency string             `json:"currency"`
-	Income   string             `json:"income"`
-	Expense  string             `json:"expense"`
-	Net      string             `json:"net"`
-	Balance  string             `json:"balance"`
-	Expenses []categoryTotalOut `json:"expenses_by_category"`
-	Incomes  []categoryTotalOut `json:"income_by_category"`
+	Currency          string             `json:"currency"`
+	Income            string             `json:"income"`
+	Expense           string             `json:"expense"`
+	Net               string             `json:"net"`
+	Balance           string             `json:"balance" jsonschema:"current balance of active accounts excluding savings and investment accounts"`
+	SavingsBalance    string             `json:"savings_balance" jsonschema:"current balance of savings accounts"`
+	InvestmentBalance string             `json:"investment_balance" jsonschema:"current balance of investment accounts"`
+	Expenses          []categoryTotalOut `json:"expenses_by_category"`
+	Incomes           []categoryTotalOut `json:"income_by_category"`
 }
 
 type summaryOut struct {
@@ -320,7 +322,7 @@ func (s *Server) registerTools() {
 	addTool(s, &mcp.Tool{
 		Name:        "get_summary",
 		Title:       "Get summary",
-		Description: "Income, expenses and net per currency for a period, broken down by category, plus current balances.",
+		Description: "Income, expenses and net per currency for a period, broken down by category, plus current balances. The balance excludes savings and investment accounts, which are reported separately as savings_balance and investment_balance.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args summaryArgs) (*mcp.CallToolResult, summaryOut, error) {
 		return s.summary(ctx, args)
@@ -748,7 +750,7 @@ func (s *Server) summary(ctx context.Context, args summaryArgs) (*mcp.CallToolRe
 	fmt.Fprintf(&b, "Summary from %s to %s:\n", sum.From, sum.To)
 	for i, c := range sum.Currencies {
 		f := func(v int64) string { return money.Format(v, c.MinorUnits) }
-		cs := currencySummaryOut{Currency: c.Currency, Income: f(c.Income), Expense: f(c.Expense), Net: f(c.Net), Balance: f(c.Balance)}
+		cs := currencySummaryOut{Currency: c.Currency, Income: f(c.Income), Expense: f(c.Expense), Net: f(c.Net), Balance: f(c.Balance), SavingsBalance: f(c.SavingsBalance), InvestmentBalance: f(c.InvestmentBalance)}
 		for _, e := range c.Expenses {
 			cs.Expenses = append(cs.Expenses, categoryTotalOut{Category: categoryLabel(e.CategoryName), Total: f(e.Total), Count: e.TransactionCount})
 		}
@@ -757,7 +759,14 @@ func (s *Server) summary(ctx context.Context, args summaryArgs) (*mcp.CallToolRe
 		}
 		out.Currencies[i] = cs
 
-		fmt.Fprintf(&b, "\n%s — income %s, expenses %s, net %s, current balance %s\n", c.Currency, cs.Income, cs.Expense, cs.Net, cs.Balance)
+		fmt.Fprintf(&b, "\n%s — income %s, expenses %s, net %s, current balance %s", c.Currency, cs.Income, cs.Expense, cs.Net, cs.Balance)
+		if c.SavingsBalance != 0 {
+			fmt.Fprintf(&b, ", savings %s", cs.SavingsBalance)
+		}
+		if c.InvestmentBalance != 0 {
+			fmt.Fprintf(&b, ", investments %s", cs.InvestmentBalance)
+		}
+		b.WriteString("\n")
 		for _, e := range cs.Expenses {
 			fmt.Fprintf(&b, "  • %s: %s (%d)\n", e.Category, e.Total, e.Count)
 		}
