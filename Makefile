@@ -6,7 +6,7 @@ API_DIR := apps/api
 WEB_PORT ?= 3000
 export
 
-.PHONY: up down grafana logs measure psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new demo-seed tunnel tunnel-down
+.PHONY: up down grafana logs measure psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e migrate-up migrate-down migrate-status migrate-new demo-seed prod-backup tunnel tunnel-down
 
 ## Infrastructure
 up: ## Start Postgres and Mailpit
@@ -68,6 +68,10 @@ migrate-new: ## Usage: make migrate-new name=add_budgets
 demo-seed: ## Usage: make demo-seed email=you@example.com [reset=1] [name=Demo] [locale=es]
 	@test -n "$(email)" || { echo "usage: make demo-seed email=you@example.com [reset=1] [name=Demo] [locale=en|es]"; exit 1; }
 	cd $(API_DIR) && go run ./cmd/api demo seed --email "$(email)" $(if $(name),--workspace "$(name)") $(if $(locale),--locale "$(locale)") $(if $(reset),--reset)
+
+## Backups
+prod-backup: ## Usage: make prod-backup [encrypt=1] [verify=0] (see docs/backups.md)
+	scripts/prod-backup.sh $(if $(filter 1,$(encrypt)),--encrypt) $(if $(filter 0,$(verify)),--no-verify)
 
 ## Web
 api-openapi: ## Export the OpenAPI document and regenerate the web API types
