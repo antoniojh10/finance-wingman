@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { apiBaseUrl } from "@/lib/api/client";
 import { getCurrentSession } from "@/lib/session";
 
+import { AssistantSteps } from "./assistant-steps";
 import { ExportDataCard } from "./export-data-card";
 import { ProfileForm } from "./profile-form";
 
@@ -43,10 +44,6 @@ export default async function SettingsPage() {
   const { user, workspace } = await getCurrentSession();
   // The public API URL may differ from the internal one used by the server.
   const mcpUrl = `${(process.env.API_PUBLIC_URL ?? apiBaseUrl()).replace(/\/$/, "")}/mcp`;
-  const steps = [
-    { title: t("settings.claudeTitle"), text: t("settings.claudeSteps"), color: "bg-[#ff8f75]" },
-    { title: t("settings.chatgptTitle"), text: t("settings.chatgptSteps"), color: "bg-[#7fb6ff]" },
-  ];
 
   return (
     <>
@@ -81,21 +78,7 @@ export default async function SettingsPage() {
                 <CopyButton value={mcpUrl} className="border-0 bg-lime text-lime-foreground hover:bg-lime/85" />
               </div>
             </div>
-            <ol className="grid gap-2.5">
-              {steps.map((step, index) => (
-                <li key={step.title} className="flex gap-3 rounded-2xl bg-white/6 p-3.5">
-                  <span
-                    className={`flex size-7.5 shrink-0 items-center justify-center rounded-[10px] text-sm font-bold text-[#16133a] ${step.color}`}
-                  >
-                    {index + 1}
-                  </span>
-                  <div className="grid gap-1">
-                    <h3 className="font-sans text-[15px] font-bold">{step.title}</h3>
-                    <p className="text-[13.5px] leading-relaxed text-hero-muted">{step.text}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
+            <AssistantSteps />
             <p className="text-[13px] leading-relaxed text-hero-muted">{t("settings.assistantsHint")}</p>
           </section>
 
