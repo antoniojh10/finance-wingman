@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "node scripts/e2e.mjs",
+    "screenshots": "node scripts/e2e.mjs --config playwright.screenshots.config.ts",
     "gen:api": "openapi-typescript ./openapi.json -o src/lib/api/schema.d.ts"
   },
   "dependencies": {
@@ -57,6 +58,7 @@
     "jsdom": "^30.1.3",
     "openapi-typescript": "^7.13.0",
     "pg": "8.23.1",
+    "sharp": "0.35.5",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vite-tsconfig-paths": "^6.1.1",
