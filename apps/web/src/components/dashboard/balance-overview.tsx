@@ -17,6 +17,8 @@ export type CurrencySummary = {
   expense: number;
   net: number;
   balance: number;
+  savings_balance: number;
+  investment_balance: number;
   expenses: CategoryTotal[];
 };
 
@@ -48,6 +50,22 @@ export function BalanceOverview({ currencies }: { currencies: CurrencySummary[] 
           <p className="text-sm font-semibold text-hero-muted">{t("dashboard.balance")}</p>
           <p className="font-heading text-[40px] leading-tight font-bold tracking-tight tabular-nums">{money(summary.balance)}</p>
           <p className="text-[13px] text-hero-muted">{t("dashboard.balanceHint")}</p>
+          {(summary.savings_balance !== 0 || summary.investment_balance !== 0) && (
+            <dl className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">
+              {summary.savings_balance !== 0 && (
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="text-hero-muted">{t("dashboard.savings")}</dt>
+                  <dd className="font-semibold tabular-nums">{money(summary.savings_balance)}</dd>
+                </div>
+              )}
+              {summary.investment_balance !== 0 && (
+                <div className="flex items-baseline gap-1.5">
+                  <dt className="text-hero-muted">{t("dashboard.investments")}</dt>
+                  <dd className="font-semibold tabular-nums">{money(summary.investment_balance)}</dd>
+                </div>
+              )}
+            </dl>
+          )}
         </div>
         {currencies.length > 1 && (
           <div role="group" aria-label={t("accounts.currency")} className="relative flex flex-wrap gap-2">

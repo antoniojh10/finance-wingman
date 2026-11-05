@@ -54,7 +54,7 @@ describe("CategoryBreakdown", () => {
   });
 });
 
-const usd: CurrencySummary = { currency: "USD", minor_units: 2, income: 0, expense: 1299, net: -1299, balance: 138701, expenses: [] };
+const usd: CurrencySummary = { currency: "USD", minor_units: 2, income: 0, expense: 1299, net: -1299, balance: 138701, savings_balance: 0, investment_balance: 0, expenses: [] };
 const mxn: CurrencySummary = {
   currency: "MXN",
   minor_units: 2,
@@ -62,6 +62,8 @@ const mxn: CurrencySummary = {
   expense: 120000,
   net: 380000,
   balance: 2500000,
+  savings_balance: 1000000,
+  investment_balance: 0,
   expenses: [total("a", "Rent", 120000)],
 };
 
@@ -76,6 +78,25 @@ describe("BalanceOverview", () => {
     // A single currency needs no switcher.
     expect(screen.queryByRole("button", { name: "USD" })).not.toBeInTheDocument();
     expect(screen.getByText("No expenses this month.")).toBeInTheDocument();
+  });
+
+  it("shows savings and investments apart, only when they are not zero", async () => {
+    const user = userEvent.setup();
+    const both: CurrencySummary = { ...usd, currency: "EUR", savings_balance: 50000, investment_balance: 125050 };
+    renderWithIntl(<BalanceOverview currencies={[mxn, both, usd]} />);
+    const hero = screen.getByRole("region", { name: "Balance" });
+    expect(within(hero).getByText("Savings")).toBeInTheDocument();
+    expect(within(hero).getByText("MX$10,000.00")).toBeInTheDocument();
+    expect(within(hero).queryByText("Investments")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "EUR" }));
+    expect(within(hero).getByText("Savings")).toBeInTheDocument();
+    expect(within(hero).getByText("Investments")).toBeInTheDocument();
+    expect(within(hero).getByText("€1,250.50")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "USD" }));
+    expect(within(hero).queryByText("Savings")).not.toBeInTheDocument();
+    expect(within(hero).queryByText("Investments")).not.toBeInTheDocument();
   });
 
   it("switches between currencies without combining them", async () => {
