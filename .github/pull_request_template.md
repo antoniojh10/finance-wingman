@@ -14,4 +14,5 @@
 - [ ] Commits follow Conventional Commits
 - [ ] `make api-generate` / `make api-openapi` run if SQL or API schemas changed
 - [ ] New schema changes are in a new migration with a working `Down`
+- [ ] Production backup taken before merging (migrations, data changes or calculation logic)
 - [ ] UI copy added to both `messages/en.json` and `messages/es.json`
