@@ -150,6 +150,18 @@ func TestToolsAreListed(t *testing.T) {
 	}
 }
 
+func TestInitializeAdvertisesVersionAndListChanged(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	init := h.session.InitializeResult()
+	if init.ServerInfo.Version != "test" {
+		t.Errorf("server version = %q, want the version passed to New", init.ServerInfo.Version)
+	}
+	if init.Capabilities.Tools == nil || !init.Capabilities.Tools.ListChanged {
+		t.Errorf("tools capability = %+v, want listChanged true", init.Capabilities.Tools)
+	}
+}
+
 func TestAddExpense(t *testing.T) {
 	t.Parallel()
 	h := newHarness(t)

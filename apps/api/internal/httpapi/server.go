@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -26,9 +27,27 @@ import (
 
 const (
 	apiTitle = "Finance Wingman API"
-	// Version is reported in the OpenAPI document and to MCP clients.
+	// Version is the base version reported in the OpenAPI document. MCP
+	// clients and telemetry get BuildVersion, which adds build metadata.
 	Version = "0.1.0"
 )
+
+// BuildVersion returns Version plus build metadata taken from APP_VERSION or,
+// when unset, the first 7 characters of RAILWAY_GIT_COMMIT_SHA (for example
+// "0.1.0+abc1234"), so clients can tell that a new build was deployed.
+func BuildVersion(getenv func(string) string) string {
+	meta := strings.TrimSpace(getenv("APP_VERSION"))
+	if meta == "" {
+		meta = strings.TrimSpace(getenv("RAILWAY_GIT_COMMIT_SHA"))
+		if len(meta) > 7 {
+			meta = meta[:7]
+		}
+	}
+	if meta == "" {
+		return Version
+	}
+	return Version + "+" + meta
+}
 
 // Pinger reports whether the database is reachable.
 type Pinger interface {

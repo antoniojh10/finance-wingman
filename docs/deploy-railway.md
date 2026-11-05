@@ -64,6 +64,7 @@ Variables:
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `https://otlp.example.com/otlp` | Optional; enables traces, metrics and logs ([observability](observability.md)) |
 | `OTEL_EXPORTER_OTLP_HEADERS` | `Authorization=Basic%20...` | Optional; credentials for the OTLP endpoint |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name=production` | Optional; separates production from development data |
+| `APP_VERSION` | `abc1234` | Optional; build metadata appended to the version MCP clients and telemetry see (`0.1.0+abc1234`). Defaults to the first 7 characters of `RAILWAY_GIT_COMMIT_SHA`, which Railway sets on every deploy |
 
 ### Rate limiting
 
