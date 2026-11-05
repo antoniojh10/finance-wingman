@@ -105,7 +105,7 @@ describe("MonthlyChart", () => {
     const legend = screen.getByRole("group", { name: /Categories/ });
     await user.click(within(legend).getByRole("button", { name: "Food" }));
     await user.click(within(legend).getByRole("button", { name: /^Other/ }));
-    expect(screen.getByTestId("budget-key")).toHaveTextContent("Rent budget €1.0K");
+    expect(screen.getByTestId("budget-key")).toHaveTextContent("Rent budget €1K");
   });
 
   it("lists the categories folded into Other on its chip", () => {

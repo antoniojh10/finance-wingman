@@ -5,7 +5,7 @@ The rules for every contributor, human or agent, live in
 
 ## Setup
 
-Requirements: Go 1.27+, Node.js 22+ and pnpm 10+, Docker with Compose.
+Requirements: Go 1.27+, Node.js 24 and pnpm 10+, Docker with Compose.
 
 ```bash
 cp .env.example .env
