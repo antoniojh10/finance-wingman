@@ -341,6 +341,46 @@ func TestDeletionNeedsAnEmailToBeSent(t *testing.T) {
 	}
 }
 
+func TestDeleteNow(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := context.Background()
+
+	other, err := f.svc.Create(ctx, f.ana, "Other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seedFinance(t, f.pool, f.home, f.ana)
+	seedFinance(t, f.pool, other.ID, f.ana)
+
+	expectKind(t, f.svc.DeleteNow(ctx, f.bob, f.home), finance.KindForbidden)
+	expectKind(t, f.svc.DeleteNow(ctx, f.outsider, f.home), finance.KindNotFound)
+	if count(t, f.pool, `SELECT count(*) FROM workspaces WHERE id = $1`, f.home) != 1 {
+		t.Fatal("a refused request must not delete the workspace")
+	}
+
+	sent := len(f.mail.Messages())
+	if err := f.svc.DeleteNow(ctx, f.ana, f.home); err != nil {
+		t.Fatal(err)
+	}
+	if count(t, f.pool, `SELECT count(*) FROM workspaces WHERE id = $1`, f.home) != 0 {
+		t.Fatal("the workspace should be deleted at once")
+	}
+	for table, n := range financeRows(t, f.pool, f.home) {
+		if n != 0 {
+			t.Errorf("%s still has %d rows of the deleted workspace", table, n)
+		}
+	}
+	for table, n := range financeRows(t, f.pool, other.ID) {
+		if n == 0 {
+			t.Errorf("%s lost the rows of another workspace", table)
+		}
+	}
+	if len(f.mail.Messages()) != sent {
+		t.Fatal("deleting now must not email anyone")
+	}
+}
+
 type failingSender struct{}
 
 func (failingSender) Send(context.Context, mail.Message) error { return errors.New("mail server down") }

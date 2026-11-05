@@ -8,6 +8,8 @@
 //	api users list                list users with access
 //	api users add EMAIL [NAME]    grant access to an email address
 //	api users remove EMAIL        revoke access
+//	api demo seed --email EMAIL [--workspace NAME] [--locale en|es] [--reset]
+//	                                  seed a workspace with fictional demo data
 //	api sessions create --email EMAIL [--name NAME] [--workspace NAME]
 //	                                  print a signed-in session cookie (for tests)
 package main
@@ -32,6 +34,7 @@ import (
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/auth"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/config"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/db"
+	"github.com/antoniojh10/finance-wingman/apps/api/internal/demo"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/finance"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/groceries"
 	"github.com/antoniojh10/finance-wingman/apps/api/internal/httpapi"
@@ -170,6 +173,15 @@ func run(args []string, logger *slog.Logger) error {
 	case "sessions":
 		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL})
 		return sessions(ctx, authSvc, workspaceSvc, os.Stdout, args[1:])
+	case "demo":
+		workspaceSvc := workspace.NewService(pool, sender, workspace.Config{WebBaseURL: cfg.WebBaseURL, Location: cfg.Location, Logger: logger})
+		financeSvc := finance.NewService(pool, cfg.Location)
+		return demoCommand(ctx, &demo.Seeder{
+			Auth:       authSvc,
+			Workspaces: workspaceSvc,
+			Finance:    financeSvc,
+			Groceries:  groceries.NewService(pool, financeSvc).WithLocation(cfg.Location),
+		}, os.Stdout, args[1:])
 	default:
 		return fmt.Errorf("unknown command %q", command)
 	}

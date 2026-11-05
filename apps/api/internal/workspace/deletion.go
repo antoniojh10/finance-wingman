@@ -78,6 +78,19 @@ func (s *Service) ScheduleDeletion(ctx context.Context, actorID, workspaceID uui
 	return fromModel(w), nil
 }
 
+// DeleteNow deletes the workspace with everything in it right away: no
+// grace period and no emails. Only owners can do it. It is meant for
+// maintenance commands (such as resetting the demo workspace), not for the
+// HTTP API, which schedules deletions instead.
+func (s *Service) DeleteNow(ctx context.Context, actorID, workspaceID uuid.UUID) error {
+	if err := s.requireOwner(ctx, actorID, workspaceID); err != nil {
+		return err
+	}
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		return deleteWorkspace(ctx, s.q.WithTx(tx), workspaceID)
+	})
+}
+
 // CancelDeletion cancels the workspace's scheduled deletion. Only owners
 // can cancel.
 func (s *Service) CancelDeletion(ctx context.Context, actorID, workspaceID uuid.UUID) error {

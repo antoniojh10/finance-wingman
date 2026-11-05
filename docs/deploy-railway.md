@@ -137,6 +137,23 @@ The web image sets `NODE_ENV=production`, which makes the session cookie
 Manage users later with the API binary from a shell on the service:
 `/api users list|add|remove`.
 
+## Demo data
+
+To fill a separate workspace with fictional accounts, six months of
+transactions, budgets, recurring items and grocery receipts (for screenshots
+or a public demo), run from a shell on the `api` service, with an existing
+user as the owner:
+
+```
+/api demo seed --email you@example.com --reset
+```
+
+Options: `--workspace "Demo"` (name, default `Demo`) and `--locale en|es`
+(language of the seeded text). Without `--reset` the command refuses to touch
+a workspace of that name that already exists; with it, only that workspace
+(owned by that user) is deleted and created again. Other workspaces are never
+modified. Locally: `make demo-seed email=you@example.com reset=1`.
+
 ## Deploys
 
 Railway deploys each service from `main` when a file under its watch paths
