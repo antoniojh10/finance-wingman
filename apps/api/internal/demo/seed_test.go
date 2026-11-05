@@ -277,6 +277,35 @@ func TestSeedResetReplacesOnlyThatWorkspace(t *testing.T) {
 	}
 }
 
+func TestSeedNeverDeletesARealWorkspace(t *testing.T) {
+	t.Parallel()
+	f := newFixture(t)
+	ctx := context.Background()
+
+	real, err := f.workspaces.Create(ctx, f.user.ID, "Home")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.finance.CreateAccount(f.ctx(real.ID), finance.CreateAccountInput{Name: "Mine", Type: "checking", Currency: "EUR", InitialBalance: 999}); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, reset := range []bool{false, true} {
+		_, err := f.seeder.Seed(ctx, demo.Options{Email: ownerEmail, Workspace: "Home", Reset: reset})
+		if err == nil || !strings.Contains(err.Error(), "not created by the demo seed") {
+			t.Fatalf("reset=%v: expected a refusal, got %v", reset, err)
+		}
+		accounts, err := f.finance.ListAccounts(f.ctx(real.ID), false)
+		if err != nil || len(accounts) != 1 || accounts[0].Balance != 999 {
+			t.Fatalf("reset=%v: the real workspace must be intact: %v %+v", reset, err, accounts)
+		}
+	}
+	list, err := f.workspaces.List(ctx, f.user.ID)
+	if err != nil || len(list) != 1 || list[0].ID != real.ID {
+		t.Fatalf("no workspace may be created or deleted: %v %+v", err, list)
+	}
+}
+
 func withID(s demo.Summary, id uuid.UUID) demo.Summary {
 	s.WorkspaceID = id
 	return s

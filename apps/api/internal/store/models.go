@@ -326,6 +326,7 @@ type Workspace struct {
 	UpdatedAt            time.Time
 	DeletionScheduledFor *time.Time
 	DeletionRequestedBy  *uuid.UUID
+	IsDemo               bool
 }
 
 type WorkspaceInvitation struct {

@@ -78,16 +78,54 @@ func (s *Service) ScheduleDeletion(ctx context.Context, actorID, workspaceID uui
 	return fromModel(w), nil
 }
 
-// DeleteNow deletes the workspace with everything in it right away: no
-// grace period and no emails. Only owners can do it. It is meant for
-// maintenance commands (such as resetting the demo workspace), not for the
-// HTTP API, which schedules deletions instead.
-func (s *Service) DeleteNow(ctx context.Context, actorID, workspaceID uuid.UUID) error {
+// CreateDemo makes a workspace owned by the user and marks it as created by
+// the demo seed. Only such workspaces can be deleted by DeleteDemoNow.
+func (s *Service) CreateDemo(ctx context.Context, userID uuid.UUID, name string) (Workspace, error) {
+	w, err := s.Create(ctx, userID, name)
+	if err != nil {
+		return Workspace{}, err
+	}
+	if err := s.q.MarkWorkspaceDemo(ctx, w.ID); err != nil {
+		_ = pgx.BeginFunc(context.WithoutCancel(ctx), s.pool, func(tx pgx.Tx) error {
+			return deleteWorkspace(ctx, s.q.WithTx(tx), w.ID)
+		})
+		return Workspace{}, err
+	}
+	return w, nil
+}
+
+// FindOwned returns the workspace with that name owned by the user and
+// whether the demo seed created it. found is false when there is none.
+func (s *Service) FindOwned(ctx context.Context, userID uuid.UUID, name string) (w Workspace, isDemo, found bool, err error) {
+	row, err := s.q.FindOwnedWorkspaceByName(ctx, store.FindOwnedWorkspaceByNameParams{UserID: userID, Name: strings.TrimSpace(name)})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Workspace{}, false, false, nil
+	}
+	if err != nil {
+		return Workspace{}, false, false, err
+	}
+	return fromModel(row), row.IsDemo, true, nil
+}
+
+// DeleteDemoNow deletes a workspace created by the demo seed with everything
+// in it right away: no grace period and no emails. Only its owner can do it,
+// and any other workspace is refused, so a real workspace can never be
+// hard-deleted through it. It is for maintenance commands, not the HTTP API,
+// which schedules deletions instead.
+func (s *Service) DeleteDemoNow(ctx context.Context, actorID, workspaceID uuid.UUID) error {
 	if err := s.requireOwner(ctx, actorID, workspaceID); err != nil {
 		return err
 	}
 	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
-		return deleteWorkspace(ctx, s.q.WithTx(tx), workspaceID)
+		q := s.q.WithTx(tx)
+		w, err := q.GetWorkspace(ctx, workspaceID)
+		if err != nil {
+			return err
+		}
+		if !w.IsDemo {
+			return finance.Forbidden("only workspaces created by the demo seed can be deleted this way")
+		}
+		return deleteWorkspace(ctx, q, workspaceID)
 	})
 }
 

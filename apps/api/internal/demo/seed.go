@@ -100,25 +100,25 @@ func (s *Seeder) Seed(ctx context.Context, opts Options) (Summary, error) {
 		return Summary{}, err
 	}
 
-	// Only workspaces this user owns with exactly this name are considered:
-	// no other workspace is ever touched.
-	memberships, err := s.Workspaces.List(ctx, user.ID)
+	// Only a workspace this user owns, with exactly this name and created by
+	// this seed is ever deleted: real workspaces are refused.
+	existing, isDemo, found, err := s.Workspaces.FindOwned(ctx, user.ID, name)
 	if err != nil {
 		return Summary{}, err
 	}
-	for _, m := range memberships {
-		if m.Name != name || m.Role != workspace.RoleOwner {
-			continue
-		}
-		if !opts.Reset {
+	if found {
+		switch {
+		case !isDemo:
+			return Summary{}, fmt.Errorf("workspace %q exists and was not created by the demo seed; choose another --workspace name", name)
+		case !opts.Reset:
 			return Summary{}, fmt.Errorf("workspace %q already exists; pass --reset to delete it and seed it again", name)
 		}
-		if err := s.Workspaces.DeleteNow(ctx, user.ID, m.ID); err != nil {
+		if err := s.Workspaces.DeleteDemoNow(ctx, user.ID, existing.ID); err != nil {
 			return Summary{}, fmt.Errorf("delete workspace %q: %w", name, err)
 		}
 	}
 
-	w, err := s.Workspaces.Create(ctx, user.ID, name)
+	w, err := s.Workspaces.CreateDemo(ctx, user.ID, name)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -134,7 +134,7 @@ func (s *Seeder) Seed(ctx context.Context, opts Options) (Summary, error) {
 	wctx := finance.WithActor(db.WithWorkspace(ctx, w.ID), user.ID)
 	if err := r.seed(wctx); err != nil {
 		// Do not leave a half-seeded workspace behind.
-		_ = s.Workspaces.DeleteNow(context.WithoutCancel(ctx), user.ID, w.ID)
+		_ = s.Workspaces.DeleteDemoNow(context.WithoutCancel(ctx), user.ID, w.ID)
 		return Summary{}, err
 	}
 	return r.summary, nil

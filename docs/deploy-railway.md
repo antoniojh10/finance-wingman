@@ -151,7 +151,8 @@ user as the owner:
 Options: `--workspace "Demo"` (name, default `Demo`) and `--locale en|es`
 (language of the seeded text). Without `--reset` the command refuses to touch
 a workspace of that name that already exists; with it, only that workspace
-(owned by that user) is deleted and created again. Other workspaces are never
+(owned by that user and created by this command) is deleted and created
+again; a real workspace with that name is always refused. Other workspaces are never
 modified. Locally: `make demo-seed email=you@example.com reset=1`.
 
 ## Deploys

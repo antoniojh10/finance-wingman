@@ -341,7 +341,7 @@ func TestDeletionNeedsAnEmailToBeSent(t *testing.T) {
 	}
 }
 
-func TestDeleteNow(t *testing.T) {
+func TestDeleteDemoNow(t *testing.T) {
 	t.Parallel()
 	f := newFixture(t)
 	ctx := context.Background()
@@ -353,14 +353,23 @@ func TestDeleteNow(t *testing.T) {
 	seedFinance(t, f.pool, f.home, f.ana)
 	seedFinance(t, f.pool, other.ID, f.ana)
 
-	expectKind(t, f.svc.DeleteNow(ctx, f.bob, f.home), finance.KindForbidden)
-	expectKind(t, f.svc.DeleteNow(ctx, f.outsider, f.home), finance.KindNotFound)
+	// A real workspace can never be deleted this way, not even by its owner.
+	expectKind(t, f.svc.DeleteDemoNow(ctx, f.ana, f.home), finance.KindForbidden)
+	if count(t, f.pool, `SELECT count(*) FROM workspaces WHERE id = $1`, f.home) != 1 {
+		t.Fatal("a workspace not created by the demo seed must not be deleted")
+	}
+	if _, err := f.pool.Exec(ctx, `UPDATE workspaces SET is_demo = true WHERE id = $1`, f.home); err != nil {
+		t.Fatal(err)
+	}
+
+	expectKind(t, f.svc.DeleteDemoNow(ctx, f.bob, f.home), finance.KindForbidden)
+	expectKind(t, f.svc.DeleteDemoNow(ctx, f.outsider, f.home), finance.KindNotFound)
 	if count(t, f.pool, `SELECT count(*) FROM workspaces WHERE id = $1`, f.home) != 1 {
 		t.Fatal("a refused request must not delete the workspace")
 	}
 
 	sent := len(f.mail.Messages())
-	if err := f.svc.DeleteNow(ctx, f.ana, f.home); err != nil {
+	if err := f.svc.DeleteDemoNow(ctx, f.ana, f.home); err != nil {
 		t.Fatal(err)
 	}
 	if count(t, f.pool, `SELECT count(*) FROM workspaces WHERE id = $1`, f.home) != 0 {
