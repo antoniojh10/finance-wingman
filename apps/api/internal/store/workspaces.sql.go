@@ -73,7 +73,7 @@ func (q *Queries) CancelWorkspaceDeletion(ctx context.Context, id uuid.UUID) (in
 }
 
 const claimDueWorkspaceDeletion = `-- name: ClaimDueWorkspaceDeletion :one
-SELECT id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by FROM workspaces
+SELECT id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by, is_demo FROM workspaces
 WHERE deletion_scheduled_for <= $1
 ORDER BY deletion_scheduled_for
 LIMIT 1
@@ -93,6 +93,7 @@ func (q *Queries) ClaimDueWorkspaceDeletion(ctx context.Context, deletionSchedul
 		&i.UpdatedAt,
 		&i.DeletionScheduledFor,
 		&i.DeletionRequestedBy,
+		&i.IsDemo,
 	)
 	return i, err
 }
@@ -180,7 +181,7 @@ func (q *Queries) CreateInvitation(ctx context.Context, arg CreateInvitationPara
 }
 
 const createWorkspace = `-- name: CreateWorkspace :one
-INSERT INTO workspaces (name) VALUES ($1) RETURNING id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by
+INSERT INTO workspaces (name) VALUES ($1) RETURNING id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by, is_demo
 `
 
 func (q *Queries) CreateWorkspace(ctx context.Context, name string) (Workspace, error) {
@@ -193,6 +194,7 @@ func (q *Queries) CreateWorkspace(ctx context.Context, name string) (Workspace, 
 		&i.UpdatedAt,
 		&i.DeletionScheduledFor,
 		&i.DeletionRequestedBy,
+		&i.IsDemo,
 	)
 	return i, err
 }
@@ -231,6 +233,34 @@ DELETE FROM sessions WHERE workspace_id = $1 AND oauth_family_id IS NOT NULL
 func (q *Queries) DeleteWorkspaceAppSessions(ctx context.Context, workspaceID *uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteWorkspaceAppSessions, workspaceID)
 	return err
+}
+
+const findOwnedWorkspaceByName = `-- name: FindOwnedWorkspaceByName :one
+SELECT w.id, w.name, w.created_at, w.updated_at, w.deletion_scheduled_for, w.deletion_requested_by, w.is_demo FROM workspaces w
+JOIN workspace_members m ON m.workspace_id = w.id
+WHERE m.user_id = $1 AND m.role = 'owner' AND w.name = $2
+ORDER BY w.created_at
+LIMIT 1
+`
+
+type FindOwnedWorkspaceByNameParams struct {
+	UserID uuid.UUID
+	Name   string
+}
+
+func (q *Queries) FindOwnedWorkspaceByName(ctx context.Context, arg FindOwnedWorkspaceByNameParams) (Workspace, error) {
+	row := q.db.QueryRow(ctx, findOwnedWorkspaceByName, arg.UserID, arg.Name)
+	var i Workspace
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletionScheduledFor,
+		&i.DeletionRequestedBy,
+		&i.IsDemo,
+	)
+	return i, err
 }
 
 const getInvitationByTokenHash = `-- name: GetInvitationByTokenHash :one
@@ -295,7 +325,7 @@ func (q *Queries) GetMemberRole(ctx context.Context, arg GetMemberRoleParams) (s
 }
 
 const getWorkspace = `-- name: GetWorkspace :one
-SELECT id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by FROM workspaces WHERE id = $1
+SELECT id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by, is_demo FROM workspaces WHERE id = $1
 `
 
 func (q *Queries) GetWorkspace(ctx context.Context, id uuid.UUID) (Workspace, error) {
@@ -308,6 +338,7 @@ func (q *Queries) GetWorkspace(ctx context.Context, id uuid.UUID) (Workspace, er
 		&i.UpdatedAt,
 		&i.DeletionScheduledFor,
 		&i.DeletionRequestedBy,
+		&i.IsDemo,
 	)
 	return i, err
 }
@@ -494,6 +525,15 @@ func (q *Queries) LockWorkspaceMembers(ctx context.Context, workspaceID uuid.UUI
 	return items, nil
 }
 
+const markWorkspaceDemo = `-- name: MarkWorkspaceDemo :exec
+UPDATE workspaces SET is_demo = true WHERE id = $1
+`
+
+func (q *Queries) MarkWorkspaceDemo(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, markWorkspaceDemo, id)
+	return err
+}
+
 const removeWorkspaceMember = `-- name: RemoveWorkspaceMember :execrows
 DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2
 `
@@ -534,7 +574,7 @@ func (q *Queries) RenameClashingMemberAccounts(ctx context.Context, ownerUserID 
 }
 
 const renameWorkspace = `-- name: RenameWorkspace :one
-UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by
+UPDATE workspaces SET name = $2 WHERE id = $1 RETURNING id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by, is_demo
 `
 
 type RenameWorkspaceParams struct {
@@ -552,6 +592,7 @@ func (q *Queries) RenameWorkspace(ctx context.Context, arg RenameWorkspaceParams
 		&i.UpdatedAt,
 		&i.DeletionScheduledFor,
 		&i.DeletionRequestedBy,
+		&i.IsDemo,
 	)
 	return i, err
 }
@@ -593,7 +634,7 @@ func (q *Queries) RevokeOpenInvitationsForEmail(ctx context.Context, arg RevokeO
 const scheduleWorkspaceDeletion = `-- name: ScheduleWorkspaceDeletion :one
 UPDATE workspaces SET deletion_scheduled_for = $2, deletion_requested_by = $3
 WHERE id = $1 AND deletion_scheduled_for IS NULL
-RETURNING id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by
+RETURNING id, name, created_at, updated_at, deletion_scheduled_for, deletion_requested_by, is_demo
 `
 
 type ScheduleWorkspaceDeletionParams struct {
@@ -613,6 +654,7 @@ func (q *Queries) ScheduleWorkspaceDeletion(ctx context.Context, arg ScheduleWor
 		&i.UpdatedAt,
 		&i.DeletionScheduledFor,
 		&i.DeletionRequestedBy,
+		&i.IsDemo,
 	)
 	return i, err
 }

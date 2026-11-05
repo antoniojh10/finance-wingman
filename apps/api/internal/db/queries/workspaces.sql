@@ -1,6 +1,16 @@
 -- name: CreateWorkspace :one
 INSERT INTO workspaces (name) VALUES ($1) RETURNING *;
 
+-- name: MarkWorkspaceDemo :exec
+UPDATE workspaces SET is_demo = true WHERE id = $1;
+
+-- name: FindOwnedWorkspaceByName :one
+SELECT w.* FROM workspaces w
+JOIN workspace_members m ON m.workspace_id = w.id
+WHERE m.user_id = $1 AND m.role = 'owner' AND w.name = $2
+ORDER BY w.created_at
+LIMIT 1;
+
 -- name: CountWorkspaces :one
 SELECT count(*) FROM workspaces;
 

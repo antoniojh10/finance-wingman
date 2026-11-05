@@ -57,6 +57,7 @@ asked to create one.
 | `make api-openapi` | Export the OpenAPI document and regenerate web API types |
 | `make migrate-up` / `migrate-down` / `migrate-status` | Manage migrations |
 | `make migrate-new name=add_x` | Create a new SQL migration |
+| `make demo-seed email=you@example.com [reset=1]` | Seed a "Demo" workspace with fictional data for the existing user (`reset=1` replaces it; see [docs](docs/deploy-railway.md#demo-data)) |
 | `make psql` | Open a psql shell |
 | `make measure` | Measure RAM/CPU of the production images and estimate hosting cost ([docs](docs/measure.md)) |
 | `go run ./cmd/api users list\|add\|remove` | Manage who has access (from `apps/api`) |
