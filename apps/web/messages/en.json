@@ -57,6 +57,10 @@
     "emailPlaceholder": "you@example.com"
   },
   "dashboard": {
+    "trendDays": "30 d",
+    "trendUp": "Balance up {change} over the last 30 days",
+    "trendDown": "Balance down {change} over the last 30 days",
+    "trendFlat": "Balance unchanged over the last 30 days",
     "title": "Dashboard",
     "income": "Income",
     "expenses": "Expenses",

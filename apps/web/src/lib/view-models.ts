@@ -55,3 +55,8 @@ export function toRecurringOption(item: RecurringItem): RecurringOption {
     next_due_on: item.next_due_on,
   };
 }
+
+/** End-of-day balances per account id from a daily summary, for the sparklines. */
+export function toAccountSeries(daily: { accounts: { account_id: string; days: { date: string; balance: number }[] }[] }): Map<string, { date: string; balance: number }[]> {
+  return new Map(daily.accounts.map((a) => [a.account_id, a.days]));
+}
