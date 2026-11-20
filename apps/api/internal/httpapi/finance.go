@@ -510,6 +510,29 @@ func (h *financeHandlers) registerSummary(api huma.API) {
 	})
 
 	huma.Register(api, huma.Operation{
+		OperationID: "get-daily-summary",
+		Method:      http.MethodGet,
+		Path:        apiPrefix + "/summary/daily",
+		Summary:     "Daily balance evolution",
+		Description: "End-of-day balances per currency (and per account) from `from` to `to`, at most 92 days, up to today. " +
+			"When the range goes past today, `projection` extends the non-savings, non-investment balance day by day from the end-of-today balance: " +
+			"each day subtracts the average daily spending of the last 30 days that is not linked to recurring items, applies the unpaid occurrences of active recurring items on their due dates " +
+			"(those already due and unpaid are applied tomorrow) and adds the transactions already recorded with a future date. " +
+			"`projection_basis` lists the figures used. Amounts are minor units and currencies are never mixed.",
+		Tags: []string{"Summary"},
+	}, func(ctx context.Context, in *summaryInput) (*bodyOutput[finance.DailySummary], error) {
+		owner, err := finance.ParseOwnerFilter(ctx, "query.owner", in.Owner)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		summary, err := h.svc.DailyBalances(ctx, in.From, in.To, owner)
+		if err != nil {
+			return nil, h.fail(ctx, err)
+		}
+		return &bodyOutput[finance.DailySummary]{Body: summary}, nil
+	})
+
+	huma.Register(api, huma.Operation{
 		OperationID: "get-summary",
 		Method:      http.MethodGet,
 		Path:        apiPrefix + "/summary",

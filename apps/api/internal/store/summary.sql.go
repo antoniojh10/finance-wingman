@@ -12,6 +12,193 @@ import (
 	"github.com/google/uuid"
 )
 
+const dailyAccountDeltas = `-- name: DailyAccountDeltas :many
+WITH sides AS (
+    SELECT t.account_id, t.occurred_on, t.type,
+           CASE WHEN t.type = 'income' THEN t.amount ELSE -t.amount END AS delta
+    FROM transactions t
+    UNION ALL
+    SELECT t.destination_account_id, t.occurred_on, 'transfer_in', t.destination_amount
+    FROM transactions t
+    WHERE t.destination_account_id IS NOT NULL
+)
+SELECT
+    a.id AS account_id,
+    s.occurred_on AS day,
+    sum(s.delta)::bigint AS delta,
+    COALESCE(sum(s.delta) FILTER (WHERE s.type = 'income'), 0)::bigint AS income,
+    COALESCE(-sum(s.delta) FILTER (WHERE s.type = 'expense'), 0)::bigint AS expense
+FROM accounts a
+JOIN sides s ON s.account_id = a.id
+WHERE a.archived_at IS NULL
+  AND s.occurred_on >= $1::date AND s.occurred_on <= $2::date
+  AND ($3::uuid IS NULL OR a.owner_user_id = $3)
+  AND (NOT $4::boolean OR a.owner_user_id IS NULL)
+GROUP BY a.id, s.occurred_on
+`
+
+type DailyAccountDeltasParams struct {
+	FromDate   time.Time
+	ToDate     time.Time
+	OwnerID    *uuid.UUID
+	SharedOnly bool
+}
+
+type DailyAccountDeltasRow struct {
+	AccountID uuid.UUID
+	Day       time.Time
+	Delta     int64
+	Income    int64
+	Expense   int64
+}
+
+// Net movement per account and day in a date range, with the income and
+// expense (transfers excluded) of that day.
+func (q *Queries) DailyAccountDeltas(ctx context.Context, arg DailyAccountDeltasParams) ([]DailyAccountDeltasRow, error) {
+	rows, err := q.db.Query(ctx, dailyAccountDeltas,
+		arg.FromDate,
+		arg.ToDate,
+		arg.OwnerID,
+		arg.SharedOnly,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DailyAccountDeltasRow{}
+	for rows.Next() {
+		var i DailyAccountDeltasRow
+		if err := rows.Scan(
+			&i.AccountID,
+			&i.Day,
+			&i.Delta,
+			&i.Income,
+			&i.Expense,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dailyBaselineExpenses = `-- name: DailyBaselineExpenses :many
+SELECT
+    a.id AS account_id,
+    COALESCE(sum(t.amount), 0)::bigint AS total
+FROM accounts a
+JOIN transactions t ON t.account_id = a.id
+WHERE a.archived_at IS NULL
+  AND t.type = 'expense'
+  AND t.recurring_id IS NULL
+  AND t.occurred_on >= $1::date AND t.occurred_on <= $2::date
+  AND ($3::uuid IS NULL OR a.owner_user_id = $3)
+  AND (NOT $4::boolean OR a.owner_user_id IS NULL)
+GROUP BY a.id
+`
+
+type DailyBaselineExpensesParams struct {
+	FromDate   time.Time
+	ToDate     time.Time
+	OwnerID    *uuid.UUID
+	SharedOnly bool
+}
+
+type DailyBaselineExpensesRow struct {
+	AccountID uuid.UUID
+	Total     int64
+}
+
+// Expenses not linked to a recurring item per account in a date range, used
+// to estimate the average daily spending.
+func (q *Queries) DailyBaselineExpenses(ctx context.Context, arg DailyBaselineExpensesParams) ([]DailyBaselineExpensesRow, error) {
+	rows, err := q.db.Query(ctx, dailyBaselineExpenses,
+		arg.FromDate,
+		arg.ToDate,
+		arg.OwnerID,
+		arg.SharedOnly,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DailyBaselineExpensesRow{}
+	for rows.Next() {
+		var i DailyBaselineExpensesRow
+		if err := rows.Scan(&i.AccountID, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const dailyOpeningBalances = `-- name: DailyOpeningBalances :many
+WITH sides AS (
+    SELECT t.account_id, t.occurred_on,
+           CASE WHEN t.type = 'income' THEN t.amount ELSE -t.amount END AS delta
+    FROM transactions t
+    UNION ALL
+    SELECT t.destination_account_id, t.occurred_on, t.destination_amount
+    FROM transactions t
+    WHERE t.destination_account_id IS NOT NULL
+)
+SELECT
+    a.id AS account_id,
+    (a.initial_balance
+        + COALESCE(sum(s.delta) FILTER (WHERE s.occurred_on <= $1::date), 0)
+        - COALESCE(sum(s.delta) FILTER (WHERE s.occurred_on <= a.balance_as_of), 0))::bigint AS balance
+FROM accounts a
+LEFT JOIN sides s ON s.account_id = a.id
+    AND s.occurred_on <= GREATEST($1::date, a.balance_as_of)
+WHERE a.archived_at IS NULL
+  AND ($2::uuid IS NULL OR a.owner_user_id = $2)
+  AND (NOT $3::boolean OR a.owner_user_id IS NULL)
+GROUP BY a.id
+`
+
+type DailyOpeningBalancesParams struct {
+	AsOfDate   time.Time
+	OwnerID    *uuid.UUID
+	SharedOnly bool
+}
+
+type DailyOpeningBalancesRow struct {
+	AccountID uuid.UUID
+	Balance   int64
+}
+
+// Balance of every account matching the filters at the end of as_of_date:
+// initial_balance - deltas(<= balance_as_of) + deltas(<= as_of_date), so the
+// result stays consistent with the anchor rule of ListAccounts for any day.
+// Per-side delta: income +amount, expense and transfer out -amount,
+// transfer in +destination_amount.
+func (q *Queries) DailyOpeningBalances(ctx context.Context, arg DailyOpeningBalancesParams) ([]DailyOpeningBalancesRow, error) {
+	rows, err := q.db.Query(ctx, dailyOpeningBalances, arg.AsOfDate, arg.OwnerID, arg.SharedOnly)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DailyOpeningBalancesRow{}
+	for rows.Next() {
+		var i DailyOpeningBalancesRow
+		if err := rows.Scan(&i.AccountID, &i.Balance); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const summaryByCategory = `-- name: SummaryByCategory :many
 
 SELECT

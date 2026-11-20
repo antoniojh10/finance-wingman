@@ -1084,6 +1084,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/summary/daily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Daily balance evolution
+         * @description End-of-day balances per currency (and per account) from `from` to `to`, at most 92 days, up to today. When the range goes past today, `projection` extends the non-savings, non-investment balance day by day from the end-of-today balance: each day subtracts the average daily spending of the last 30 days that is not linked to recurring items, applies the unpaid occurrences of active recurring items on their due dates (those already due and unpaid are applied tomorrow) and adds the transactions already recorded with a future date. `projection_basis` lists the figures used. Amounts are minor units and currencies are never mixed.
+         */
+        get: operations["get-daily-summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/summary/monthly": {
         parameters: {
             query?: never;
@@ -1451,6 +1471,15 @@ export interface components {
             type: "checking" | "savings" | "credit_card" | "cash" | "investment" | "other";
             /** Format: date-time */
             updated_at: string;
+        };
+        AccountBalance: {
+            /**
+             * Format: int64
+             * @description End-of-day balance in minor units
+             */
+            balance: number;
+            /** Format: date */
+            date: string;
         };
         AccountDeletion: {
             /**
@@ -2375,6 +2404,79 @@ export interface components {
              */
             savings_balance: number;
         };
+        DailyAccount: {
+            account_id: string;
+            /** @example MXN */
+            currency: string;
+            days: components["schemas"]["AccountBalance"][];
+            /**
+             * Format: int64
+             * @example 2
+             */
+            minor_units: number;
+            name: string;
+            /** @enum {string} */
+            type: "checking" | "savings" | "credit_card" | "cash" | "investment" | "other";
+        };
+        DailyBalance: {
+            /**
+             * Format: int64
+             * @description End-of-day balance of accounts other than savings and investment, in minor units
+             */
+            balance: number;
+            /** Format: date */
+            date: string;
+            /**
+             * Format: int64
+             * @description Expenses recorded that day (transfers excluded), in minor units
+             */
+            expense: number;
+            /**
+             * Format: int64
+             * @description Income recorded that day (transfers excluded), in minor units
+             */
+            income: number;
+            /**
+             * Format: int64
+             * @description End-of-day balance of investment accounts, in minor units
+             */
+            investment_balance: number;
+            /**
+             * Format: int64
+             * @description End-of-day balance of savings accounts, in minor units
+             */
+            savings_balance: number;
+        };
+        DailyCurrency: {
+            /** @example MXN */
+            currency: string;
+            /** @description One entry per day from the start of the range up to today (or the end of the range) */
+            days: components["schemas"]["DailyBalance"][];
+            /**
+             * Format: int64
+             * @example 2
+             */
+            minor_units: number;
+            /** @description Projected balance for the days after today; empty when the range does not go past today */
+            projection: components["schemas"]["ProjectedBalance"][];
+            projection_basis: components["schemas"]["ProjectionBasis"];
+        };
+        DailySummary: {
+            /**
+             * Format: uri
+             * @description A URL to the JSON Schema for this object.
+             * @example https://example.com/schemas/DailySummary.json
+             */
+            readonly $schema?: string;
+            accounts: components["schemas"]["DailyAccount"][];
+            currencies: components["schemas"]["DailyCurrency"][];
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            /** Format: date */
+            today: string;
+        };
         ErrorDetail: {
             /** @description Where the error occurred, e.g. 'body.items[3].tags' or 'path.thing-id' */
             location?: string;
@@ -2927,6 +3029,43 @@ export interface components {
             name: string;
             product_id: string;
             variants: components["schemas"]["VariantPrices"][];
+        };
+        ProjectedBalance: {
+            /**
+             * Format: int64
+             * @description Projected balance of accounts other than savings and investment, in minor units
+             */
+            balance: number;
+            /** Format: date */
+            date: string;
+        };
+        ProjectedRecurring: {
+            /**
+             * Format: int64
+             * @description Signed amount in minor units: income positive, expense negative
+             */
+            amount: number;
+            /**
+             * Format: date
+             * @description Day it is applied in the projection: the due date, or tomorrow when it is already due and unpaid
+             */
+            applied_on: string;
+            /**
+             * Format: date
+             * @description Real due date of the occurrence
+             */
+            due_on: string;
+            name: string;
+            recurring_id: string;
+        };
+        ProjectionBasis: {
+            /**
+             * Format: int64
+             * @description Average daily spending not linked to recurring items over the last 30 days, in minor units
+             */
+            average_daily_expense: number;
+            /** @description Unpaid recurring occurrences applied to the projection */
+            recurring: components["schemas"]["ProjectedRecurring"][];
         };
         Receipt: {
             /**
@@ -6233,6 +6372,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Summary"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ErrorModel"];
+                };
+            };
+        };
+    };
+    "get-daily-summary": {
+        parameters: {
+            query?: {
+                /** @description Inclusive start date; defaults to the first day of the current month */
+                from?: string;
+                /** @description Inclusive end date; defaults to the last day of the current month */
+                to?: string;
+                /** @description Limit to accounts of this owner: "me", "shared" or a member's user id; omit for the whole workspace */
+                owner?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DailySummary"];
                 };
             };
             /** @description Error */
