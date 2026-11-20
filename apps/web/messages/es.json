@@ -91,6 +91,18 @@
     "budgetsSetUp": "Define un monto mensual por categoría para ver cómo vas.",
     "budgetsSetUpAction": "Configurar presupuestos"
   },
+  "balanceTrend": {
+    "title": "Evolución del saldo",
+    "caption": "Proyectado a partir de los pagos recurrentes pendientes y tu gasto diario medio ({amount}/día)",
+    "empty": "No hay cuentas con saldo en este periodo.",
+    "today": "Hoy",
+    "low": "Mínimo {amount}",
+    "chartLabel": "Saldo diario y proyección",
+    "chartHint": "Usa las flechas izquierda y derecha para moverte entre días",
+    "balance": "Saldo",
+    "projectedBalance": "Saldo proyectado",
+    "dayNet": "Neto del día"
+  },
   "transactions": {
     "title": "Movimientos",
     "add": "Agregar movimiento",

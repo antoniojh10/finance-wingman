@@ -91,6 +91,18 @@
     "budgetsSetUp": "Set a monthly amount per category to see where you are heading.",
     "budgetsSetUpAction": "Set up budgets"
   },
+  "balanceTrend": {
+    "title": "Balance trend",
+    "caption": "Projected from pending recurring items and your average daily spending ({amount}/day)",
+    "empty": "No accounts with a balance in this period.",
+    "today": "Today",
+    "low": "Low {amount}",
+    "chartLabel": "Daily balance and projection",
+    "chartHint": "Use the left and right arrow keys to move between days",
+    "balance": "Balance",
+    "projectedBalance": "Projected balance",
+    "dayNet": "Day net"
+  },
   "transactions": {
     "title": "Transactions",
     "add": "Add transaction",
