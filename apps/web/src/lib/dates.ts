@@ -64,3 +64,10 @@ export function formatDate(date: string, locale: string): string {
     new Date(`${date}T00:00:00Z`),
   );
 }
+
+/** Adds (or subtracts) whole days to an ISO date (YYYY-MM-DD). */
+export function shiftDay(date: string, delta: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}

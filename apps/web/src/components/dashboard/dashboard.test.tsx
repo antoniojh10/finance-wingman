@@ -129,4 +129,36 @@ describe("AccountStrip", () => {
     expect(within(items[0]).getByText("MX$1,920.00")).toBeInTheDocument();
     expect(within(items[1]).getByText("−MX$500.15")).toHaveClass("text-expense");
   });
+
+  const days = (...balances: number[]) => balances.map((balance, i) => ({ date: `2026-11-${String(i + 1).padStart(2, "0")}`, balance }));
+  const account = (days_?: { date: string; balance: number }[]) => ({ id: "1", name: "Wallet", type: "cash" as const, currency: "EUR", minor_units: 2, balance: 0, days: days_ });
+
+  it("shows a sparkline and the 30-day gain in the income tone", () => {
+    renderWithIntl(<AccountStrip accounts={[account(days(10000, 15000, 22000))]} />);
+    const trend = screen.getByTestId("account-trend");
+    expect(trend).toHaveClass("text-income");
+    expect(within(trend).getByText("+€120.00")).toBeInTheDocument();
+    expect(trend).toHaveTextContent("30 d");
+    expect(within(trend).getByRole("img", { name: "Balance up €120.00 over the last 30 days" })).toBeInTheDocument();
+  });
+
+  it("shows a loss in the expense tone", () => {
+    renderWithIntl(<AccountStrip accounts={[account(days(10000, 2000))]} />);
+    const trend = screen.getByTestId("account-trend");
+    expect(trend).toHaveClass("text-expense");
+    expect(within(trend).getByText("−€80.00")).toBeInTheDocument();
+  });
+
+  it("is muted when the balance did not change", () => {
+    renderWithIntl(<AccountStrip accounts={[account(days(500, 900, 500))]} />);
+    const trend = screen.getByTestId("account-trend");
+    expect(trend).toHaveClass("text-muted-foreground");
+    expect(within(trend).getByRole("img", { name: "Balance unchanged over the last 30 days" })).toBeInTheDocument();
+  });
+
+  it("omits the trend with fewer than two points or no series", () => {
+    renderWithIntl(<AccountStrip accounts={[account(days(500)), account(undefined)]} />);
+    expect(screen.queryByTestId("account-trend")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("account-sparkline")).not.toBeInTheDocument();
+  });
 });

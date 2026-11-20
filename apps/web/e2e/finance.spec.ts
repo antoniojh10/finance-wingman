@@ -53,6 +53,11 @@ test("manages accounts, categories and transactions", { tag: "@mobile" }, async 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId("transaction-row").filter({ hasText: description })).toContainText("−MX$250.50");
 
+  // The account card on the dashboard trends down over the last 30 days.
+  const accountCard = page.getByRole("listitem").filter({ hasText: accountName });
+  await expect(accountCard.getByTestId("account-sparkline")).toBeVisible();
+  await expect(accountCard.getByTestId("account-trend")).toContainText("−MX$250.50 · 30 d");
+
   // The balance reflects the expense.
   await navigate(page, /accounts/i);
   await expect(page.getByTestId("account-row").filter({ hasText: accountName })).toContainText("MX$749.50");
