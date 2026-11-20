@@ -53,6 +53,13 @@ test("manages accounts, categories and transactions", { tag: "@mobile" }, async 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId("transaction-row").filter({ hasText: description })).toContainText("−MX$250.50");
 
+  // The balance trend card draws the month's balance, with today's marker
+  // (its first currency may be another test's, so the line can be flat).
+  const trend = page.getByTestId("balance-trend-card");
+  await expect(trend.getByRole("heading", { name: "Balance trend" })).toBeVisible();
+  await expect(trend.getByTestId("balance-trend-chart")).toBeVisible();
+  await expect(trend.getByTestId("today-marker")).toBeAttached();
+
   // The account card on the dashboard trends down over the last 30 days.
   const accountCard = page.getByRole("listitem").filter({ hasText: accountName });
   await expect(accountCard.getByTestId("account-sparkline")).toBeVisible();
