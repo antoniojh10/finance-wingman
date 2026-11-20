@@ -132,6 +132,25 @@
         ],
         "type": "object"
       },
+      "AccountBalance": {
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "description": "End-of-day balance in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "balance"
+        ],
+        "type": "object"
+      },
       "AccountDeletion": {
         "additionalProperties": false,
         "properties": {
@@ -2331,6 +2350,188 @@
         ],
         "type": "object"
       },
+      "DailyAccount": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "type": "string"
+          },
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/AccountBalance"
+            },
+            "type": "array"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "checking",
+              "savings",
+              "credit_card",
+              "cash",
+              "investment",
+              "other"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "name",
+          "type",
+          "currency",
+          "minor_units",
+          "days"
+        ],
+        "type": "object"
+      },
+      "DailyBalance": {
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "description": "End-of-day balance of accounts other than savings and investment, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "type": "string"
+          },
+          "expense": {
+            "description": "Expenses recorded that day (transfers excluded), in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "income": {
+            "description": "Income recorded that day (transfers excluded), in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "investment_balance": {
+            "description": "End-of-day balance of investment accounts, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "savings_balance": {
+            "description": "End-of-day balance of savings accounts, in minor units",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "balance",
+          "savings_balance",
+          "investment_balance",
+          "income",
+          "expense"
+        ],
+        "type": "object"
+      },
+      "DailyCurrency": {
+        "additionalProperties": false,
+        "properties": {
+          "currency": {
+            "examples": [
+              "MXN"
+            ],
+            "type": "string"
+          },
+          "days": {
+            "description": "One entry per day from the start of the range up to today (or the end of the range)",
+            "items": {
+              "$ref": "#/components/schemas/DailyBalance"
+            },
+            "type": "array"
+          },
+          "minor_units": {
+            "examples": [
+              2
+            ],
+            "format": "int64",
+            "type": "integer"
+          },
+          "projection": {
+            "description": "Projected balance for the days after today; empty when the range does not go past today",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedBalance"
+            },
+            "type": "array"
+          },
+          "projection_basis": {
+            "$ref": "#/components/schemas/ProjectionBasis"
+          }
+        },
+        "required": [
+          "currency",
+          "minor_units",
+          "days",
+          "projection",
+          "projection_basis"
+        ],
+        "type": "object"
+      },
+      "DailySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "$schema": {
+            "description": "A URL to the JSON Schema for this object.",
+            "examples": [
+              "https://example.com/schemas/DailySummary.json"
+            ],
+            "format": "uri",
+            "readOnly": true,
+            "type": "string"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/DailyAccount"
+            },
+            "type": "array"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/DailyCurrency"
+            },
+            "type": "array"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "to": {
+            "format": "date",
+            "type": "string"
+          },
+          "today": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "today",
+          "currencies",
+          "accounts"
+        ],
+        "type": "object"
+      },
       "ErrorDetail": {
         "additionalProperties": false,
         "properties": {
@@ -3746,6 +3947,81 @@
           "compare_unit",
           "display_multiplier",
           "variants"
+        ],
+        "type": "object"
+      },
+      "ProjectedBalance": {
+        "additionalProperties": false,
+        "properties": {
+          "balance": {
+            "description": "Projected balance of accounts other than savings and investment, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "balance"
+        ],
+        "type": "object"
+      },
+      "ProjectedRecurring": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "description": "Signed amount in minor units: income positive, expense negative",
+            "format": "int64",
+            "type": "integer"
+          },
+          "applied_on": {
+            "description": "Day it is applied in the projection: the due date, or tomorrow when it is already due and unpaid",
+            "format": "date",
+            "type": "string"
+          },
+          "due_on": {
+            "description": "Real due date of the occurrence",
+            "format": "date",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "recurring_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "recurring_id",
+          "name",
+          "due_on",
+          "applied_on",
+          "amount"
+        ],
+        "type": "object"
+      },
+      "ProjectionBasis": {
+        "additionalProperties": false,
+        "properties": {
+          "average_daily_expense": {
+            "description": "Average daily spending not linked to recurring items over the last 30 days, in minor units",
+            "format": "int64",
+            "type": "integer"
+          },
+          "recurring": {
+            "description": "Unpaid recurring occurrences applied to the projection",
+            "items": {
+              "$ref": "#/components/schemas/ProjectedRecurring"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "average_daily_expense",
+          "recurring"
         ],
         "type": "object"
       },
@@ -9273,6 +9549,72 @@
           }
         },
         "summary": "Income and expense summary",
+        "tags": [
+          "Summary"
+        ]
+      }
+    },
+    "/api/v1/summary/daily": {
+      "get": {
+        "description": "End-of-day balances per currency (and per account) from `from` to `to`, at most 92 days, up to today. When the range goes past today, `projection` extends the non-savings, non-investment balance day by day from the end-of-today balance: each day subtracts the average daily spending of the last 30 days that is not linked to recurring items, applies the unpaid occurrences of active recurring items on their due dates (those already due and unpaid are applied tomorrow) and adds the transactions already recorded with a future date. `projection_basis` lists the figures used. Amounts are minor units and currencies are never mixed.",
+        "operationId": "get-daily-summary",
+        "parameters": [
+          {
+            "description": "Inclusive start date; defaults to the first day of the current month",
+            "explode": false,
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "description": "Inclusive start date; defaults to the first day of the current month",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive end date; defaults to the last day of the current month",
+            "explode": false,
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "description": "Inclusive end date; defaults to the last day of the current month",
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Limit to accounts of this owner: \"me\", \"shared\" or a member's user id; omit for the whole workspace",
+            "explode": false,
+            "in": "query",
+            "name": "owner",
+            "schema": {
+              "description": "Limit to accounts of this owner: \"me\", \"shared\" or a member's user id; omit for the whole workspace",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailySummary"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "default": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorModel"
+                }
+              }
+            },
+            "description": "Error"
+          }
+        },
+        "summary": "Daily balance evolution",
         "tags": [
           "Summary"
         ]

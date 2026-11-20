@@ -42,22 +42,9 @@ type Summary struct {
 // Summary computes totals for [from, to], limited to the accounts matching
 // owner. Empty bounds default to the current calendar month.
 func (s *Service) Summary(ctx context.Context, from, to string, owner OwnerFilter) (Summary, error) {
-	today := s.Today()
-	start := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC)
-	end := start.AddDate(0, 1, -1)
-	var err error
-	if from != "" {
-		if start, err = parseDate("from", from); err != nil {
-			return Summary{}, err
-		}
-	}
-	if to != "" {
-		if end, err = parseDate("to", to); err != nil {
-			return Summary{}, err
-		}
-	}
-	if end.Before(start) {
-		return Summary{}, Invalid("to", "must not be before from")
+	start, end, err := s.periodBounds(from, to)
+	if err != nil {
+		return Summary{}, err
 	}
 
 	accounts, err := s.ListOwnedAccounts(ctx, false, owner)
@@ -125,4 +112,26 @@ func (s *Service) Summary(ctx context.Context, from, to string, owner OwnerFilte
 	}
 	sort.Slice(out.Currencies, func(i, j int) bool { return out.Currencies[i].Currency < out.Currencies[j].Currency })
 	return out, nil
+}
+
+// periodBounds parses an inclusive date range; empty bounds default to the
+// first and last day of the current calendar month.
+func (s *Service) periodBounds(from, to string) (start, end time.Time, err error) {
+	today := s.Today()
+	start = time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC)
+	end = start.AddDate(0, 1, -1)
+	if from != "" {
+		if start, err = parseDate("from", from); err != nil {
+			return start, end, err
+		}
+	}
+	if to != "" {
+		if end, err = parseDate("to", to); err != nil {
+			return start, end, err
+		}
+	}
+	if end.Before(start) {
+		return start, end, Invalid("to", "must not be before from")
+	}
+	return start, end, nil
 }
