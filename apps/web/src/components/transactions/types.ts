@@ -44,6 +44,8 @@ export type RecurringOption = {
   name: string;
   type: "expense" | "income";
   account_id: string;
+  account_name: string;
+  currency: string;
   status: "active" | "paused" | "cancelled";
   /** Due date the item is in now (unless not active). */
   current_due_on: string | null;

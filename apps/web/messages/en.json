@@ -132,6 +132,7 @@
     "moreFilters": "More filters",
     "paysSubscription": "Subscription: {name}",
     "subscriptionLabel": "Subscription",
+    "subscriptionOtherAccount": "{name} (assigned to {account})",
     "selectSubscription": "Subscription to link",
     "linkSubscription": "Link",
     "unlinkSubscription": "Unlink",

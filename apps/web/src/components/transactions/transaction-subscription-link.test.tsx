@@ -36,11 +36,12 @@ const tx: TransactionRow = {
 };
 
 const items: RecurringOption[] = [
-  { id: "r1", name: "Netflix", type: "expense", account_id: "mxn", status: "active", current_due_on: "2026-10-05", next_due_on: "2026-11-05" },
-  { id: "r2", name: "Spotify", type: "expense", account_id: "mxn", status: "paused", current_due_on: null, next_due_on: null },
-  { id: "r3", name: "Other account", type: "expense", account_id: "usd", status: "active", current_due_on: null, next_due_on: null },
-  { id: "r4", name: "Salary", type: "income", account_id: "mxn", status: "active", current_due_on: null, next_due_on: null },
-  { id: "r5", name: "Cancelled", type: "expense", account_id: "mxn", status: "cancelled", current_due_on: null, next_due_on: null },
+  { id: "r1", name: "Netflix", type: "expense", account_id: "mxn", account_name: "Checking", currency: "MXN", status: "active", current_due_on: "2026-10-05", next_due_on: "2026-11-05" },
+  { id: "r2", name: "Spotify", type: "expense", account_id: "mxn", account_name: "Checking", currency: "MXN", status: "paused", current_due_on: null, next_due_on: null },
+  { id: "r3", name: "Other currency", type: "expense", account_id: "usd", account_name: "Dollars", currency: "USD", status: "active", current_due_on: null, next_due_on: null },
+  { id: "r6", name: "Disney", type: "expense", account_id: "card", account_name: "Card", currency: "MXN", status: "active", current_due_on: null, next_due_on: null },
+  { id: "r4", name: "Salary", type: "income", account_id: "mxn", account_name: "Checking", currency: "MXN", status: "active", current_due_on: null, next_due_on: null },
+  { id: "r5", name: "Cancelled", type: "expense", account_id: "mxn", account_name: "Checking", currency: "MXN", status: "cancelled", current_due_on: null, next_due_on: null },
 ];
 
 beforeEach(() => {
@@ -49,14 +50,27 @@ beforeEach(() => {
 });
 
 describe("TransactionSubscriptionLink", () => {
-  it("offers only subscriptions of the same account and type that are not cancelled", () => {
+  it("offers only subscriptions of the same currency and type that are not cancelled", () => {
     renderWithIntl(<TransactionSubscriptionLink transaction={tx} recurringItems={items} />);
     const options = screen.getAllByRole("option").map((o) => o.textContent);
     expect(options).toContain("Netflix");
     expect(options).toContain("Spotify");
-    expect(options).not.toContain("Other account");
+    expect(options).not.toContain("Other currency");
     expect(options).not.toContain("Salary");
     expect(options).not.toContain("Cancelled");
+  });
+
+  it("offers subscriptions assigned to another account in the same currency after the own ones", async () => {
+    link.mockResolvedValue({ ok: true, nonce: 1 });
+    const user = userEvent.setup();
+    renderWithIntl(<TransactionSubscriptionLink transaction={tx} recurringItems={items} />);
+    const subscription = screen.getByLabelText("Subscription");
+    const options = Array.from(subscription.querySelectorAll("option")).map((o) => o.textContent);
+    expect(options).toEqual(["Netflix", "Spotify", "Disney (assigned to Card)"]);
+
+    await user.selectOptions(subscription, "r6");
+    await user.click(screen.getByRole("button", { name: "Link" }));
+    await waitFor(() => expect(link).toHaveBeenCalledWith("tx1", "r6", undefined));
   });
 
   it("links to the chosen subscription and period", async () => {

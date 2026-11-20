@@ -162,6 +162,7 @@ func TestLinkTransactionToRecurring(t *testing.T) {
 	api := newTestAPI(t)
 	card := api.createAccount("Card", "MXN", 0)
 	other := api.createAccount("Cash", "MXN", 0)
+	dollars := api.createAccount("Dollars", "USD", 0)
 	food := api.createCategory("Food", "expense")
 	salary := api.createCategory("Salary", "income")
 	item := api.weeklyItem(card, nil)
@@ -184,10 +185,23 @@ func TestLinkTransactionToRecurring(t *testing.T) {
 		t.Fatalf("expected the link to be replaced: %+v", linked)
 	}
 
-	// While linked, the type and account cannot change.
+	// While linked, the type cannot change and the account can only move
+	// to one in the item's currency.
 	api.do(http.MethodPut, "/api/v1/transactions/"+tx.ID.String(), map[string]any{
-		"type": "expense", "account_id": other.ID, "amount": 1000,
+		"type": "income", "account_id": card.ID, "amount": 1000,
 	}).expectError(http.StatusUnprocessableEntity)
+	body := api.do(http.MethodPut, "/api/v1/transactions/"+tx.ID.String(), map[string]any{
+		"type": "expense", "account_id": dollars.ID, "amount": 1000,
+	}).expectError(http.StatusUnprocessableEntity)
+	if body.Errors[0].Location != "recurring_id" {
+		t.Fatalf("expected a recurring_id error: %+v", body)
+	}
+	api.do(http.MethodPut, "/api/v1/transactions/"+tx.ID.String(), map[string]any{
+		"type": "expense", "account_id": other.ID, "amount": 1000, "occurred_on": daysFromToday(-9),
+	}).expect(http.StatusOK).decode(&linked)
+	if linked.RecurringID == nil || *linked.RecurringID != second.ID || linked.AccountID != other.ID {
+		t.Fatalf("moving to an account in the same currency keeps the link: %+v", linked)
+	}
 	api.do(http.MethodPut, "/api/v1/transactions/"+tx.ID.String(), map[string]any{
 		"type": "expense", "account_id": card.ID, "amount": 2000, "category_id": food.ID, "occurred_on": daysFromToday(-9),
 	}).expect(http.StatusOK).decode(&linked)
@@ -203,11 +217,20 @@ func TestLinkTransactionToRecurring(t *testing.T) {
 		}
 	}
 
+	// Another account in the item's currency can pay it (e.g. the item is
+	// assigned to one card but was paid with another).
+	paidElsewhere := api.createTransaction(map[string]any{"type": "expense", "account_id": other.ID, "amount": 1000})
+	api.do(http.MethodPut, "/api/v1/transactions/"+paidElsewhere.ID.String()+"/recurring", map[string]any{"recurring_id": item.ID}).
+		expect(http.StatusOK).decode(&linked)
+	if linked.RecurringID == nil || *linked.RecurringID != item.ID || linked.AccountID != other.ID {
+		t.Fatalf("expected a link from another account in the same currency: %+v", linked)
+	}
+
 	// Rejections.
-	otherAccount := api.createTransaction(map[string]any{"type": "expense", "account_id": other.ID, "amount": 1000})
+	otherCurrency := api.createTransaction(map[string]any{"type": "expense", "account_id": dollars.ID, "amount": 1000})
 	income := api.createTransaction(map[string]any{"type": "income", "account_id": card.ID, "amount": 1000, "category_id": salary.ID})
 	transfer := api.createTransaction(map[string]any{"type": "transfer", "account_id": card.ID, "amount": 1000, "destination_account_id": other.ID})
-	for _, bad := range []finance.Transaction{otherAccount, income, transfer} {
+	for _, bad := range []finance.Transaction{otherCurrency, income, transfer} {
 		body := api.do(http.MethodPut, "/api/v1/transactions/"+bad.ID.String()+"/recurring", map[string]any{"recurring_id": item.ID}).expectError(http.StatusUnprocessableEntity)
 		if body.Errors[0].Location != "recurring_id" {
 			t.Fatalf("expected a recurring_id error: %+v", body)

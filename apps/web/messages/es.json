@@ -132,6 +132,7 @@
     "moreFilters": "Más filtros",
     "paysSubscription": "Suscripción: {name}",
     "subscriptionLabel": "Suscripción",
+    "subscriptionOtherAccount": "{name} (asignada a {account})",
     "selectSubscription": "Suscripción a vincular",
     "linkSubscription": "Vincular",
     "unlinkSubscription": "Desvincular",

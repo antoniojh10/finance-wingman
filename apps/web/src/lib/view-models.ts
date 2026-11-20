@@ -48,6 +48,8 @@ export function toRecurringOption(item: RecurringItem): RecurringOption {
     name: item.name,
     type: item.type,
     account_id: item.account_id,
+    account_name: item.account_name,
+    currency: item.currency,
     status: item.status,
     current_due_on: item.current_period?.due_on ?? null,
     next_due_on: item.next_due_on,

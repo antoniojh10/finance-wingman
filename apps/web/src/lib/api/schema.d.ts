@@ -1180,7 +1180,7 @@ export interface paths {
         get?: never;
         /**
          * Link a transaction to a recurring item
-         * @description The transaction must have the item's type and account. An already linked transaction is re-linked. Several transactions may settle the same period.
+         * @description The transaction must have the item's type and currency; it may come from another account than the item's (e.g. paid with a different card). An already linked transaction is re-linked. Several transactions may settle the same period.
          */
         put: operations["link-transaction-recurring"];
         post?: never;
