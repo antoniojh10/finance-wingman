@@ -57,6 +57,10 @@
     "emailPlaceholder": "tu@correo.com"
   },
   "dashboard": {
+    "trendDays": "30 d",
+    "trendUp": "Saldo al alza {change} en los últimos 30 días",
+    "trendDown": "Saldo a la baja {change} en los últimos 30 días",
+    "trendFlat": "Saldo sin cambios en los últimos 30 días",
     "title": "Inicio",
     "income": "Ingresos",
     "expenses": "Gastos",

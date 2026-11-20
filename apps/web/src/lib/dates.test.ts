@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, formatMonth, monthOf, monthRange, parseMonth, shiftMonth, today } from "./dates";
+import { formatDate, formatMonth, monthOf, monthRange, parseMonth, shiftDay, shiftMonth, today } from "./dates";
 
 describe("dates", () => {
   it("computes month ranges, including leap years", () => {
@@ -32,5 +32,13 @@ describe("dates", () => {
     expect(formatMonth("2026-10", "en-US")).toBe("October 2026");
     expect(formatMonth("2026-10", "es-MX")).toBe("octubre de 2026");
     expect(formatDate("2026-01-01", "en-US")).toBe("Jan 1, 2026");
+  });
+});
+
+describe("shiftDay", () => {
+  it("moves across month and year boundaries", () => {
+    expect(shiftDay("2026-03-01", -1)).toBe("2026-02-28");
+    expect(shiftDay("2026-12-31", 1)).toBe("2027-01-01");
+    expect(shiftDay("2026-11-20", -29)).toBe("2026-10-22");
   });
 });

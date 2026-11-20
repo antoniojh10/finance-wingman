@@ -14,11 +14,11 @@ import { PageHeader } from "@/components/page-header";
 import { TransactionList } from "@/components/transactions/transaction-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { monthOf, monthRange, parseMonth, today } from "@/lib/dates";
+import { monthOf, monthRange, parseMonth, shiftDay, today } from "@/lib/dates";
 import { accountLabel, parseOwner } from "@/lib/owners";
 import { parseReportsQuery, reportsHref } from "@/lib/reports";
 import { authedApi, expectData, getAccountOwners, getCurrentUser } from "@/lib/session";
-import { toAccountOption, toCategoryOption, toRecurringNames, toRecurringOption, toTransactionRow } from "@/lib/view-models";
+import { toAccountOption, toAccountSeries, toCategoryOption, toRecurringNames, toRecurringOption, toTransactionRow } from "@/lib/view-models";
 import { NEW_ACCOUNT_HREF } from "@/components/accounts/new-account-dialog";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -46,7 +46,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const owner = parseOwner(params.owner);
 
   const api = await authedApi();
-  const [summaryRes, accountsRes, categoriesRes, recentRes, upcomingRes, committedRes, recurringRes, suggestionsRes, budgetsRes, trendRes, dailyRes, owners, user] = await Promise.all([
+  const [summaryRes, accountsRes, categoriesRes, recentRes, upcomingRes, committedRes, recurringRes, suggestionsRes, budgetsRes, trendRes, monthDailyRes, recentDailyRes, owners, user] = await Promise.all([
     api.GET("/api/v1/summary", { params: { query: { from, to, owner } } }),
     api.GET("/api/v1/accounts", { params: { query: { owner } } }),
     api.GET("/api/v1/categories"),
@@ -58,6 +58,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     api.GET("/api/v1/budgets", { params: { query: { month, owner } } }),
     api.GET("/api/v1/summary/monthly", { params: { query: { months: TREND_MONTHS, owner } } }),
     api.GET("/api/v1/summary/daily", { params: { query: { from, to, owner } } }),
+    // The account sparklines cover the last 30 days, whatever the month.
+    api.GET("/api/v1/summary/daily", { params: { query: { from: shiftDay(todayDate, -29), to: todayDate, owner } } }),
     getAccountOwners(),
     getCurrentUser(),
   ]);
@@ -66,6 +68,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const accounts = expectData(accountsRes).items;
   const categories = expectData(categoriesRes).items.map(toCategoryOption);
   const recent = expectData(recentRes);
+  const series = toAccountSeries(expectData(recentDailyRes));
   const accountOptions = accounts.map((a) => toAccountOption(a, showOwners));
 
   if (accounts.length === 0 && !owner) {
@@ -98,7 +101,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       <BalanceOverview currencies={summary.currencies} />
 
-      <BalanceTrendCard currencies={expectData(dailyRes).currencies} />
+      <BalanceTrendCard currencies={expectData(monthDailyRes).currencies} />
 
       <SubscriptionsCard
         upcoming={expectData(upcomingRes).items}
@@ -120,7 +123,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             {t("dashboard.viewAll")}
           </Link>
         </div>
-        <AccountStrip accounts={accounts.map((a) => ({ ...a, name: accountLabel(a.name, a.owner, showOwners) }))} />
+        <AccountStrip accounts={accounts.map((a) => ({ ...a, name: accountLabel(a.name, a.owner, showOwners), days: series.get(a.id) }))} />
       </section>
 
       <Card>

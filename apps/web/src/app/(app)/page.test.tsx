@@ -5,7 +5,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BalanceTrendCard } from "@/components/dashboard/balance-trend-card";
 
 const calls: { path: string; query: unknown }[] = [];
-const daily = { currencies: [{ currency: "EUR", minor_units: 2, days: [], projection: [], projection_basis: { average_daily_expense: 0, recurring: [] } }] };
+const daily = {
+  currencies: [{ currency: "EUR", minor_units: 2, days: [], projection: [], projection_basis: { average_daily_expense: 0, recurring: [] } }],
+  accounts: [],
+};
 
 const bodies: Record<string, unknown> = {
   "/api/v1/summary": { currencies: [] },
@@ -62,13 +65,18 @@ beforeEach(() => {
 describe("dashboard page", () => {
   it("requests the daily balance for the month in view and the owner filter", async () => {
     const page = await DashboardPage({ searchParams: Promise.resolve({ month: "2026-09", owner: "shared" }) });
-    const daily = calls.find((c) => c.path === "/api/v1/summary/daily");
-    expect(daily?.query).toEqual({ from: "2026-09-01", to: "2026-09-30", owner: "shared" });
+    // One request for the month in view (the trend card) and one for the
+    // last 30 days (the account sparklines), both with the owner filter.
+    const daily = calls.filter((c) => c.path === "/api/v1/summary/daily").map((c) => c.query);
+    expect(daily).toHaveLength(2);
+    expect(daily).toContainEqual({ from: "2026-09-01", to: "2026-09-30", owner: "shared" });
+    expect(daily.every((q) => (q as { owner?: string }).owner === "shared")).toBe(true);
     expect(find(page, BalanceTrendCard)?.props.currencies).toHaveLength(1);
   });
 
   it("requests the whole workspace without an owner", async () => {
     await DashboardPage({ searchParams: Promise.resolve({ month: "2026-02" }) });
-    expect(calls.find((c) => c.path === "/api/v1/summary/daily")?.query).toEqual({ from: "2026-02-01", to: "2026-02-28", owner: undefined });
+    const daily = calls.filter((c) => c.path === "/api/v1/summary/daily").map((c) => c.query);
+    expect(daily).toContainEqual({ from: "2026-02-01", to: "2026-02-28", owner: undefined });
   });
 });
