@@ -227,7 +227,7 @@ func (h *financeHandlers) registerTransactionLinks(api huma.API) {
 		Method:      http.MethodPut,
 		Path:        apiPrefix + "/transactions/{id}/recurring",
 		Summary:     "Link a transaction to a recurring item",
-		Description: "The transaction must have the item's type and account. An already linked transaction is re-linked. Several transactions may settle the same period.",
+		Description: "The transaction must have the item's type and currency; it may come from another account than the item's (e.g. paid with a different card). An already linked transaction is re-linked. Several transactions may settle the same period.",
 		Tags:        tags,
 	}, func(ctx context.Context, in *linkRecurringInput) (*bodyOutput[finance.Transaction], error) {
 		id, err := parseID(in.ID)

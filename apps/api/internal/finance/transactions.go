@@ -220,6 +220,7 @@ func validType(t string) bool {
 type resolved struct {
 	typ                  string
 	accountID            uuid.UUID
+	currency             string
 	amount               int64
 	destinationAccountID *uuid.UUID
 	destinationAmount    *int64
@@ -261,6 +262,7 @@ func (s *Service) validate(ctx context.Context, in TransactionInput, existing *s
 	if err != nil {
 		return r, err
 	}
+	r.currency = account.Currency
 
 	if in.Type == TypeTransfer {
 		if in.CategoryID != nil {
@@ -433,8 +435,15 @@ func (s *Service) UpdateTransaction(ctx context.Context, id uuid.UUID, in Transa
 	if err != nil {
 		return Transaction{}, err
 	}
-	if existing.RecurringID != nil && (r.typ != existing.Type || r.accountID != existing.AccountID) {
-		return Transaction{}, Invalid("recurring_id", "transaction is linked to a recurring item: unlink it before changing its type or account")
+	if existing.RecurringID != nil {
+		if r.typ != existing.Type {
+			return Transaction{}, Invalid("recurring_id", "transaction is linked to a recurring item: unlink it before changing its type")
+		}
+		if r.accountID != existing.AccountID {
+			if err := s.checkRecurringCurrency(ctx, *existing.RecurringID, r.currency); err != nil {
+				return Transaction{}, err
+			}
+		}
 	}
 	err = s.withTx(ctx, func(tx *Service) error {
 		err := tx.q.UpdateTransaction(ctx, store.UpdateTransactionParams{

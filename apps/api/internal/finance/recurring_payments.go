@@ -290,7 +290,9 @@ func (s *Service) RegisterRecurringPayment(ctx context.Context, itemID uuid.UUID
 }
 
 // LinkTransactionToRecurring links an existing transaction to a recurring
-// item. The transaction must be of the item's type and use its account.
+// item. The transaction must be of the item's type and in its currency; it
+// may come from another account (e.g. the item is charged to one card but
+// was paid with another), since amounts are compared per currency.
 // A transaction that is already linked is re-linked to the new item and
 // period. Several transactions may be linked to the same period.
 func (s *Service) LinkTransactionToRecurring(ctx context.Context, txID uuid.UUID, in LinkRecurringInput) (Transaction, error) {
@@ -313,7 +315,13 @@ func (s *Service) LinkTransactionToRecurring(ctx context.Context, txID uuid.UUID
 		return Transaction{}, Invalid("recurring_id", "transaction type "+rec.Type+" does not match recurring item type "+item.Type)
 	}
 	if rec.AccountID != item.AccountID {
-		return Transaction{}, Invalid("recurring_id", "transaction account differs from the recurring item account "+item.AccountName)
+		account, err := s.q.GetAccount(ctx, rec.AccountID)
+		if err != nil {
+			return Transaction{}, err
+		}
+		if account.Currency != item.Currency {
+			return Transaction{}, recurringCurrencyMismatch(item, account.Currency)
+		}
 	}
 	period, err := resolvePeriod(item, in.Period, rec.OccurredOn)
 	if err != nil {
@@ -331,6 +339,25 @@ func (s *Service) LinkTransactionToRecurring(ctx context.Context, txID uuid.UUID
 		return Transaction{}, err
 	}
 	return s.GetTransaction(ctx, txID)
+}
+
+// checkRecurringCurrency fails when a transaction in currency cannot pay
+// the recurring item id because the item uses another currency.
+func (s *Service) checkRecurringCurrency(ctx context.Context, id uuid.UUID, currency string) error {
+	row, err := s.q.GetRecurringItem(ctx, id)
+	if err != nil {
+		return err
+	}
+	item := s.recurringFromRow(row)
+	if item.Currency != currency {
+		return recurringCurrencyMismatch(item, currency)
+	}
+	return nil
+}
+
+func recurringCurrencyMismatch(item RecurringItem, currency string) error {
+	return Invalid("recurring_id", "transaction currency "+currency+" does not match recurring item currency "+item.Currency+
+		" (account "+item.AccountName+"): only accounts in "+item.Currency+" can pay it")
 }
 
 // UnlinkTransactionFromRecurring removes the link of a transaction. It is

@@ -185,6 +185,7 @@ func TestLinkTransactionToRecurring(t *testing.T) {
 	h := newHarness(t)
 	h.account("Card", "MXN")
 	h.account("Other", "MXN")
+	h.account("Dollars", "USD")
 	h.mustCall("create_recurring", map[string]any{"name": "Netflix", "type": "expense", "amount": 189, "frequency": "month", "account": "Card"}, nil)
 	var tx transactionOut
 	h.mustCall("add_expense", map[string]any{"amount": 189, "account": "Card", "description": "Netflix"}, &tx)
@@ -214,7 +215,16 @@ func TestLinkTransactionToRecurring(t *testing.T) {
 	h.mustFail("link_transaction_to_recurring", map[string]any{"transaction": tx.ID, "unlink": true, "recurring": "Netflix"}, "unlink=true")
 	h.mustFail("link_transaction_to_recurring", map[string]any{"transaction": "00000000-0000-0000-0000-000000000000", "recurring": "Netflix"}, "not found")
 
+	// Paid with another card in the same currency: it can be linked.
 	var other transactionOut
 	h.mustCall("add_expense", map[string]any{"amount": 10, "account": "Other", "description": "Netflix"}, &other)
-	h.mustFail("link_transaction_to_recurring", map[string]any{"transaction": other.ID, "recurring": "Netflix"}, "account")
+	out = linkRecurringOut{}
+	h.mustCall("link_transaction_to_recurring", map[string]any{"transaction": other.ID, "recurring": "Netflix"}, &out)
+	if out.Transaction.RecurringName != "Netflix" || out.Transaction.Account != "Other" {
+		t.Fatalf("link from another account: %+v", out)
+	}
+
+	var dollars transactionOut
+	h.mustCall("add_expense", map[string]any{"amount": 10, "account": "Dollars", "description": "Netflix"}, &dollars)
+	h.mustFail("link_transaction_to_recurring", map[string]any{"transaction": dollars.ID, "recurring": "Netflix"}, "only accounts in MXN")
 }

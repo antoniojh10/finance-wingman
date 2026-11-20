@@ -106,7 +106,7 @@ func (s *Server) registerRecurringSuggestionTools() {
 	addTool(s, &mcp.Tool{
 		Name:        "link_transaction_to_recurring",
 		Title:       "Link transaction to recurring item",
-		Description: "Mark an existing transaction as a payment of a recurring item (use it when add_expense or add_income reports a recurring_match and the user confirms), or remove that link with unlink=true. The transaction must have the item's type and account. It does not change the transaction amount or the item's estimate.",
+		Description: "Mark an existing transaction as a payment of a recurring item (use it when add_expense or add_income reports a recurring_match and the user confirms), or remove that link with unlink=true. The transaction must have the item's type and currency; it may come from another account (e.g. the subscription is assigned to one card but was paid with another). It does not change the transaction amount or the item's estimate.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: boolPtr(false), IdempotentHint: true, OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args linkRecurringArgs) (*mcp.CallToolResult, linkRecurringOut, error) {
 		return s.linkTransactionToRecurring(ctx, args)

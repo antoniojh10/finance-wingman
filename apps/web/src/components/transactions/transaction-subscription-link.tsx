@@ -79,9 +79,12 @@ export function TransactionSubscriptionLink({
     );
   }
 
-  const candidates = recurringItems.filter(
-    (item) => item.account_id === transaction.account_id && item.type === transaction.type && item.status !== "cancelled",
-  );
+  // A subscription can be paid from another account in its currency (e.g.
+  // it is assigned to one card but was charged to another); the ones of the
+  // transaction's own account come first.
+  const candidates = recurringItems
+    .filter((item) => item.currency === transaction.currency && item.type === transaction.type && item.status !== "cancelled")
+    .sort((a, b) => Number(b.account_id === transaction.account_id) - Number(a.account_id === transaction.account_id));
   if (candidates.length === 0) {
     return null;
   }
@@ -108,7 +111,9 @@ export function TransactionSubscriptionLink({
         >
           {candidates.map((item) => (
             <option key={item.id} value={item.id}>
-              {item.name}
+              {item.account_id === transaction.account_id
+                ? item.name
+                : t("subscriptionOtherAccount", { name: item.name, account: item.account_name })}
             </option>
           ))}
         </NativeSelect>

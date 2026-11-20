@@ -85,6 +85,15 @@ func TestUpdateTransactionKeepsRecurringLink(t *testing.T) {
 	if out.RecurringID != item.ID.String() || out.Category != "Subscriptions" || out.Amount != "200.00" {
 		t.Fatalf("the recurring link must survive an edit: %+v", out)
 	}
+
+	// Paid with another card: moving it keeps the link if the currency matches.
+	h.account("Other card", "MXN")
+	h.account("Dollars", "USD")
+	h.mustCall("update_transaction", map[string]any{"id": paid.ID.String(), "account": "Other card"}, &out)
+	if out.RecurringID != item.ID.String() || out.Account != "Other card" {
+		t.Fatalf("the recurring link must survive a move to the same currency: %+v", out)
+	}
+	h.mustFail("update_transaction", map[string]any{"id": paid.ID.String(), "account": "Dollars"}, "only accounts in MXN")
 }
 
 func TestUpdateTransactionTransfer(t *testing.T) {
