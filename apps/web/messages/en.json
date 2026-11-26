@@ -384,7 +384,18 @@
       "dismissedToast": "Suggestion dismissed"
     },
     "dueOn": "Due {date}",
-    "lastPaid": "Last paid: {date}"
+    "lastPaid": "Last paid: {date}",
+    "breakdownTitle": "Where it goes",
+    "breakdownHint": "Active expenses, per month. Select one to filter.",
+    "breakdownCurrency": "Currency",
+    "breakdownEmpty": "No active expenses in {currency}.",
+    "itemCount": "{count, plural, one {# item} other {# items}}",
+    "uncategorized": "Uncategorized",
+    "groupByCategory": "Group by category",
+    "categoryFilter": "Category:",
+    "clearCategory": "Clear category filter",
+    "notCounted": "Not counted",
+    "yearlyEquivalent": "/ yr"
   },
   "workspaces": {
     "label": "Workspace",
