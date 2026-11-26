@@ -332,6 +332,7 @@
     "totalPayments": "Número de pagos",
     "totalPaymentsHint": "Solo para pagos a plazos. Déjalo vacío si no termina.",
     "notes": "Notas",
+    "monthlyEquivalent": "/ mes",
     "nextDue": "Próximo: {date}",
     "noNextDue": "Sin pagos próximos",
     "status": {

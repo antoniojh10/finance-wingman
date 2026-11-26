@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { setRecurringStatus } from "@/app/actions/recurring";
+import { CategoryPill } from "@/components/categories/category-pill";
 import { ConfirmAction } from "@/components/confirm-action";
 import { Money } from "@/components/money";
 import { NativeSelect } from "@/components/native-select";
@@ -154,16 +155,19 @@ export function RecurringList({
   );
 }
 
-function RecurringItemRow({
+export function RecurringItemRow({
   item,
   accounts,
   categories,
   defaultDate,
+  showCategory = true,
 }: {
   item: RecurringRow;
   accounts: AccountOption[];
   categories: CategoryOption[];
   defaultDate: string;
+  /** Shows the category pill; hidden when a heading already names the category. */
+  showCategory?: boolean;
 }) {
   const t = useTranslations("subscriptions");
   const tc = useTranslations("common");
@@ -196,11 +200,16 @@ function RecurringItemRow({
       : [{ label: t("cancel"), icon: BanIcon, onSelect: () => setCancelling(true), destructive: true }]),
   ];
 
+  const isMonthly = item.interval_unit === "month" && item.interval_count === 1;
+  const nextDue =
+    item.status === "active" && item.next_due_on
+      ? t("nextDue", { date: formatDate(item.next_due_on, locale) })
+      : t("noNextDue");
   const details = [
     t(`frequency.${item.interval_unit}`, { count: item.interval_count }),
     item.account_name,
-    item.category_name,
-  ].filter(Boolean);
+    nextDue + (item.last_payment ? ` · ${t("lastPaid", { date: formatDate(item.last_payment.date, locale) })}` : ""),
+  ];
 
   return (
     <li className={cn("flex min-h-17.5 items-center gap-3 py-2.5", item.status !== "active" && "opacity-70")} data-testid="recurring-row">
@@ -210,13 +219,10 @@ function RecurringItemRow({
           {item.status !== "active" && <Badge variant="secondary">{t(`status.${item.status}`)}</Badge>}
           {item.status === "active" && item.current_period && <PaymentStatusBadge status={item.current_period.status} />}
         </p>
-        <p className="truncate text-[12.5px] text-muted-foreground">{details.join(" · ")}</p>
-        <p className="text-[12.5px] text-muted-foreground">
-          {item.status === "active" && item.next_due_on
-            ? t("nextDue", { date: formatDate(item.next_due_on, locale) })
-            : t("noNextDue")}
-          {item.last_payment && ` · ${t("lastPaid", { date: formatDate(item.last_payment.date, locale) })}`}
-        </p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted-foreground">
+          {showCategory && item.category_name && <CategoryPill name={item.category_name} color={item.category_color} />}
+          <span>{details.join(" · ")}</span>
+        </div>
         {item.status === "active" && item.current_period && (
           // Stays mounted once paid so the dialog outlives the revalidation and can toast and close.
           <RegisterPaymentDialog
@@ -239,14 +245,16 @@ function RecurringItemRow({
           />
         )}
       </div>
-      <Money
-        amount={item.amount}
-        currency={item.currency}
-        minorUnits={item.minor_units}
-        tone={item.type}
-        signed
-        className={cn("text-[15.5px] font-bold whitespace-nowrap", item.type === "expense" && "text-expense")}
-      />
+      <div className="text-right whitespace-nowrap">
+        <p className={cn("text-[15.5px] font-bold", item.type === "expense" && "text-expense")}>
+          <Money amount={item.amount} currency={item.currency} minorUnits={item.minor_units} tone={item.type} signed />
+        </p>
+        {!isMonthly && (
+          <p className="text-xs font-medium text-muted-foreground" data-testid="recurring-monthly">
+            <Money amount={item.monthly_amount} currency={item.currency} minorUnits={item.minor_units} /> {t("monthlyEquivalent")}
+          </p>
+        )}
+      </div>
       <RowActions className="-mr-2 text-muted-foreground" actions={actions} />
       <RecurringDialog
         item={item}

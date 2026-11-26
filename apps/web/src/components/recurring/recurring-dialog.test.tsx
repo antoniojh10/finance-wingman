@@ -55,6 +55,7 @@ const item: RecurringRow = {
   account_name: "Dollars",
   category_id: "fun",
   category_name: "Fun",
+  category_color: "#ff8800",
   currency: "USD",
   minor_units: 2,
   amount: 1599,

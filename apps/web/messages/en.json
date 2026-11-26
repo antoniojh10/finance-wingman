@@ -332,6 +332,7 @@
     "totalPayments": "Number of payments",
     "totalPaymentsHint": "Only for installment plans. Leave empty if it never ends.",
     "notes": "Notes",
+    "monthlyEquivalent": "/ mo",
     "nextDue": "Next: {date}",
     "noNextDue": "No upcoming payment",
     "status": {

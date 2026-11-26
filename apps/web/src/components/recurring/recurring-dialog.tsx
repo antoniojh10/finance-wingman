@@ -28,6 +28,7 @@ export type RecurringRow = {
   account_name: string;
   category_id: string | null;
   category_name: string | null;
+  category_color: string | null;
   currency: string;
   minor_units: number;
   amount: number;

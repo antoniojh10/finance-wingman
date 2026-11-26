@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@/test/render";
 
 import type { RecurringRow } from "./recurring-dialog";
-import { RecurringList, sortItems } from "./recurring-list";
+import { RecurringItemRow, RecurringList, sortItems } from "./recurring-list";
 import type { StatusFilter } from "@/lib/recurring-filters";
 
 const replace = vi.fn();
@@ -29,6 +29,7 @@ const row = (overrides: Partial<RecurringRow>): RecurringRow => ({
   account_name: "Checking",
   category_id: "ent",
   category_name: "Fun",
+  category_color: "#ff8800",
   currency: "MXN",
   minor_units: 2,
   amount: 19900,
@@ -46,7 +47,7 @@ const items = [
   row({ id: "c", name: "Old gym", status: "cancelled", next_due_on: null }),
   row({ id: "p", name: "Paused thing", status: "paused" }),
   row({ id: "a", name: "Netflix" }),
-  row({ id: "i", name: "Rent income", type: "income", amount: 800000, monthly_amount: 1733333, interval_count: 2, interval_unit: "week", category_name: null }),
+  row({ id: "i", name: "Rent income", type: "income", amount: 800000, monthly_amount: 1733333, interval_count: 2, interval_unit: "week", category_name: null, category_color: null }),
 ];
 const accounts = [{ id: "mxn", name: "Checking", currency: "MXN", minor_units: 2, archived: false }];
 
@@ -97,11 +98,35 @@ describe("RecurringList", () => {
     const netflix = screen.getAllByTestId("recurring-row")[0];
     expect(within(netflix).getByText("Netflix")).toBeInTheDocument();
     expect(within(netflix).getByText("−MX$199.00")).toBeInTheDocument();
-    expect(within(netflix).getByText("Every month · Checking · Fun")).toBeInTheDocument();
-    expect(within(netflix).getByText("Next: Nov 5, 2026")).toBeInTheDocument();
-    expect(screen.getByText("Every 2 weeks · Checking")).toBeInTheDocument();
+    expect(within(netflix).getByTestId("category-pill")).toHaveTextContent("Fun");
+    expect(within(netflix).getByText("Every month · Checking · Next: Nov 5, 2026")).toBeInTheDocument();
+    expect(within(netflix).queryByTestId("recurring-monthly")).not.toBeInTheDocument();
+    expect(screen.getByText("Every 2 weeks · Checking · Next: Nov 5, 2026")).toBeInTheDocument();
     expect(screen.getByText("+MX$8,000.00")).toBeInTheDocument();
     expect(screen.getAllByText("Paused").length).toBeGreaterThan(0);
+  });
+
+  it("shows no pill for an uncategorized item", () => {
+    renderList();
+    const rent = screen.getAllByTestId("recurring-row")[1];
+    expect(within(rent).queryByTestId("category-pill")).not.toBeInTheDocument();
+  });
+
+  it("shows the real amount and the monthly equivalent under it", () => {
+    renderList([row({ id: "y", name: "Domain", amount: 48000, monthly_amount: 4000, interval_unit: "year" })]);
+    const domain = screen.getByTestId("recurring-row");
+    expect(within(domain).getByText("−MX$480.00")).toBeInTheDocument();
+    expect(within(domain).getByText("Every year", { exact: false })).toBeInTheDocument();
+    expect(within(domain).getByTestId("recurring-monthly")).toHaveTextContent("MX$40.00 / mo");
+  });
+
+  it("hides the pill when showCategory is false", () => {
+    renderWithIntl(
+      <ul>
+        <RecurringItemRow item={row({})} accounts={accounts} categories={[]} defaultDate="2026-10-05" showCategory={false} />
+      </ul>,
+    );
+    expect(screen.queryByTestId("category-pill")).not.toBeInTheDocument();
   });
 
   it("hides paused and cancelled items by default and shows counts", () => {
