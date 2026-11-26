@@ -82,11 +82,11 @@ describe("RecurringList", () => {
     expect(within(rent).queryByTestId("category-pill")).not.toBeInTheDocument();
   });
 
-  it("shows the real amount with its period and the monthly equivalent", () => {
+  it("shows the real amount and the monthly equivalent under it", () => {
     renderList([row({ id: "y", name: "Domain", amount: 48000, monthly_amount: 4000, interval_unit: "year" })]);
     const domain = screen.getByTestId("recurring-row");
     expect(within(domain).getByText("−MX$480.00")).toBeInTheDocument();
-    expect(within(domain).getByTestId("recurring-period")).toHaveTextContent("/ yr");
+    expect(within(domain).getByText("Every year", { exact: false })).toBeInTheDocument();
     expect(within(domain).getByTestId("recurring-monthly")).toHaveTextContent("MX$40.00 / mo");
   });
 

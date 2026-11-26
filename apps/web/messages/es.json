@@ -323,7 +323,6 @@
     "totalPayments": "Número de pagos",
     "totalPaymentsHint": "Solo para pagos a plazos. Déjalo vacío si no termina.",
     "notes": "Notas",
-    "per": "{unit, select, week {{count, plural, one {/ sem} other {/ # sem}}} month {{count, plural, one {/ mes} other {/ # meses}}} other {{count, plural, one {/ año} other {/ # años}}}}",
     "monthlyEquivalent": "/ mes",
     "nextDue": "Próximo: {date}",
     "noNextDue": "Sin pagos próximos",

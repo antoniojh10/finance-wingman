@@ -174,12 +174,6 @@ export function RecurringItemRow({
       <div className="text-right whitespace-nowrap">
         <p className={cn("text-[15.5px] font-bold", item.type === "expense" && "text-expense")}>
           <Money amount={item.amount} currency={item.currency} minorUnits={item.minor_units} tone={item.type} signed />
-          {!isMonthly && (
-            <span data-testid="recurring-period" className="text-xs font-medium text-muted-foreground">
-              {" "}
-              {t("per", { unit: item.interval_unit, count: item.interval_count })}
-            </span>
-          )}
         </p>
         {!isMonthly && (
           <p className="text-xs font-medium text-muted-foreground" data-testid="recurring-monthly">
