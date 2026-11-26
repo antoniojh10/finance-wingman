@@ -28,9 +28,12 @@ export type RecurringRow = {
   account_name: string;
   category_id: string | null;
   category_name: string | null;
+  category_color: string | null;
   currency: string;
   minor_units: number;
   amount: number;
+  /** Amount normalized to an average month, in minor units. */
+  monthly_amount: number;
   interval_unit: IntervalUnit;
   interval_count: number;
   start_on: string;

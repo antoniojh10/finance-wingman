@@ -323,6 +323,8 @@
     "totalPayments": "Number of payments",
     "totalPaymentsHint": "Only for installment plans. Leave empty if it never ends.",
     "notes": "Notes",
+    "per": "{unit, select, week {{count, plural, one {/ wk} other {/ # wks}}} month {{count, plural, one {/ mo} other {/ # mo}}} other {{count, plural, one {/ yr} other {/ # yrs}}}}",
+    "monthlyEquivalent": "/ mo",
     "nextDue": "Next: {date}",
     "noNextDue": "No upcoming payment",
     "status": {
