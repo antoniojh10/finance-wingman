@@ -5,7 +5,8 @@ SELECT
     a.currency,
     a.archived_at AS account_archived_at,
     cur.minor_units,
-    c.name AS category_name
+    c.name AS category_name,
+    c.color AS category_color
 FROM recurring_items r
 JOIN accounts a ON a.id = r.account_id
 JOIN currencies cur ON cur.code = a.currency
@@ -21,7 +22,8 @@ SELECT
     a.currency,
     a.archived_at AS account_archived_at,
     cur.minor_units,
-    c.name AS category_name
+    c.name AS category_name,
+    c.color AS category_color
 FROM recurring_items r
 JOIN accounts a ON a.id = r.account_id
 JOIN currencies cur ON cur.code = a.currency
