@@ -769,3 +769,47 @@ func TestGetMonthlySpendingAllowedWithReadOnlyScope(t *testing.T) {
 	h.readOnly = true
 	h.mustCall("get_monthly_spending", map[string]any{}, nil)
 }
+
+func TestListRecurringCommittedByCategory(t *testing.T) {
+	t.Parallel()
+	h := newHarness(t)
+	h.account("Card", "MXN")
+	h.category("Entertainment", "expense")
+	h.category("Health", "expense")
+	h.category("Salary", "income")
+
+	create := func(args map[string]any) {
+		h.mustCall("create_recurring", args, nil)
+	}
+	create(map[string]any{"name": "Netflix", "type": "expense", "amount": 200, "frequency": "month", "category": "Entertainment"})
+	create(map[string]any{"name": "Spotify", "type": "expense", "amount": 100, "frequency": "month", "category": "Entertainment"})
+	create(map[string]any{"name": "Gym", "type": "expense", "amount": 50, "frequency": "month", "category": "Health"})
+	create(map[string]any{"name": "Internet", "type": "expense", "amount": 30, "frequency": "month"})
+	create(map[string]any{"name": "Paused show", "type": "expense", "amount": 500, "frequency": "month", "category": "Entertainment"})
+	h.mustCall("update_recurring", map[string]any{"recurring": "Paused show", "status": "paused"}, nil)
+	create(map[string]any{"name": "Salary", "type": "income", "amount": 5000, "frequency": "month", "category": "Salary"})
+
+	var out listRecurringOut
+	h.mustCall("list_recurring", nil, &out)
+	if len(out.CommittedMonthly) != 1 {
+		t.Fatalf("committed: %+v", out.CommittedMonthly)
+	}
+	c := out.CommittedMonthly[0]
+	if c.Expense != "380.00" || c.ExpenseCount != 4 {
+		t.Fatalf("committed totals: %+v", c)
+	}
+	// Largest first; the uncategorized bucket is last.
+	want := []committedCategory{
+		{Category: "Entertainment", MonthlyExpense: "300.00", Count: 2},
+		{Category: "Health", MonthlyExpense: "50.00", Count: 1},
+		{Category: "Uncategorized", MonthlyExpense: "30.00", Count: 1},
+	}
+	if len(c.ByCategory) != len(want) {
+		t.Fatalf("by_category: %+v", c.ByCategory)
+	}
+	for i := range want {
+		if c.ByCategory[i] != want[i] {
+			t.Fatalf("by_category[%d] = %+v, want %+v", i, c.ByCategory[i], want[i])
+		}
+	}
+}
