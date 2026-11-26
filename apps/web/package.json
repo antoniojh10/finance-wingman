@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "node scripts/e2e.mjs",
+    "e2e": "../../scripts/heavy.sh node scripts/e2e.mjs",
     "screenshots": "node scripts/e2e.mjs --config playwright.screenshots.config.ts",
     "gen:api": "openapi-typescript ./openapi.json -o src/lib/api/schema.d.ts"
   },

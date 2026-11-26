@@ -16,5 +16,8 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.ts"],
     restoreMocks: true,
+    // Locally, leave half the cores free for Postgres, the API and other
+    // worktrees; CI machines run with Vitest's default.
+    maxWorkers: process.env.CI ? undefined : "50%",
   },
 });

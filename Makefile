@@ -4,6 +4,10 @@ API_DIR := apps/api
 -include .env
 # Worktrees override it in their own .env to run next to the main checkout.
 WEB_PORT ?= 3000
+# Go test packages run at once by `make api-test` (CI runs go test directly,
+# without this limit). Each package runs its own Postgres-backed tests, so a
+# high value overloads a laptop and makes tests time out.
+TEST_PARALLEL ?= 4
 export
 
 .PHONY: up down grafana logs measure psql api-run api-build api-test api-lint api-generate api-openapi web-install web-dev web-test web-lint web-e2e screenshots migrate-up migrate-down migrate-status migrate-new demo-seed prod-backup tunnel tunnel-down
@@ -43,7 +47,7 @@ api-build:
 	cd $(API_DIR) && CGO_ENABLED=0 go build -o bin/api ./cmd/api
 
 api-test:
-	cd $(API_DIR) && go test -race -count=1 ./...
+	cd $(API_DIR) && ../../scripts/heavy.sh go test -race -p $(TEST_PARALLEL) -count=1 ./...
 
 api-generate: ## Regenerate sqlc code from internal/db/queries
 	cd $(API_DIR) && go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate
@@ -87,7 +91,7 @@ web-dev:
 	cd apps/web && pnpm dev --port $(WEB_PORT)
 
 web-test:
-	cd apps/web && pnpm test
+	cd apps/web && ../../scripts/heavy.sh pnpm test
 
 web-lint:
 	cd apps/web && pnpm lint && pnpm typecheck

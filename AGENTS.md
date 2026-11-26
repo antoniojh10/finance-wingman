@@ -60,6 +60,7 @@ Commit messages follow [Conventional Commits 1.0.0](https://www.conventionalcomm
 
 ## Workflow
 - Start local services with `make up`; integration tests need Postgres running.
+- `make api-test`, `make web-test` and `pnpm e2e` take a lock shared by every worktree (`scripts/heavy.sh`), so parallel runs queue instead of overloading the machine; don't wrap them in your own `flock`. Locally `make api-test` runs `TEST_PARALLEL` (default 4) Go packages at once and Vitest uses half the cores; CI is unaffected.
 - Run `make api-lint api-test` before considering backend work done, and `make web-lint web-test` for frontend work.
 - E2E runs in full only in CI, on the pull request. Locally, run just the specs for the flows you changed (`cd apps/web && pnpm e2e <spec>`), never the whole suite; if CI's e2e fails, reproduce that spec locally. `pnpm e2e` creates a fresh `finance_e2e_*` database, free ports and a unique sign-in email per run and drops them afterwards, so runs and worktrees can overlap.
 - A pull request must be up to date with `main` and have green CI before merging: merge `main` into the branch (never rebase) and wait for CI again.
