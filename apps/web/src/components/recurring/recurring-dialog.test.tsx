@@ -58,6 +58,7 @@ const item: RecurringRow = {
   currency: "USD",
   minor_units: 2,
   amount: 1599,
+  monthly_amount: 67,
   interval_unit: "year",
   interval_count: 2,
   start_on: "2026-01-15",

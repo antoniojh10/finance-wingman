@@ -289,6 +289,15 @@
     "editTitle": "Editar suscripción",
     "empty": "Aún no hay suscripciones. Agrega los pagos e ingresos recurrentes que quieras seguir.",
     "emptyFilter": "No hay nada con este filtro.",
+    "statusAll": "Todas",
+    "sortLabel": "Ordenar",
+    "sort": {
+      "due": "Próximo cobro",
+      "amount": "Coste mensual",
+      "name": "Nombre"
+    },
+    "hiddenNote": "{count} en pausa o canceladas ocultas",
+    "showAll": "Ver todas",
     "filterLabel": "Mostrar",
     "name": "Nombre",
     "namePlaceholder": "p. ej. Netflix",
@@ -298,7 +307,7 @@
       "income": "Ingreso"
     },
     "filters": {
-      "all": "Todas",
+      "all": "Todos los tipos",
       "expense": "Gastos",
       "income": "Ingresos"
     },

@@ -31,6 +31,8 @@ export type RecurringRow = {
   currency: string;
   minor_units: number;
   amount: number;
+  /** Amount normalized to an average month, in minor units (from the API). */
+  monthly_amount: number;
   interval_unit: IntervalUnit;
   interval_count: number;
   start_on: string;

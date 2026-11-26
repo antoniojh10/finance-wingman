@@ -9,6 +9,7 @@ import { RecurringSummary } from "@/components/recurring/recurring-summary";
 import { SuggestionsList } from "@/components/recurring/suggestions-list";
 import { Button } from "@/components/ui/button";
 import { today } from "@/lib/dates";
+import { parseRecurringFilters } from "@/lib/recurring-filters";
 import { authedApi, expectData, showAccountOwners } from "@/lib/session";
 import { toAccountOption, toCategoryOption } from "@/lib/view-models";
 
@@ -17,7 +18,12 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: t("title") };
 }
 
-export default async function SubscriptionsPage() {
+export default async function SubscriptionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { status } = parseRecurringFilters(await searchParams);
   const t = await getTranslations("subscriptions");
   const api = await authedApi();
   const [itemsRes, summaryRes, suggestionsRes, accountsRes, categoriesRes, showOwners] = await Promise.all([
@@ -58,6 +64,7 @@ export default async function SubscriptionsPage() {
           accounts={accounts}
           categories={categories}
           defaultDate={defaultDate}
+          status={status}
         />
       </div>
     </>

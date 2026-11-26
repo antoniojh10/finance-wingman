@@ -137,12 +137,19 @@ test("creates, edits and pauses a subscription", async ({ page }, testInfo) => {
   await row.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Pause" }).click();
   await expect(page.getByText("Subscription paused")).toBeVisible();
+  // Paused items leave the default (Active) view and show up under Paused.
+  await expect(row).toBeHidden();
+  await page.getByRole("button", { name: /^Paused/ }).click();
+  await expect(page).toHaveURL(/status=paused/);
   await expect(row).toContainText("Paused");
 
   // Clean up: cancel it so it stops counting.
   await row.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
+  await expect(row).toBeHidden();
+  await page.getByRole("button", { name: /^Cancelled/ }).click();
+  await expect(page).toHaveURL(/status=cancelled/);
   await expect(row).toContainText("Cancelled");
 });
 
@@ -197,6 +204,8 @@ test("registers a subscription payment from the dashboard", async ({ page }, tes
   await listRow.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
+  await expect(listRow).toBeHidden();
+  await page.getByRole("button", { name: /^Cancelled/ }).click();
   await expect(listRow).toContainText("Cancelled");
 });
 
@@ -267,6 +276,8 @@ test("accepts a detected subscription and sees its linked transactions", async (
   await listRow.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
+  await expect(listRow).toBeHidden();
+  await page.getByRole("button", { name: /^Cancelled/ }).click();
   await expect(listRow).toContainText("Cancelled");
 });
 
@@ -328,5 +339,7 @@ test("links and unlinks a transaction to a subscription", async ({ page }, testI
   await listRow.getByRole("button", { name: "Actions" }).click();
   await page.getByRole("menuitem", { name: "Cancel subscription" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Cancel subscription" }).click();
+  await expect(listRow).toBeHidden();
+  await page.getByRole("button", { name: /^Cancelled/ }).click();
   await expect(listRow).toContainText("Cancelled");
 });
