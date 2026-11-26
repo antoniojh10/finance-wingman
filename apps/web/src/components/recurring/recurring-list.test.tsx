@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@/test/render";
 
 import type { RecurringRow } from "./recurring-dialog";
-import { RecurringList, monthlyCost, sortItems } from "./recurring-list";
+import { RecurringList, sortItems } from "./recurring-list";
 import type { StatusFilter } from "@/lib/recurring-filters";
 
 const replace = vi.fn();
@@ -32,6 +32,7 @@ const row = (overrides: Partial<RecurringRow>): RecurringRow => ({
   currency: "MXN",
   minor_units: 2,
   amount: 19900,
+  monthly_amount: 19900,
   interval_unit: "month",
   interval_count: 1,
   start_on: "2026-10-05",
@@ -45,7 +46,7 @@ const items = [
   row({ id: "c", name: "Old gym", status: "cancelled", next_due_on: null }),
   row({ id: "p", name: "Paused thing", status: "paused" }),
   row({ id: "a", name: "Netflix" }),
-  row({ id: "i", name: "Rent income", type: "income", amount: 800000, interval_count: 2, interval_unit: "week", category_name: null }),
+  row({ id: "i", name: "Rent income", type: "income", amount: 800000, monthly_amount: 1733333, interval_count: 2, interval_unit: "week", category_name: null }),
 ];
 const accounts = [{ id: "mxn", name: "Checking", currency: "MXN", minor_units: 2, archived: false }];
 
@@ -77,11 +78,10 @@ describe("sortItems", () => {
 
   it("sorts by monthly cost, highest first", () => {
     const list = [
-      row({ id: "y", amount: 120000, interval_unit: "year" }),
-      row({ id: "m", amount: 5000 }),
-      row({ id: "w", amount: 2000, interval_unit: "week" }),
+      row({ id: "y", amount: 120000, monthly_amount: 10000, interval_unit: "year" }),
+      row({ id: "m", amount: 5000, monthly_amount: 5000 }),
+      row({ id: "w", amount: 2000, monthly_amount: 8667, interval_unit: "week" }),
     ];
-    expect(monthlyCost(list[0])).toBe(10000);
     expect(sortItems(list, "amount", "en").map((i) => i.id)).toEqual(["y", "w", "m"]);
   });
 
@@ -154,7 +154,7 @@ describe("RecurringList", () => {
   });
 
   it("sorts with the select", async () => {
-    const user = renderList([row({ id: "a", name: "Zed", amount: 100 }), row({ id: "b", name: "Abe", amount: 900 })]);
+    const user = renderList([row({ id: "a", name: "Zed", amount: 100, monthly_amount: 100 }), row({ id: "b", name: "Abe", amount: 900, monthly_amount: 900 })]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Sort" }), "name");
     expect(names()).toEqual(["Abe", "Zed"]);
     await user.selectOptions(screen.getByRole("combobox", { name: "Sort" }), "amount");

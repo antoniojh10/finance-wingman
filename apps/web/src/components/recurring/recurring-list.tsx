@@ -29,18 +29,12 @@ type Sort = "due" | "amount" | "name";
 const sorts: Sort[] = ["due", "amount", "name"];
 const statusOrder: Record<RecurringStatus, number> = { active: 0, paused: 1, cancelled: 2 };
 
-/** Cost per month of one item, in its currency's minor units. */
-export function monthlyCost(item: RecurringRow): number {
-  const perMonth = { week: 52 / 12, month: 1, year: 1 / 12 }[item.interval_unit];
-  return (item.amount * perMonth) / item.interval_count;
-}
-
 /** Orders items by status (active first) and then by the chosen sort. */
 export function sortItems(items: RecurringRow[], sort: Sort, locale: string): RecurringRow[] {
   const compare: Record<Sort, (a: RecurringRow, b: RecurringRow) => number> = {
     // Items without a next due date go last.
     due: (a, b) => (a.next_due_on ?? "9999-12-31").localeCompare(b.next_due_on ?? "9999-12-31"),
-    amount: (a, b) => monthlyCost(b) - monthlyCost(a),
+    amount: (a, b) => b.monthly_amount - a.monthly_amount,
     name: (a, b) => a.name.localeCompare(b.name, locale),
   };
   return [...items].sort((a, b) => statusOrder[a.status] - statusOrder[b.status] || compare[sort](a, b));
