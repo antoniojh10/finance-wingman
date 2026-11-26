@@ -289,6 +289,15 @@
     "editTitle": "Edit subscription",
     "empty": "No subscriptions yet. Add the recurring bills and income you want to keep track of.",
     "emptyFilter": "Nothing here with this filter.",
+    "statusAll": "All",
+    "sortLabel": "Sort",
+    "sort": {
+      "due": "Next due",
+      "amount": "Monthly cost",
+      "name": "Name"
+    },
+    "hiddenNote": "{count} paused or cancelled hidden",
+    "showAll": "Show all",
     "filterLabel": "Show",
     "name": "Name",
     "namePlaceholder": "e.g. Netflix",
@@ -298,7 +307,7 @@
       "income": "Income"
     },
     "filters": {
-      "all": "All",
+      "all": "All types",
       "expense": "Expenses",
       "income": "Income"
     },
