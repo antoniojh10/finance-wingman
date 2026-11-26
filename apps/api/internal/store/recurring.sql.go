@@ -110,7 +110,8 @@ SELECT
     a.currency,
     a.archived_at AS account_archived_at,
     cur.minor_units,
-    c.name AS category_name
+    c.name AS category_name,
+    c.color AS category_color
 FROM recurring_items r
 JOIN accounts a ON a.id = r.account_id
 JOIN currencies cur ON cur.code = a.currency
@@ -140,6 +141,7 @@ type GetRecurringItemRow struct {
 	AccountArchivedAt *time.Time
 	MinorUnits        int16
 	CategoryName      *string
+	CategoryColor     *string
 }
 
 func (q *Queries) GetRecurringItem(ctx context.Context, id uuid.UUID) (GetRecurringItemRow, error) {
@@ -167,6 +169,7 @@ func (q *Queries) GetRecurringItem(ctx context.Context, id uuid.UUID) (GetRecurr
 		&i.AccountArchivedAt,
 		&i.MinorUnits,
 		&i.CategoryName,
+		&i.CategoryColor,
 	)
 	return i, err
 }
@@ -287,7 +290,8 @@ SELECT
     a.currency,
     a.archived_at AS account_archived_at,
     cur.minor_units,
-    c.name AS category_name
+    c.name AS category_name,
+    c.color AS category_color
 FROM recurring_items r
 JOIN accounts a ON a.id = r.account_id
 JOIN currencies cur ON cur.code = a.currency
@@ -324,6 +328,7 @@ type ListRecurringItemsRow struct {
 	AccountArchivedAt *time.Time
 	MinorUnits        int16
 	CategoryName      *string
+	CategoryColor     *string
 }
 
 func (q *Queries) ListRecurringItems(ctx context.Context, arg ListRecurringItemsParams) ([]ListRecurringItemsRow, error) {
@@ -357,6 +362,7 @@ func (q *Queries) ListRecurringItems(ctx context.Context, arg ListRecurringItems
 			&i.AccountArchivedAt,
 			&i.MinorUnits,
 			&i.CategoryName,
+			&i.CategoryColor,
 		); err != nil {
 			return nil, err
 		}

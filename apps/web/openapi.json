@@ -4339,9 +4339,58 @@
         ],
         "type": "object"
       },
+      "RecurringCategoryTotal": {
+        "additionalProperties": false,
+        "properties": {
+          "category_color": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_id": {
+            "description": "Null for the uncategorized bucket",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "category_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "count": {
+            "description": "Active recurring expenses included",
+            "format": "int64",
+            "type": "integer"
+          },
+          "expense": {
+            "description": "Committed monthly expenses of the category, in minor units",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "category_id",
+          "category_name",
+          "category_color",
+          "expense",
+          "count"
+        ],
+        "type": "object"
+      },
       "RecurringCurrencySummary": {
         "additionalProperties": false,
         "properties": {
+          "categories": {
+            "description": "Committed monthly expenses per category, largest first; the uncategorized bucket is last. Income is excluded",
+            "items": {
+              "$ref": "#/components/schemas/RecurringCategoryTotal"
+            },
+            "type": "array"
+          },
           "currency": {
             "examples": [
               "MXN"
@@ -4388,7 +4437,8 @@
           "income",
           "net",
           "expense_count",
-          "income_count"
+          "income_count",
+          "categories"
         ],
         "type": "object"
       },
@@ -4414,6 +4464,13 @@
             "description": "Estimated amount of each occurrence, in minor units",
             "format": "int64",
             "type": "integer"
+          },
+          "category_color": {
+            "description": "Color of the category; null when uncategorized or the category has no color",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "category_id": {
             "type": [
@@ -4541,6 +4598,7 @@
           "minor_units",
           "category_id",
           "category_name",
+          "category_color",
           "amount",
           "monthly_amount",
           "notes",

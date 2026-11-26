@@ -45,6 +45,7 @@ type RecurringItem struct {
 	MinorUnits    int               `json:"minor_units" example:"2"`
 	CategoryID    *uuid.UUID        `json:"category_id" nullable:"true"`
 	CategoryName  *string           `json:"category_name"`
+	CategoryColor *string           `json:"category_color" nullable:"true" doc:"Color of the category; null when uncategorized or the category has no color"`
 	Amount        int64             `json:"amount" doc:"Estimated amount of each occurrence, in minor units"`
 	MonthlyAmount int64             `json:"monthly_amount" doc:"Amount normalized to an average month, in minor units (rounded half up)"`
 	Notes         string            `json:"notes"`
@@ -105,6 +106,18 @@ type RecurringCurrencySummary struct {
 	Net          int64  `json:"net" doc:"Income minus expenses"`
 	ExpenseCount int    `json:"expense_count" doc:"Active recurring expenses included"`
 	IncomeCount  int    `json:"income_count" doc:"Active recurring incomes included"`
+
+	Categories []RecurringCategoryTotal `json:"categories" doc:"Committed monthly expenses per category, largest first; the uncategorized bucket is last. Income is excluded"`
+}
+
+// RecurringCategoryTotal is the committed monthly expense of one category
+// (or of the uncategorized bucket, where the category fields are null).
+type RecurringCategoryTotal struct {
+	CategoryID    *uuid.UUID `json:"category_id" nullable:"true" doc:"Null for the uncategorized bucket"`
+	CategoryName  *string    `json:"category_name" nullable:"true"`
+	CategoryColor *string    `json:"category_color" nullable:"true"`
+	Expense       int64      `json:"expense" doc:"Committed monthly expenses of the category, in minor units"`
+	Count         int        `json:"count" doc:"Active recurring expenses included"`
 }
 
 // RecurringSummary is the committed monthly cost of all active items,
@@ -131,6 +144,7 @@ func (s *Service) recurringFromRow(r store.GetRecurringItemRow) RecurringItem {
 		MinorUnits:    int(r.MinorUnits),
 		CategoryID:    r.CategoryID,
 		CategoryName:  r.CategoryName,
+		CategoryColor: r.CategoryColor,
 		Amount:        r.Amount,
 		MonthlyAmount: MonthlyAmount(r.Amount, r.IntervalUnit, int(r.IntervalCount)),
 		Notes:         r.Notes,
@@ -460,11 +474,13 @@ func (s *Service) RecurringSummary(ctx context.Context) (RecurringSummary, error
 		return RecurringSummary{}, err
 	}
 	byCurrency := map[string]*RecurringCurrencySummary{}
+	byCategory := map[string]map[uuid.UUID]*RecurringCategoryTotal{}
 	for _, it := range items {
 		cs, ok := byCurrency[it.Currency]
 		if !ok {
-			cs = &RecurringCurrencySummary{Currency: it.Currency, MinorUnits: it.MinorUnits}
+			cs = &RecurringCurrencySummary{Currency: it.Currency, MinorUnits: it.MinorUnits, Categories: []RecurringCategoryTotal{}}
 			byCurrency[it.Currency] = cs
+			byCategory[it.Currency] = map[uuid.UUID]*RecurringCategoryTotal{}
 		}
 		if it.Type == TypeIncome {
 			cs.Income += it.MonthlyAmount
@@ -472,11 +488,35 @@ func (s *Service) RecurringSummary(ctx context.Context) (RecurringSummary, error
 		} else {
 			cs.Expense += it.MonthlyAmount
 			cs.ExpenseCount++
+			var key uuid.UUID // uuid.Nil is the uncategorized bucket
+			if it.CategoryID != nil {
+				key = *it.CategoryID
+			}
+			ct, ok := byCategory[it.Currency][key]
+			if !ok {
+				ct = &RecurringCategoryTotal{CategoryID: it.CategoryID, CategoryName: it.CategoryName, CategoryColor: it.CategoryColor}
+				byCategory[it.Currency][key] = ct
+			}
+			ct.Expense += it.MonthlyAmount
+			ct.Count++
 		}
 	}
 	out := RecurringSummary{Currencies: make([]RecurringCurrencySummary, 0, len(byCurrency))}
 	for _, cs := range byCurrency {
 		cs.Net = cs.Income - cs.Expense
+		for _, ct := range byCategory[cs.Currency] {
+			cs.Categories = append(cs.Categories, *ct)
+		}
+		sort.Slice(cs.Categories, func(i, j int) bool {
+			a, b := cs.Categories[i], cs.Categories[j]
+			if (a.CategoryID == nil) != (b.CategoryID == nil) {
+				return b.CategoryID == nil
+			}
+			if a.Expense != b.Expense {
+				return a.Expense > b.Expense
+			}
+			return strings.ToLower(deref(a.CategoryName)) < strings.ToLower(deref(b.CategoryName))
+		})
 		out.Currencies = append(out.Currencies, *cs)
 	}
 	sort.Slice(out.Currencies, func(i, j int) bool { return out.Currencies[i].Currency < out.Currencies[j].Currency })
