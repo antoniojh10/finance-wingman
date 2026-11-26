@@ -28,7 +28,7 @@ export function RecurringSummary({ currencies }: { currencies: RecurringCurrency
   return (
     <section aria-label={t("committed")} className="grid grid-cols-1 gap-3">
       <h2 className="text-[13px] font-bold tracking-wider text-muted-foreground uppercase">{t("committed")}</h2>
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3">
         {currencies.map((c, index) => {
           const rows = [
             { key: "expenses", amount: c.expense },

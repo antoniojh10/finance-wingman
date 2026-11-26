@@ -384,7 +384,18 @@
       "dismissedToast": "Sugerencia descartada"
     },
     "dueOn": "Vence el {date}",
-    "lastPaid": "Último pago: {date}"
+    "lastPaid": "Último pago: {date}",
+    "breakdownTitle": "Adónde va",
+    "breakdownHint": "Gastos activos, por mes. Selecciona uno para filtrar.",
+    "breakdownCurrency": "Moneda",
+    "breakdownEmpty": "No hay gastos activos en {currency}.",
+    "itemCount": "{count, plural, one {# elemento} other {# elementos}}",
+    "uncategorized": "Sin categoría",
+    "groupByCategory": "Agrupar por categoría",
+    "categoryFilter": "Categoría:",
+    "clearCategory": "Quitar filtro de categoría",
+    "notCounted": "No cuenta",
+    "yearlyEquivalent": "/ año"
   },
   "workspaces": {
     "label": "Espacio",

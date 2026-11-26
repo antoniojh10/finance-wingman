@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@/test/render";
 
 import type { RecurringRow } from "./recurring-dialog";
-import { RecurringItemRow, RecurringList, sortItems } from "./recurring-list";
+import { RecurringItemRow, RecurringList, groupByCategory, sortItems } from "./recurring-list";
 import type { StatusFilter } from "@/lib/recurring-filters";
 
 const replace = vi.fn();
@@ -51,8 +51,10 @@ const items = [
 ];
 const accounts = [{ id: "mxn", name: "Checking", currency: "MXN", minor_units: 2, archived: false }];
 
-function renderList(list = items, status?: StatusFilter) {
-  renderWithIntl(<RecurringList items={list} accounts={accounts} categories={[]} defaultDate="2026-10-05" status={status} />);
+function renderList(list = items, status?: StatusFilter, extra: { category?: string; group?: boolean } = {}) {
+  renderWithIntl(
+    <RecurringList items={list} accounts={accounts} categories={[]} defaultDate="2026-10-05" status={status} group={false} {...extra} />,
+  );
   return userEvent.setup();
 }
 
@@ -142,7 +144,7 @@ describe("RecurringList", () => {
     const user = renderList();
     expect(screen.getByTestId("hidden-note")).toHaveTextContent("2 paused or cancelled hidden");
     await user.click(screen.getByRole("button", { name: "Show all" }));
-    expect(replace).toHaveBeenCalledWith("/subscriptions?status=all", { scroll: false });
+    expect(replace).toHaveBeenCalledWith("/subscriptions?status=all&group=0", { scroll: false });
     expect(screen.getAllByTestId("recurring-row")).toHaveLength(4);
     expect(screen.queryByTestId("hidden-note")).not.toBeInTheDocument();
   });
@@ -156,9 +158,9 @@ describe("RecurringList", () => {
     const user = renderList();
     await user.click(screen.getByRole("button", { name: "Paused 1" }));
     expect(names()).toEqual(["Paused thing"]);
-    expect(replace).toHaveBeenLastCalledWith("/subscriptions?status=paused", { scroll: false });
+    expect(replace).toHaveBeenLastCalledWith("/subscriptions?status=paused&group=0", { scroll: false });
     await user.click(screen.getByRole("button", { name: "Active 2" }));
-    expect(replace).toHaveBeenLastCalledWith("/subscriptions", { scroll: false });
+    expect(replace).toHaveBeenLastCalledWith("/subscriptions?group=0", { scroll: false });
     expect(screen.getAllByTestId("recurring-row")).toHaveLength(2);
   });
 
@@ -281,5 +283,104 @@ describe("RecurringList", () => {
   it("shows an empty state", () => {
     renderList([]);
     expect(screen.getByText(/No subscriptions yet/)).toBeInTheDocument();
+  });
+});
+
+const home = { category_id: "home", category_name: "Home", category_color: "#ffb020" };
+const fun = { category_id: "fun", category_name: "Fun", category_color: "#f05aa6" };
+const none = { category_id: null, category_name: null, category_color: null };
+const grouped = [
+  row({ id: "n", name: "Netflix", ...fun, amount: 1000, monthly_amount: 1000 }),
+  row({ id: "r", name: "Rent", ...home, amount: 90000, monthly_amount: 90000 }),
+  row({ id: "e", name: "Electricity", ...home, amount: 10000, monthly_amount: 10000 }),
+  row({ id: "u", name: "Coffee", ...none, amount: 5000, monthly_amount: 5000 }),
+  row({ id: "g", name: "Old gym", status: "paused", category_id: "gym", category_name: "Health", category_color: "#12a150", amount: 3000, monthly_amount: 3000 }),
+  row({ id: "d", name: "Domain", ...fun, amount: 12000, monthly_amount: 1000, interval_unit: "year" }),
+];
+
+describe("groupByCategory", () => {
+  it("orders by active monthly amount, uncategorized after, groups without active items last", () => {
+    const groups = groupByCategory(grouped, "due", "en");
+    expect(groups.map((g) => g.name)).toEqual(["Home", "Fun", null, "Health"]);
+    expect(groups[0].totals).toEqual([{ currency: "MXN", minor_units: 2, monthly: 100000 }]);
+    expect(groups[1].totals[0].monthly).toBe(2000);
+    expect(groups[3].totals).toEqual([]);
+  });
+
+  it("puts income-only groups after the expense groups", () => {
+    const salary = row({ id: "s", type: "income", category_id: "sal", category_name: "Salary", category_color: null, monthly_amount: 999999 });
+    expect(groupByCategory([salary, ...grouped], "due", "en").map((g) => g.name)).toEqual(["Home", "Fun", null, "Salary", "Health"]);
+  });
+
+  it("totals each currency apart", () => {
+    const usd = row({ id: "x", ...home, currency: "USD", monthly_amount: 700 });
+    const [group] = groupByCategory([row({ id: "y", ...home, monthly_amount: 5000 }), usd], "due", "en");
+    expect(group.totals).toEqual([
+      { currency: "MXN", minor_units: 2, monthly: 5000 },
+      { currency: "USD", minor_units: 2, monthly: 700 },
+    ]);
+  });
+});
+
+describe("RecurringList grouping and category filter", () => {
+  it("groups by category with subtotals and no pill in the rows", () => {
+    renderList(grouped, "active", { group: true });
+    const groups = screen.getAllByTestId("recurring-group");
+    expect(groups.map((g) => g.getAttribute("aria-label"))).toEqual(["Home", "Fun", "Uncategorized"]);
+    const totals = within(groups[0]).getByTestId("group-total");
+    expect(totals).toHaveTextContent("MX$1,000.00 / mo");
+    expect(totals).toHaveTextContent("MX$12,000.00 / yr");
+    expect(within(groups[0]).getAllByTestId("recurring-row")).toHaveLength(2);
+    // The only pill in a group is the one in its header.
+    expect(within(groups[0]).getAllByTestId("category-pill")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Group by category" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("puts groups with only paused items last, as not counted", () => {
+    renderList(grouped, "all", { group: true });
+    const groups = screen.getAllByTestId("recurring-group");
+    expect(groups.map((g) => g.getAttribute("aria-label"))).toEqual(["Home", "Fun", "Uncategorized", "Health"]);
+    expect(within(groups[3]).getByTestId("group-total")).toHaveTextContent("Not counted");
+  });
+
+  it("shows a flat list with pills when grouping is off", () => {
+    renderList(grouped, "active");
+    expect(screen.queryByTestId("recurring-group")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("category-pill").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Group by category" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("toggles the grouping in the URL, keeping the other filters", async () => {
+    const user = renderList(grouped, "all", { category: "home", group: true });
+    await user.click(screen.getByRole("button", { name: "Group by category" }));
+    expect(replace).toHaveBeenCalledWith("/subscriptions?status=all&category=home&group=0", { scroll: false });
+  });
+
+  it("turns grouping back on", async () => {
+    const user = renderList(grouped, undefined, { group: false });
+    await user.click(screen.getByRole("button", { name: "Group by category" }));
+    expect(replace).toHaveBeenCalledWith("/subscriptions", { scroll: false });
+  });
+
+  it("filters by category and shows a chip that clears it", async () => {
+    const user = renderList(grouped, "active", { category: "home" });
+    expect(screen.getAllByTestId("recurring-row")).toHaveLength(2);
+    const chip = screen.getByTestId("category-chip");
+    expect(chip).toHaveTextContent("Category:");
+    expect(within(chip).getByTestId("category-pill")).toHaveTextContent("Home");
+    await user.click(within(chip).getByRole("button", { name: "Clear category filter" }));
+    expect(replace).toHaveBeenCalledWith("/subscriptions?group=0", { scroll: false });
+  });
+
+  it("filters uncategorized items with none", () => {
+    renderList(grouped, "active", { category: "none" });
+    expect(screen.getAllByTestId("recurring-row")).toHaveLength(1);
+    expect(screen.getByTestId("category-chip")).toHaveTextContent("Uncategorized");
+  });
+
+  it("keeps the category when the status changes", async () => {
+    const user = renderList(grouped, "active", { category: "fun" });
+    await user.click(screen.getByRole("button", { name: /^Paused/ }));
+    expect(replace).toHaveBeenCalledWith("/subscriptions?status=paused&category=fun&group=0", { scroll: false });
   });
 });

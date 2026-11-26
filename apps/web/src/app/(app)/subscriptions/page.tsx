@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PageHeader } from "@/components/page-header";
 import { RecurringDialog } from "@/components/recurring/recurring-dialog";
+import { CategoryBreakdown } from "@/components/recurring/category-breakdown";
 import { RecurringList } from "@/components/recurring/recurring-list";
 import { RecurringSummary } from "@/components/recurring/recurring-summary";
 import { SuggestionsList } from "@/components/recurring/suggestions-list";
@@ -23,7 +24,7 @@ export default async function SubscriptionsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { status } = parseRecurringFilters(await searchParams);
+  const filters = parseRecurringFilters(await searchParams);
   const t = await getTranslations("subscriptions");
   const api = await authedApi();
   const [itemsRes, summaryRes, suggestionsRes, accountsRes, categoriesRes, showOwners] = await Promise.all([
@@ -36,6 +37,7 @@ export default async function SubscriptionsPage({
   ]);
   const accounts = expectData(accountsRes).items.map((a) => toAccountOption(a, showOwners));
   const categories = expectData(categoriesRes).items.map(toCategoryOption);
+  const summary = expectData(summaryRes);
   const defaultDate = today(process.env.APP_TIMEZONE);
 
   return (
@@ -57,14 +59,19 @@ export default async function SubscriptionsPage({
         }
       />
       <div className="grid grid-cols-1 gap-6">
-        <RecurringSummary currencies={expectData(summaryRes).currencies} />
+        <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)]">
+          <RecurringSummary currencies={summary.currencies} />
+          <CategoryBreakdown currencies={summary.currencies} filters={filters} className="lg:mt-8" />
+        </div>
         <SuggestionsList suggestions={expectData(suggestionsRes).items} />
         <RecurringList
           items={expectData(itemsRes).items}
           accounts={accounts}
           categories={categories}
           defaultDate={defaultDate}
-          status={status}
+          status={filters.status}
+          category={filters.category}
+          group={filters.group}
         />
       </div>
     </>
