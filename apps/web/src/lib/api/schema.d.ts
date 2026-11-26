@@ -3198,7 +3198,25 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        RecurringCategoryTotal: {
+            category_color: string | null;
+            /** @description Null for the uncategorized bucket */
+            category_id: string | null;
+            category_name: string | null;
+            /**
+             * Format: int64
+             * @description Active recurring expenses included
+             */
+            count: number;
+            /**
+             * Format: int64
+             * @description Committed monthly expenses of the category, in minor units
+             */
+            expense: number;
+        };
         RecurringCurrencySummary: {
+            /** @description Committed monthly expenses per category, largest first; the uncategorized bucket is last. Income is excluded */
+            categories: components["schemas"]["RecurringCategoryTotal"][];
             /** @example MXN */
             currency: string;
             /**
@@ -3246,6 +3264,8 @@ export interface components {
              * @description Estimated amount of each occurrence, in minor units
              */
             amount: number;
+            /** @description Color of the category; null when uncategorized or the category has no color */
+            category_color: string | null;
             category_id: string | null;
             category_name: string | null;
             /** Format: date-time */
