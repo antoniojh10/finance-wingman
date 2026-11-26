@@ -2,6 +2,7 @@
 
 import { BanIcon, PauseIcon, PencilIcon, PlayIcon, RotateCcwIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -9,25 +10,35 @@ import { setRecurringStatus } from "@/app/actions/recurring";
 import { CategoryPill } from "@/components/categories/category-pill";
 import { ConfirmAction } from "@/components/confirm-action";
 import { Money } from "@/components/money";
+import { NativeSelect } from "@/components/native-select";
 import { RowActions } from "@/components/row-actions";
 import type { AccountOption, CategoryOption } from "@/components/transactions/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "@/lib/dates";
 import type { RecurringStatus, RecurringType } from "@/lib/recurring";
+import { type StatusFilter, recurringFiltersHref, statusFilters } from "@/lib/recurring-filters";
 import { cn } from "@/lib/utils";
 
 import { PaymentStatusBadge } from "./payment-status-badge";
 import { RecurringDialog, type RecurringRow } from "./recurring-dialog";
 import { RegisterPaymentDialog } from "./register-payment-dialog";
 
-type Filter = "all" | RecurringType;
-const filters: Filter[] = ["all", "expense", "income"];
+type TypeFilter = "all" | RecurringType;
+const typeFilters: TypeFilter[] = ["all", "expense", "income"];
+type Sort = "due" | "amount" | "name";
+const sorts: Sort[] = ["due", "amount", "name"];
 const statusOrder: Record<RecurringStatus, number> = { active: 0, paused: 1, cancelled: 2 };
 
-/** Active items first, then paused, then cancelled; keeps the API order within each. */
-export function sortByStatus(items: RecurringRow[]): RecurringRow[] {
-  return [...items].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+/** Orders items by status (active first) and then by the chosen sort. */
+export function sortItems(items: RecurringRow[], sort: Sort, locale: string): RecurringRow[] {
+  const compare: Record<Sort, (a: RecurringRow, b: RecurringRow) => number> = {
+    // Items without a next due date go last.
+    due: (a, b) => (a.next_due_on ?? "9999-12-31").localeCompare(b.next_due_on ?? "9999-12-31"),
+    amount: (a, b) => b.monthly_amount - a.monthly_amount,
+    name: (a, b) => a.name.localeCompare(b.name, locale),
+  };
+  return [...items].sort((a, b) => statusOrder[a.status] - statusOrder[b.status] || compare[sort](a, b));
 }
 
 export function RecurringList({
@@ -35,38 +46,93 @@ export function RecurringList({
   accounts,
   categories,
   defaultDate,
+  status: statusFromUrl = "active",
 }: {
   items: RecurringRow[];
   accounts: AccountOption[];
   categories: CategoryOption[];
   defaultDate: string;
+  /** Status filter read from the URL by the page. */
+  status?: StatusFilter;
 }) {
   const t = useTranslations("subscriptions");
-  const [filter, setFilter] = useState<Filter>("all");
+  const locale = useLocale();
+  const router = useRouter();
+  const [status, setStatus] = useState(statusFromUrl);
+  const [lastUrlStatus, setLastUrlStatus] = useState(statusFromUrl);
+  const [type, setType] = useState<TypeFilter>("all");
+  const [sort, setSort] = useState<Sort>("due");
+
+  // Follow the URL when it changes from outside (e.g. a link to ?status=paused).
+  if (statusFromUrl !== lastUrlStatus) {
+    setLastUrlStatus(statusFromUrl);
+    setStatus(statusFromUrl);
+  }
+
+  function changeStatus(next: StatusFilter) {
+    setStatus(next);
+    router.replace(recurringFiltersHref({ status: next }), { scroll: false });
+  }
 
   if (items.length === 0) {
     return <p className="rounded-3xl bg-card py-10 text-center text-sm text-muted-foreground">{t("empty")}</p>;
   }
 
-  const visible = sortByStatus(items).filter((item) => filter === "all" || item.type === filter);
+  const counts: Record<StatusFilter, number> = {
+    active: items.filter((i) => i.status === "active").length,
+    paused: items.filter((i) => i.status === "paused").length,
+    cancelled: items.filter((i) => i.status === "cancelled").length,
+    all: items.length,
+  };
+  const ofType = items.filter((item) => type === "all" || item.type === type);
+  const visible = sortItems(
+    ofType.filter((item) => status === "all" || item.status === status),
+    sort,
+    locale,
+  );
+  const hidden = status === "active" ? ofType.filter((item) => item.status !== "active").length : 0;
 
   return (
     <div className="grid grid-cols-1 gap-3">
-      <div role="group" aria-label={t("filterLabel")} className="flex flex-wrap gap-2">
-        {filters.map((value) => (
-          <button
-            key={value}
-            type="button"
-            aria-pressed={filter === value}
-            onClick={() => setFilter(value)}
-            className={cn(
-              "min-h-11 rounded-[14px] border-2 px-3.5 text-sm font-semibold transition-colors",
-              filter === value ? "border-primary bg-primary/8" : "border-border bg-card hover:border-foreground/25",
-            )}
-          >
-            {t(`filters.${value}`)}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-x-3.5 gap-y-2.5">
+        <div
+          role="group"
+          aria-label={t("filterLabel")}
+          className="inline-flex flex-wrap gap-0.5 rounded-[14px] border border-border bg-card p-[3px]"
+        >
+          {statusFilters.map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={status === value}
+              onClick={() => changeStatus(value)}
+              className={cn(
+                "inline-flex min-h-9 items-center gap-1.5 rounded-[11px] px-3 text-sm font-semibold transition-colors",
+                status === value ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {value === "all" ? t("statusAll") : t(`status.${value}`)}
+              {" "}
+              <span className="text-xs font-bold opacity-75">{counts[value]}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <NativeSelect aria-label={t("type")} value={type} onChange={(e) => setType(e.target.value as TypeFilter)} className="h-9 text-sm">
+            {typeFilters.map((value) => (
+              <option key={value} value={value}>
+                {t(`filters.${value}`)}
+              </option>
+            ))}
+          </NativeSelect>
+          <NativeSelect aria-label={t("sortLabel")} value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="h-9 text-sm">
+            {sorts.map((value) => (
+              <option key={value} value={value}>
+                {t(`sort.${value}`)}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
       </div>
       {visible.length === 0 ? (
         <p className="rounded-3xl bg-card py-10 text-center text-sm text-muted-foreground">{t("emptyFilter")}</p>
@@ -76,6 +142,14 @@ export function RecurringList({
             <RecurringItemRow key={item.id} item={item} accounts={accounts} categories={categories} defaultDate={defaultDate} />
           ))}
         </ul>
+      )}
+      {hidden > 0 && (
+        <p className="flex flex-wrap items-center justify-center gap-1.5 text-sm text-muted-foreground" data-testid="hidden-note">
+          {t("hiddenNote", { count: hidden })}
+          <Button variant="link" size="sm" onClick={() => changeStatus("all")}>
+            {t("showAll")}
+          </Button>
+        </p>
       )}
     </div>
   );
