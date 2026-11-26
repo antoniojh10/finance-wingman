@@ -123,12 +123,19 @@ type markRecurringPaidOut struct {
 }
 
 type committedOut struct {
-	Currency     string `json:"currency"`
-	Expense      string `json:"expense"`
-	Income       string `json:"income"`
-	Net          string `json:"net"`
-	ExpenseCount int    `json:"expense_count"`
-	IncomeCount  int    `json:"income_count"`
+	Currency     string              `json:"currency"`
+	Expense      string              `json:"expense"`
+	Income       string              `json:"income"`
+	Net          string              `json:"net"`
+	ExpenseCount int                 `json:"expense_count"`
+	IncomeCount  int                 `json:"income_count"`
+	ByCategory   []committedCategory `json:"by_category"`
+}
+
+type committedCategory struct {
+	Category       string `json:"category"`
+	MonthlyExpense string `json:"monthly_expense"`
+	Count          int    `json:"count"`
 }
 
 type listRecurringOut struct {
@@ -140,7 +147,7 @@ func (s *Server) registerRecurringTools() {
 	addTool(s, &mcp.Tool{
 		Name:        "list_recurring",
 		Title:       "List recurring items",
-		Description: "List subscriptions, bills, installments and recurring income (users may call them subscriptions) with their next due date and status, plus the committed monthly cost per currency (active items only, normalized to an average month, estimates). Use it to answer what subscriptions exist or how much they cost per month.",
+		Description: "List subscriptions, bills, installments and recurring income (users may call them subscriptions) with their next due date and status, plus the committed monthly cost per currency and per expense category (active items only, normalized to an average month, estimates). Use it to answer what subscriptions exist or how much they cost per month.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: boolPtr(false)},
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, args listRecurringArgs) (*mcp.CallToolResult, listRecurringOut, error) {
 		return s.listRecurring(ctx, args)
@@ -236,6 +243,18 @@ func (s *Server) listRecurring(ctx context.Context, args listRecurringArgs) (*mc
 		lines = append(lines, line)
 	}
 	for _, c := range summary.Currencies {
+		byCategory := make([]committedCategory, len(c.Categories))
+		for i, ct := range c.Categories {
+			name := "Uncategorized"
+			if ct.CategoryName != nil {
+				name = *ct.CategoryName
+			}
+			byCategory[i] = committedCategory{
+				Category:       name,
+				MonthlyExpense: money.Format(ct.Expense, c.MinorUnits),
+				Count:          ct.Count,
+			}
+		}
 		out.CommittedMonthly = append(out.CommittedMonthly, committedOut{
 			Currency:     c.Currency,
 			Expense:      money.Format(c.Expense, c.MinorUnits),
@@ -243,6 +262,7 @@ func (s *Server) listRecurring(ctx context.Context, args listRecurringArgs) (*mc
 			Net:          money.Format(c.Net, c.MinorUnits),
 			ExpenseCount: c.ExpenseCount,
 			IncomeCount:  c.IncomeCount,
+			ByCategory:   byCategory,
 		})
 	}
 	if len(lines) == 0 {
